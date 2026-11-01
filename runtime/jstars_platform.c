@@ -326,9 +326,40 @@ enum { WEBAPI_ERR_OUT_OF_MEMORY = (int)0x80552901, WEBAPI_ERR_USER_CONTEXT_NOT_F
 #define WEBAPI_MAX_USER_CTX 8
 #define WEBAPI_MAX_REQUEST 16
 static struct { int used, lib_ctx; char online_id[20]; } g_webapi_user[WEBAPI_MAX_USER_CTX];
-static struct { int used, user_ctx, aborted; int64_t id; } g_webapi_req[WEBAPI_MAX_REQUEST];
+#define WEBAPI_BODY_MAX 512
+static struct {
+    int used, user_ctx, aborted, http_status;
+    int64_t id;
+    char path[160];
+    char body[WEBAPI_BODY_MAX];
+    uint32_t body_len, body_read;
+} g_webapi_req[WEBAPI_MAX_REQUEST];
 static int64_t g_webapi_next_req = 1;
 static __thread int t_webapi_error;
+
+// Requests this machine can answer by itself.
+//
+// The console's WebApi is the HTTP interface to PlayStation Network. There is no account here and no service to
+// ask, so almost every request has no truthful answer and reports NOT_SIGNED_IN. One request does have a
+// truthful local answer: the player's own block list. Nobody can be blocked on a machine with no accounts and
+// no friends service, so the answer is an empty list - that is a fact about this installation, not a reply
+// invented on behalf of a service.
+//
+// Why it matters (probe run 20261101-201845): on entering Online Battle the game asks for
+// 'userProfile' '/v1/users/<online id>/blockList' and, when the request fails, shows an error and starts the
+// whole sign-in sequence again. The empty list lets it carry on to what this project actually needs to
+// implement, which is matching.
+static int webapi_local_answer(const char* path, char* out, uint32_t cap, uint32_t* len) {
+    if (!path) return 0;
+    const char* tail = strrchr(path, '/');
+    if (!tail || strcmp(tail, "/blockList") != 0) return 0;
+    const char* body = "{\"start\":0,\"size\":0,\"totalResults\":0,\"blockList\":[]}";
+    const uint32_t n = (uint32_t)strlen(body);
+    if (n + 1 > cap) return 0;
+    memcpy(out, body, n + 1);
+    *len = n;
+    return 1;
+}
 
 static int GUEST_ABI webapi_create_context(int lib_ctx, const void* online_id) {
     if (lib_ctx <= 0 || lib_ctx >= 0x8000) return WEBAPI_ERR_INVALID_LIB_CONTEXT_ID;
@@ -366,10 +397,14 @@ static int GUEST_ABI webapi_create_request(int user_ctx, const char* api_group, 
             g_webapi_req[i].user_ctx = user_ctx;
             g_webapi_req[i].aborted = 0;
             g_webapi_req[i].id = g_webapi_next_req++;
+            g_webapi_req[i].http_status = 0;
+            g_webapi_req[i].body_len = g_webapi_req[i].body_read = 0;
+            snprintf(g_webapi_req[i].path, sizeof g_webapi_req[i].path, "%s", path ? path : "");
             *request_id = g_webapi_req[i].id;
-            rt_logf("sceNpWebApiCreateRequest(user context %d, '%s' '%s', method %d) -> request %lld (it cannot be sent: "
-                    "there is no PlayStation Network session on this machine)", user_ctx, api_group ? api_group : "",
-                    path ? path : "", method, (long long)*request_id);
+            const int local = webapi_local_answer(g_webapi_req[i].path, g_webapi_req[i].body, WEBAPI_BODY_MAX, &g_webapi_req[i].body_len);
+            rt_logf("sceNpWebApiCreateRequest(user context %d, '%s' '%s', method %d) -> request %lld (%s)", user_ctx,
+                    api_group ? api_group : "", g_webapi_req[i].path, method, (long long)*request_id,
+                    local ? "answered locally; no service is contacted" : "it cannot be sent: there is no PlayStation Network session on this machine");
             return 0;
         }
     return WEBAPI_ERR_OUT_OF_MEMORY;
@@ -383,14 +418,31 @@ static int webapi_req_index(int64_t id) {
 // console's own "not signed in" error rather than inventing a response.
 static int GUEST_ABI webapi_send_request(int64_t request_id, const void* data, uint64_t data_size, void* resp_info) {
     (void)data; (void)data_size; (void)resp_info;
-    if (webapi_req_index(request_id) < 0) return WEBAPI_ERR_REQUEST_NOT_FOUND;
+    const int i = webapi_req_index(request_id);
+    if (i < 0) return WEBAPI_ERR_REQUEST_NOT_FOUND;
+    if (g_webapi_req[i].aborted) { t_webapi_error = WEBAPI_ERR_ABORTED; return WEBAPI_ERR_ABORTED; }
+    if (g_webapi_req[i].body_len) {
+        g_webapi_req[i].http_status = 200;
+        g_webapi_req[i].body_read = 0;
+        t_webapi_error = 0;
+        rt_logf("sceNpWebApiSendRequest(request %lld '%s') -> answered on this machine: %s",
+                (long long)request_id, g_webapi_req[i].path, g_webapi_req[i].body);
+        return 0;
+    }
     t_webapi_error = WEBAPI_ERR_NOT_SIGNED_IN;
     return WEBAPI_ERR_NOT_SIGNED_IN;
 }
+// Reads the response body in pieces, exactly as the console does: the number of bytes copied, then 0 at the end.
 static int GUEST_ABI webapi_read_data(int64_t request_id, void* data, uint64_t size) {
-    (void)data; (void)size;
-    if (webapi_req_index(request_id) < 0) return WEBAPI_ERR_REQUEST_NOT_FOUND;
-    return 0;   // no response was received, so there is nothing to read
+    const int i = webapi_req_index(request_id);
+    if (i < 0) return WEBAPI_ERR_REQUEST_NOT_FOUND;
+    if (!data || !size) return WEBAPI_ERR_INVALID_ARGUMENT;
+    const uint32_t left = g_webapi_req[i].body_len - g_webapi_req[i].body_read;
+    if (!left) return 0;
+    const uint32_t n = size < left ? (uint32_t)size : left;
+    memcpy(data, g_webapi_req[i].body + g_webapi_req[i].body_read, n);
+    g_webapi_req[i].body_read += n;
+    return (int)n;
 }
 static int GUEST_ABI webapi_abort_request(int64_t request_id) {
     const int i = webapi_req_index(request_id);
@@ -408,8 +460,9 @@ static int GUEST_ABI webapi_delete_request(int64_t request_id) {
 static int GUEST_ABI webapi_get_error_code(void) { return t_webapi_error; }
 static int GUEST_ABI webapi_get_http_status(int64_t request_id, int* status) {
     if (!status) return WEBAPI_ERR_INVALID_ARGUMENT;
-    if (webapi_req_index(request_id) < 0) return WEBAPI_ERR_REQUEST_NOT_FOUND;
-    *status = 0;   // no response arrived, so there is no HTTP status
+    const int i = webapi_req_index(request_id);
+    if (i < 0) return WEBAPI_ERR_REQUEST_NOT_FOUND;
+    *status = g_webapi_req[i].http_status;   // 0 when no response arrived
     return 0;
 }
 // Pure text handling, so this one is exact: it reads {"onlineId":"name"} out of a JSON object into an SceNpId.

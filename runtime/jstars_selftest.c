@@ -502,11 +502,26 @@ int rt_selftest_host(const char* scratch_dir) {
             CHECK(F(int, "sceNpWebApiCreateRequest", (int, const char*, const char*, int, const void*, int64_t*))(uc, "sdk:userProfile", "/v1/users/me", 0, NULL, &rid) == 0 && rid > 0,
                   "webapi: a request is created");
             CHECK(F(int, "sceNpWebApiSendRequest", (int64_t, const void*, uint64_t, void*))(rid, NULL, 0, NULL) == (int)0x80552907,
-                  "webapi: sending reports NOT_SIGNED_IN, because this machine has no PlayStation Network session");
+                  "webapi: a request with no local answer reports NOT_SIGNED_IN, because this machine has no PlayStation Network session");
             CHECK(F(int, "sceNpWebApiGetErrorCode", (void))() == (int)0x80552907, "webapi: the last error is readable");
             int http = -1;
             CHECK(F(int, "sceNpWebApiGetHttpStatusCode", (int64_t, int*))(rid, &http) == 0 && http == 0, "webapi: no HTTP status, because no response arrived");
             CHECK(F(int, "sceNpWebApiReadData", (int64_t, void*, uint64_t))(rid, wid, 4) == 0, "webapi: there is no response data to read");
+
+            // The block list is the one request with a truthful local answer: nobody is blocked here.
+            int64_t bid = 0;
+            CHECK(F(int, "sceNpWebApiCreateRequest", (int, const char*, const char*, int, const void*, int64_t*))(uc, "userProfile", "/v1/users/Player/blockList", 0, NULL, &bid) == 0 && bid > 0,
+                  "webapi: a block-list request is created");
+            CHECK(F(int, "sceNpWebApiSendRequest", (int64_t, const void*, uint64_t, void*))(bid, NULL, 0, NULL) == 0,
+                  "webapi: the block-list request is answered on this machine");
+            CHECK(F(int, "sceNpWebApiGetHttpStatusCode", (int64_t, int*))(bid, &http) == 0 && http == 200, "webapi: the local answer carries HTTP 200");
+            char body[128];
+            memset(body, 0, sizeof body);
+            int got_total = 0, chunk;
+            while ((chunk = F(int, "sceNpWebApiReadData", (int64_t, void*, uint64_t))(bid, body + got_total, 8)) > 0) got_total += chunk;
+            CHECK(chunk == 0 && got_total > 0 && strstr(body, "\"blockList\":[]") != NULL,
+                  "webapi: the body reads back in pieces and ends with 0, and the block list is empty");
+            F(int, "sceNpWebApiDeleteRequest", (int64_t))(bid);
             CHECK(F(int, "sceNpWebApiDeleteRequest", (int64_t))(rid) == 0, "webapi: a request is deleted");
             CHECK(F(int, "sceNpWebApiDeleteRequest", (int64_t))(rid) == (int)0x80552906, "webapi: deleting it twice reports REQUEST_NOT_FOUND");
             char parsed[36];
