@@ -481,6 +481,112 @@ static int GUEST_ABI webapi_parse_np_id(const char* json, void* np_id) {
     return 0;
 }
 
+// ---- libSceNpScore: a local leaderboard ------------------------------------------------------------------------
+// The console's Score library keeps leaderboards on a PlayStation Network service. There is none here, so this is
+// a local board: contexts and requests exist, a recorded score is kept in memory for this session, and a ranking
+// query reports an empty board, which is what an installation with no service and no other players has.
+//
+// Why it is implemented at all (probe run 20261101-202509): sceNpScoreCreateNpTitleCtx is called once at start-up
+// from eboot.bin+0x2c8936 and was the only console function still failing while the game refused to open Online
+// Battle, which it does from the main menu entry shown in that run's captures.
+enum { SCORE_ERR_INVALID_ARGUMENT = (int)0x80550704, SCORE_ERR_TOO_MANY_OBJECTS = (int)0x80550706,
+       SCORE_ERR_INSUFFICIENT_ARGUMENT = (int)0x8055070C, SCORE_ERR_INVALID_ID = (int)0x8055070E,
+       SCORE_ERR_ABORTED = (int)0x80550705 };
+#define SCORE_MAX_CTX 4
+#define SCORE_MAX_REQ 8
+#define SCORE_INVALID_SERVICE_LABEL 0xFFFFFFFFu
+static struct { int used; uint32_t service_label; } g_score_ctx[SCORE_MAX_CTX];
+static struct { int used, ctx, result; } g_score_req[SCORE_MAX_REQ];
+static struct { int used; uint32_t board; int64_t value; } g_score_board[8];
+
+static int GUEST_ABI score_create_title_ctx(uint32_t service_label, const void* self_np_id) {
+    if (service_label == SCORE_INVALID_SERVICE_LABEL) return SCORE_ERR_INVALID_ARGUMENT;
+    if (!self_np_id) return SCORE_ERR_INSUFFICIENT_ARGUMENT;
+    for (int i = 0; i < SCORE_MAX_CTX; ++i)
+        if (!g_score_ctx[i].used) {
+            g_score_ctx[i].used = 1;
+            g_score_ctx[i].service_label = service_label;
+            rt_logf("sceNpScoreCreateNpTitleCtx(service label %u, player '%.16s') -> title context %d "
+                    "(a local board: there is no ranking service and no other players)", service_label, (const char*)self_np_id, i + 1);
+            return i + 1;
+        }
+    return SCORE_ERR_TOO_MANY_OBJECTS;
+}
+static int score_ctx_index(int id) { const int i = id - 1; return (i >= 0 && i < SCORE_MAX_CTX && g_score_ctx[i].used) ? i : -1; }
+static int GUEST_ABI score_delete_title_ctx(int ctx) {
+    const int i = score_ctx_index(ctx);
+    if (i < 0) return SCORE_ERR_INVALID_ID;
+    for (int r = 0; r < SCORE_MAX_REQ; ++r)
+        if (g_score_req[r].used && g_score_req[r].ctx == ctx) { g_score_req[r].result = SCORE_ERR_ABORTED; g_score_req[r].used = 0; }
+    g_score_ctx[i].used = 0;
+    return 0;
+}
+static int GUEST_ABI score_create_request(int ctx) {
+    if (score_ctx_index(ctx) < 0) return SCORE_ERR_INVALID_ID;
+    for (int i = 0; i < SCORE_MAX_REQ; ++i)
+        if (!g_score_req[i].used) { g_score_req[i].used = 1; g_score_req[i].ctx = ctx; g_score_req[i].result = 0; return i + 1; }
+    return SCORE_ERR_TOO_MANY_OBJECTS;
+}
+static int score_req_index(int id) { const int i = id - 1; return (i >= 0 && i < SCORE_MAX_REQ && g_score_req[i].used) ? i : -1; }
+static int GUEST_ABI score_delete_request(int req) {
+    const int i = score_req_index(req);
+    if (i < 0) return SCORE_ERR_INVALID_ID;
+    g_score_req[i].used = 0;
+    return 0;
+}
+static int GUEST_ABI score_abort_request(int req) {
+    const int i = score_req_index(req);
+    if (i < 0) return SCORE_ERR_INVALID_ID;
+    g_score_req[i].result = SCORE_ERR_ABORTED;
+    return 0;
+}
+static int GUEST_ABI score_poll_async(int req, int* result) {
+    if (!result) return SCORE_ERR_INVALID_ARGUMENT;
+    const int i = score_req_index(req);
+    if (i < 0) return SCORE_ERR_INVALID_ID;
+    *result = g_score_req[i].result;
+    return 0;
+}
+// A score is kept for this session only; nothing is uploaded and nothing is read back from any service.
+static int GUEST_ABI score_record_score_async(int req, uint32_t board, int64_t value, const void* comment,
+                                              const void* game_info, uint32_t* tmp_rank, const void* compare_date, void* option) {
+    (void)comment; (void)game_info; (void)compare_date; (void)option;
+    const int i = score_req_index(req);
+    if (i < 0) return SCORE_ERR_INVALID_ID;
+    int slot = -1;
+    for (int b = 0; b < 8; ++b) if (g_score_board[b].used && g_score_board[b].board == board) { slot = b; break; }
+    if (slot < 0) for (int b = 0; b < 8; ++b) if (!g_score_board[b].used) { g_score_board[b].used = 1; g_score_board[b].board = board; g_score_board[b].value = 0; slot = b; break; }
+    if (slot >= 0 && value > g_score_board[slot].value) g_score_board[slot].value = value;
+    if (tmp_rank) *tmp_rank = 1;   // the only player on a local board
+    g_score_req[i].result = 0;
+    rt_logf("sceNpScoreRecordScoreAsync(board %u, score %lld): kept on this machine for this session only", board, (long long)value);
+    return 0;
+}
+// An empty board: no service, no other players, so there is no ranking to report.
+static int GUEST_ABI score_get_ranking_by_range_async(int req, uint32_t board, uint32_t start_rank, void* rank_array,
+                                                      uint64_t rank_array_size, void* comment_array, uint64_t comment_array_size,
+                                                      void* info_array, uint64_t info_array_size, uint64_t array_num,
+                                                      void* last_sort_date, uint32_t* total_record, void* option) {
+    (void)board; (void)start_rank; (void)comment_array_size; (void)info_array_size; (void)array_num; (void)option;
+    const int i = score_req_index(req);
+    if (i < 0) return SCORE_ERR_INVALID_ID;
+    if (rank_array && rank_array_size) memset(rank_array, 0, (size_t)rank_array_size);
+    if (comment_array && comment_array_size) memset(comment_array, 0, (size_t)comment_array_size);
+    if (info_array && info_array_size) memset(info_array, 0, (size_t)info_array_size);
+    if (last_sort_date) memset(last_sort_date, 0, 8);
+    if (total_record) *total_record = 0;
+    g_score_req[i].result = 0;
+    return 0;
+}
+static int GUEST_ABI score_get_ranking_by_np_id_async(int req, uint32_t board, const void* np_id_array, uint64_t np_id_array_size,
+                                                      void* rank_array, uint64_t rank_array_size, void* comment_array, uint64_t comment_array_size,
+                                                      void* info_array, uint64_t info_array_size, uint64_t array_num,
+                                                      void* last_sort_date, uint32_t* total_record, void* option) {
+    (void)np_id_array; (void)np_id_array_size;
+    return score_get_ranking_by_range_async(req, board, 0, rank_array, rank_array_size, comment_array, comment_array_size,
+                                            info_array, info_array_size, array_num, last_sort_date, total_record, option);
+}
+
 // ---- libSceNpTrophy: contexts and handles are tracked; the registered trophy set is EMPTY ---------------------------------
 // sce_sys/trophy/trophy00.trp keeps its trophy configuration encrypted, and this port does not decrypt game content, so there is
 // no trophy data to read. RegisterContext succeeds with an EMPTY set (loud log, audit status "diagnostic-stub"): the game needs a
@@ -656,6 +762,15 @@ const HostSymbol platform_symbols[] = {
     {"sceNpGetAccountCountry", "libSceNpManager", (void*)np_get_account_country, 0},
     {"sceNpGetAccountLanguage", "libSceNpManager", (void*)np_get_account_language, 0},
     {"sceNpCmpNpId", "libSceNpCommon", (void*)np_cmp_np_id, 0},
+    {"sceNpScoreCreateNpTitleCtx", "libSceNpScore", (void*)score_create_title_ctx, 0},
+    {"sceNpScoreDeleteNpTitleCtx", "libSceNpScore", (void*)score_delete_title_ctx, 0},
+    {"sceNpScoreCreateRequest", "libSceNpScore", (void*)score_create_request, 0},
+    {"sceNpScoreDeleteRequest", "libSceNpScore", (void*)score_delete_request, 0},
+    {"sceNpScoreAbortRequest", "libSceNpScore", (void*)score_abort_request, 0},
+    {"sceNpScorePollAsync", "libSceNpScore", (void*)score_poll_async, 0},
+    {"sceNpScoreRecordScoreAsync", "libSceNpScore", (void*)score_record_score_async, 0},
+    {"sceNpScoreGetRankingByRangeAsync", "libSceNpScore", (void*)score_get_ranking_by_range_async, 0},
+    {"sceNpScoreGetRankingByNpIdAsync", "libSceNpScore", (void*)score_get_ranking_by_np_id_async, 0},
     {"sceNpUnregisterStateCallback", "libSceNpManager", (void*)np_unregister_state_cb, 0},
     {"sceNpCheckCallback", "libSceNpManager", (void*)np_check_callback, 0},
     {"sceNpGetState", "libSceNpManager", (void*)np_get_state, 0},

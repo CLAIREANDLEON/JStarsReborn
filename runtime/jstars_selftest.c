@@ -532,6 +532,37 @@ int rt_selftest_host(const char* scratch_dir) {
             CHECK(F(int, "sceNpWebApiDeleteContext", (int))(uc) == 0, "webapi: a user context is deleted");
             CHECK(F(int, "sceNpWebApiDeleteContext", (int))(uc) == (int)0x80552905, "webapi: deleting it twice reports USER_CONTEXT_NOT_FOUND");
         }
+
+        // ---- Score: a local board -----------------------------------------------------------------------
+        {
+            char sid[36];
+            memset(sid, 0, sizeof sid);
+            memcpy(sid, "Player", 6);
+            CHECK(F(int, "sceNpScoreCreateNpTitleCtx", (uint32_t, const void*))(0xFFFFFFFFu, sid) == (int)0x80550704,
+                  "score: an invalid service label is INVALID_ARGUMENT");
+            CHECK(F(int, "sceNpScoreCreateNpTitleCtx", (uint32_t, const void*))(0, NULL) == (int)0x8055070C,
+                  "score: a missing player id is INSUFFICIENT_ARGUMENT");
+            int ctx = F(int, "sceNpScoreCreateNpTitleCtx", (uint32_t, const void*))(0, sid);
+            CHECK(ctx >= 1, "score: a title context is created");
+            int sreq = F(int, "sceNpScoreCreateRequest", (int))(ctx);
+            CHECK(sreq >= 1, "score: a request is created");
+            CHECK(F(int, "sceNpScoreCreateRequest", (int))(99) == (int)0x8055070E, "score: a request on an unknown context is INVALID_ID");
+            uint32_t tmp_rank = 0;
+            CHECK(F(int, "sceNpScoreRecordScoreAsync", (int, uint32_t, int64_t, const void*, const void*, uint32_t*, const void*, void*))
+                      (sreq, 1, 1234, NULL, NULL, &tmp_rank, NULL, NULL) == 0 && tmp_rank == 1,
+                  "score: a score is recorded locally and ranks first on an empty board");
+            int sres = -1;
+            CHECK(F(int, "sceNpScorePollAsync", (int, int*))(sreq, &sres) == 0 && sres == 0, "score: the request reports success");
+            uint32_t total = 99;
+            char rank_buf[64];
+            memset(rank_buf, 0xAA, sizeof rank_buf);
+            CHECK(F(int, "sceNpScoreGetRankingByRangeAsync", (int, uint32_t, uint32_t, void*, uint64_t, void*, uint64_t, void*, uint64_t, uint64_t, void*, uint32_t*, void*))
+                      (sreq, 1, 1, rank_buf, sizeof rank_buf, NULL, 0, NULL, 0, 1, NULL, &total, NULL) == 0 && total == 0 && rank_buf[0] == 0,
+                  "score: a ranking query reports an empty board and clears the caller's array");
+            CHECK(F(int, "sceNpScoreDeleteRequest", (int))(sreq) == 0, "score: a request is deleted");
+            CHECK(F(int, "sceNpScoreDeleteNpTitleCtx", (int))(ctx) == 0, "score: a title context is deleted");
+            CHECK(F(int, "sceNpScoreDeleteNpTitleCtx", (int))(ctx) == (int)0x8055070E, "score: deleting it twice is INVALID_ID");
+        }
         rt_net_configure(0, 0);
     }
 
