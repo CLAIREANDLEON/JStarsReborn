@@ -484,6 +484,39 @@ int rt_selftest_host(const char* scratch_dir) {
         char country[4];
         CHECK(F(int, "sceNpGetAccountCountry", (int, void*))(1, country) == 0 && country[0] && country[2] == 0, "np: an account country is reported");
         CHECK(F(int, "sceNpGetAccountLanguage", (int, int*))(1, &country_lang) == 0, "np: an account language is reported");
+
+        // ---- WebApi: local contexts, and a send that honestly fails -------------------------------------
+        {
+            char wid[20];
+            memset(wid, 0, sizeof wid);
+            memcpy(wid, "Player", 6);
+            int lib = F(int, "sceNpWebApiInitialize", (int, uint64_t))(1, 65536);
+            CHECK(lib >= 1, "webapi: a library context is created");
+            CHECK(F(int, "sceNpWebApiCreateContext", (int, const void*))(lib, NULL) == (int)0x80552902,
+                  "webapi: a context with no online id is INVALID_ARGUMENT");
+            int uc = F(int, "sceNpWebApiCreateContext", (int, const void*))(lib, wid);
+            CHECK(uc >= 1, "webapi: a user context is created");
+            CHECK(F(int, "sceNpWebApiCreateContext", (int, const void*))(lib, wid) == (int)0x8055290A,
+                  "webapi: the same user context twice reports ALREADY_EXIST");
+            int64_t rid = 0;
+            CHECK(F(int, "sceNpWebApiCreateRequest", (int, const char*, const char*, int, const void*, int64_t*))(uc, "sdk:userProfile", "/v1/users/me", 0, NULL, &rid) == 0 && rid > 0,
+                  "webapi: a request is created");
+            CHECK(F(int, "sceNpWebApiSendRequest", (int64_t, const void*, uint64_t, void*))(rid, NULL, 0, NULL) == (int)0x80552907,
+                  "webapi: sending reports NOT_SIGNED_IN, because this machine has no PlayStation Network session");
+            CHECK(F(int, "sceNpWebApiGetErrorCode", (void))() == (int)0x80552907, "webapi: the last error is readable");
+            int http = -1;
+            CHECK(F(int, "sceNpWebApiGetHttpStatusCode", (int64_t, int*))(rid, &http) == 0 && http == 0, "webapi: no HTTP status, because no response arrived");
+            CHECK(F(int, "sceNpWebApiReadData", (int64_t, void*, uint64_t))(rid, wid, 4) == 0, "webapi: there is no response data to read");
+            CHECK(F(int, "sceNpWebApiDeleteRequest", (int64_t))(rid) == 0, "webapi: a request is deleted");
+            CHECK(F(int, "sceNpWebApiDeleteRequest", (int64_t))(rid) == (int)0x80552906, "webapi: deleting it twice reports REQUEST_NOT_FOUND");
+            char parsed[36];
+            CHECK(F(int, "sceNpWebApiUtilityParseNpId", (const char*, void*))("{\"onlineId\":\"SomePlayer\"}", parsed) == 0 && !strcmp(parsed, "SomePlayer"),
+                  "webapi: an online id is parsed out of a JSON object");
+            CHECK(F(int, "sceNpWebApiUtilityParseNpId", (const char*, void*))("{\"other\":1}", parsed) == (int)0x80552902,
+                  "webapi: JSON without an online id is INVALID_ARGUMENT");
+            CHECK(F(int, "sceNpWebApiDeleteContext", (int))(uc) == 0, "webapi: a user context is deleted");
+            CHECK(F(int, "sceNpWebApiDeleteContext", (int))(uc) == (int)0x80552905, "webapi: deleting it twice reports USER_CONTEXT_NOT_FOUND");
+        }
         rt_net_configure(0, 0);
     }
 

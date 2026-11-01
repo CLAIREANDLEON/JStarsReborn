@@ -313,6 +313,121 @@ static int GUEST_ABI webapi_terminate(int lib_ctx) {
     return WEBAPI_ERR_LIB_CONTEXT_NOT_FOUND;
 }
 
+// ---- libSceNpWebApi user contexts and requests ----------------------------------------------------------------
+// The console's WebApi is the HTTP interface to PlayStation Network services. Nothing here contacts any service
+// and nothing ever will: there is no account and no endpoint to talk to. What is implemented is the local part,
+// because the game needs it before it opens its online menus (probe run 20261101-201127: it reached
+// sceNpWebApiCreateContext at eboot.bin+0x2cd320 and retried every eight seconds until it succeeded).
+// A request can be created and then fails to send, with the console's own "not signed in" error, which is the
+// truthful answer: this machine has no PlayStation Network session.
+enum { WEBAPI_ERR_OUT_OF_MEMORY = (int)0x80552901, WEBAPI_ERR_USER_CONTEXT_NOT_FOUND = (int)0x80552905, WEBAPI_ERR_REQUEST_NOT_FOUND = (int)0x80552906,
+       WEBAPI_ERR_NOT_SIGNED_IN = (int)0x80552907, WEBAPI_ERR_ABORTED = (int)0x80552909,
+       WEBAPI_ERR_USER_CONTEXT_ALREADY_EXIST = (int)0x8055290A };
+#define WEBAPI_MAX_USER_CTX 8
+#define WEBAPI_MAX_REQUEST 16
+static struct { int used, lib_ctx; char online_id[20]; } g_webapi_user[WEBAPI_MAX_USER_CTX];
+static struct { int used, user_ctx, aborted; int64_t id; } g_webapi_req[WEBAPI_MAX_REQUEST];
+static int64_t g_webapi_next_req = 1;
+static __thread int t_webapi_error;
+
+static int GUEST_ABI webapi_create_context(int lib_ctx, const void* online_id) {
+    if (lib_ctx <= 0 || lib_ctx >= 0x8000) return WEBAPI_ERR_INVALID_LIB_CONTEXT_ID;
+    if (!online_id) return WEBAPI_ERR_INVALID_ARGUMENT;
+    for (int i = 0; i < WEBAPI_MAX_USER_CTX; ++i)
+        if (g_webapi_user[i].used && g_webapi_user[i].lib_ctx == lib_ctx && !memcmp(g_webapi_user[i].online_id, online_id, 16))
+            return WEBAPI_ERR_USER_CONTEXT_ALREADY_EXIST;
+    for (int i = 0; i < WEBAPI_MAX_USER_CTX; ++i)
+        if (!g_webapi_user[i].used) {
+            g_webapi_user[i].used = 1;
+            g_webapi_user[i].lib_ctx = lib_ctx;
+            memcpy(g_webapi_user[i].online_id, online_id, 16);
+            g_webapi_user[i].online_id[16] = 0;
+            rt_logf("sceNpWebApiCreateContext(library context %d, online id '%.16s') -> user context %d "
+                    "(local bookkeeping; no PlayStation Network service is contacted)", lib_ctx, g_webapi_user[i].online_id, i + 1);
+            return i + 1;
+        }
+    return WEBAPI_ERR_OUT_OF_MEMORY;
+}
+static int webapi_user_index(int ctx) { const int i = ctx - 1; return (i >= 0 && i < WEBAPI_MAX_USER_CTX && g_webapi_user[i].used) ? i : -1; }
+static int GUEST_ABI webapi_delete_context(int user_ctx) {
+    const int i = webapi_user_index(user_ctx);
+    if (i < 0) return WEBAPI_ERR_USER_CONTEXT_NOT_FOUND;
+    g_webapi_user[i].used = 0;
+    return 0;
+}
+static int GUEST_ABI webapi_create_request(int user_ctx, const char* api_group, const char* path, int method,
+                                           const void* content, int64_t* request_id) {
+    if (!request_id) return WEBAPI_ERR_INVALID_ARGUMENT;
+    (void)content;
+    if (webapi_user_index(user_ctx) < 0) return WEBAPI_ERR_USER_CONTEXT_NOT_FOUND;
+    for (int i = 0; i < WEBAPI_MAX_REQUEST; ++i)
+        if (!g_webapi_req[i].used) {
+            g_webapi_req[i].used = 1;
+            g_webapi_req[i].user_ctx = user_ctx;
+            g_webapi_req[i].aborted = 0;
+            g_webapi_req[i].id = g_webapi_next_req++;
+            *request_id = g_webapi_req[i].id;
+            rt_logf("sceNpWebApiCreateRequest(user context %d, '%s' '%s', method %d) -> request %lld (it cannot be sent: "
+                    "there is no PlayStation Network session on this machine)", user_ctx, api_group ? api_group : "",
+                    path ? path : "", method, (long long)*request_id);
+            return 0;
+        }
+    return WEBAPI_ERR_OUT_OF_MEMORY;
+}
+static int webapi_req_index(int64_t id) {
+    for (int i = 0; i < WEBAPI_MAX_REQUEST; ++i)
+        if (g_webapi_req[i].used && g_webapi_req[i].id == id) return i;
+    return -1;
+}
+// Sending is where the console would talk to a PlayStation Network service. There is none, so this reports the
+// console's own "not signed in" error rather than inventing a response.
+static int GUEST_ABI webapi_send_request(int64_t request_id, const void* data, uint64_t data_size, void* resp_info) {
+    (void)data; (void)data_size; (void)resp_info;
+    if (webapi_req_index(request_id) < 0) return WEBAPI_ERR_REQUEST_NOT_FOUND;
+    t_webapi_error = WEBAPI_ERR_NOT_SIGNED_IN;
+    return WEBAPI_ERR_NOT_SIGNED_IN;
+}
+static int GUEST_ABI webapi_read_data(int64_t request_id, void* data, uint64_t size) {
+    (void)data; (void)size;
+    if (webapi_req_index(request_id) < 0) return WEBAPI_ERR_REQUEST_NOT_FOUND;
+    return 0;   // no response was received, so there is nothing to read
+}
+static int GUEST_ABI webapi_abort_request(int64_t request_id) {
+    const int i = webapi_req_index(request_id);
+    if (i < 0) return WEBAPI_ERR_REQUEST_NOT_FOUND;
+    g_webapi_req[i].aborted = 1;
+    t_webapi_error = WEBAPI_ERR_ABORTED;
+    return 0;
+}
+static int GUEST_ABI webapi_delete_request(int64_t request_id) {
+    const int i = webapi_req_index(request_id);
+    if (i < 0) return WEBAPI_ERR_REQUEST_NOT_FOUND;
+    g_webapi_req[i].used = 0;
+    return 0;
+}
+static int GUEST_ABI webapi_get_error_code(void) { return t_webapi_error; }
+static int GUEST_ABI webapi_get_http_status(int64_t request_id, int* status) {
+    if (!status) return WEBAPI_ERR_INVALID_ARGUMENT;
+    if (webapi_req_index(request_id) < 0) return WEBAPI_ERR_REQUEST_NOT_FOUND;
+    *status = 0;   // no response arrived, so there is no HTTP status
+    return 0;
+}
+// Pure text handling, so this one is exact: it reads {"onlineId":"name"} out of a JSON object into an SceNpId.
+static int GUEST_ABI webapi_parse_np_id(const char* json, void* np_id) {
+    if (!json || !np_id) return WEBAPI_ERR_INVALID_ARGUMENT;
+    const char* key = strstr(json, "\"onlineId\"");
+    if (!key) return WEBAPI_ERR_INVALID_ARGUMENT;
+    const char* colon = strchr(key + 10, ':');
+    if (!colon) return WEBAPI_ERR_INVALID_ARGUMENT;
+    const char* open = strchr(colon, '"');
+    if (!open) return WEBAPI_ERR_INVALID_ARGUMENT;
+    const char* close = strchr(open + 1, '"');
+    if (!close || close - open - 1 > 16) return WEBAPI_ERR_INVALID_ARGUMENT;
+    memset(np_id, 0, 36);
+    memcpy(np_id, open + 1, (size_t)(close - open - 1));
+    return 0;
+}
+
 // ---- libSceNpTrophy: contexts and handles are tracked; the registered trophy set is EMPTY ---------------------------------
 // sce_sys/trophy/trophy00.trp keeps its trophy configuration encrypted, and this port does not decrypt game content, so there is
 // no trophy data to read. RegisterContext succeeds with an EMPTY set (loud log, audit status "diagnostic-stub"): the game needs a
@@ -422,6 +537,16 @@ const HostSymbol platform_symbols[] = {
     {"sceNpTrophyUnlockTrophy", "libSceNpTrophy", (void*)trophy_unlock, 0},
     {"sceNpWebApiInitialize", "libSceNpWebApi", (void*)webapi_initialize, 0},
     {"sceNpWebApiTerminate", "libSceNpWebApi", (void*)webapi_terminate, 0},
+    {"sceNpWebApiCreateContext", "libSceNpWebApi", (void*)webapi_create_context, 0},
+    {"sceNpWebApiDeleteContext", "libSceNpWebApi", (void*)webapi_delete_context, 0},
+    {"sceNpWebApiCreateRequest", "libSceNpWebApi", (void*)webapi_create_request, 0},
+    {"sceNpWebApiSendRequest", "libSceNpWebApi", (void*)webapi_send_request, 0},
+    {"sceNpWebApiReadData", "libSceNpWebApi", (void*)webapi_read_data, 0},
+    {"sceNpWebApiAbortRequest", "libSceNpWebApi", (void*)webapi_abort_request, 0},
+    {"sceNpWebApiDeleteRequest", "libSceNpWebApi", (void*)webapi_delete_request, 0},
+    {"sceNpWebApiGetErrorCode", "libSceNpWebApi", (void*)webapi_get_error_code, 0},
+    {"sceNpWebApiGetHttpStatusCode", "libSceNpWebApi", (void*)webapi_get_http_status, 0},
+    {"sceNpWebApiUtilityParseNpId", "libSceNpWebApi", (void*)webapi_parse_np_id, 0},
     {"sceScreenShotEnable", "libSceScreenShot", (void*)ss_enable, 0},
     {"sceScreenShotDisable", "libSceScreenShot", (void*)ss_disable, 0},
     {"sceScreenShotSetOverlayImage", "libSceScreenShot", (void*)ss_overlay, 0},
