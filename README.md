@@ -7,6 +7,10 @@ checks and prepares the dump and starts the game.
 
 No game files, keys, firmware or decryption tools are included or downloaded. The game folder is only ever read.
 
+> **Legal:** unofficial fan project, not affiliated with or endorsed by the game's publisher, developer or rights holders.
+> Use only a dump you made yourself from a copy of the game you legally own. Piracy is not supported in any form.
+> Provided as is, without warranty. Read the full [DISCLAIMER.md](DISCLAIMER.md).
+
 **State (0.4.0):** on the owner's Windows 11 PC the game boots, shows the title, creates and loads its own
 save data, and runs the menus and Free Battle matches, driven by scripted test input and by a live controller. Movies are
 skipped (no decoder), trophies are an empty set, and online features are not available. Whether it plays well and sounds
@@ -59,6 +63,9 @@ the launcher core tests, and the runtime host self-test (`runtime/jstars-boot --
   (`evidence/windows-launcher-0.4.0/`).
 
 ## License
+
+See also [DISCLAIMER.md](DISCLAIMER.md).
+
 
 The runtime, renderer and launcher together are GPL-2.0-or-later (the vendored shadPS4 code is GPL-2.0-or-later); see
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and `licenses/`. J-Stars Victory VS+ and its characters belong to their

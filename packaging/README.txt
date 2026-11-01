@@ -1,6 +1,12 @@
 JStarsReborn 0.4.0 - unofficial Windows PC port runtime for J-Stars Victory VS+ (PS4, CUSA01593 version 01.02)
 ====================================================================================================
 
+Legal (read DISCLAIMER.txt)
+  Unofficial fan project. Not affiliated with, authorized or endorsed by Bandai Namco Entertainment, Spike Chunsoft,
+  Shueisha, Sony Interactive Entertainment or any other rights holder; all game names and content belong to their owners.
+  Use only a dump you made yourself from a copy of the game you legally own. Piracy is not supported in any form.
+  Provided as is, without warranty; use at your own risk.
+
 What this is
   JStarsReborn runs your own, already-decrypted copy of the PS4 game on Windows. The game's original program code
   runs natively; JStarsReborn replaces the console's system services, graphics (Vulkan), audio and input.
@@ -36,6 +42,7 @@ Not supported in this version
 Contents
   JStarsReborn.exe            launcher (this is what you start)
   runtime\jstars-runtime.exe  game runtime (started by the launcher; not meant to be started by hand)
+  DISCLAIMER.txt              legal disclaimer (please read)
   LICENSES\                   license texts and third-party notices (GPL-2.0-or-later as a whole)
   source\                     complete corresponding source code and build instructions
   SHA256SUMS.txt              checksums of every file in this folder

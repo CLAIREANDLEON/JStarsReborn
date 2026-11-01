@@ -24,6 +24,7 @@ cp "$here/packaging/runtime-README.txt" "$rel/runtime/README.txt"
 
 echo "== documents and licenses"
 cp "$here/packaging/README.txt" "$rel/README.txt"
+cp "$here/DISCLAIMER.md" "$rel/DISCLAIMER.txt"
 cp "$here/CHANGELOG.md" "$rel/CHANGELOG.md"
 cp "$here/gpu/vendor/shadps4/LICENSE" "$rel/LICENSES/GPL-2.0.txt"
 cp "$here/THIRD_PARTY_NOTICES.md" "$rel/LICENSES/THIRD_PARTY_NOTICES.md"
