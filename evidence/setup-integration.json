@@ -1,0 +1,143 @@
+{
+  "date": "2026-10-31",
+  "scope": "Native setup and synthetic PKG source registration; not game extraction or conversion",
+  "install": {
+    "exit": 0,
+    "stdout": "Foundation installed: 19 files.\r\n",
+    "stderr": ""
+  },
+  "pkg": {
+    "exit": 0,
+    "stdout": "PKG source registered: 1440 bytes. Game conversion unavailable.\r\n",
+    "stderr": ""
+  },
+  "runtime": {
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "existing_destination": {
+    "exit": 1,
+    "stdout": "",
+    "stderr": "Setup failed: Installation destination already exists; choose a new folder\r\n"
+  },
+  "source_unchanged": true,
+  "pkg_report": {
+    "schema": "reborn.pkg-source.v1",
+    "source_path": "C:/Users/<user>/Documents/Codex/2026-10-31/ok-x20-2/work/setup-fixtures/source/sample.pkg",
+    "size_bytes": 1440,
+    "sha256": "b32fd75e174257f2fb166e3b0986ad00ead28e46278ef3a9b4e2e5b6a47c2042",
+    "signature_hint": "CNT-package",
+    "content_id_hint": "SYNTHETIC-NOT-A-GAME",
+    "source_registered": true,
+    "container_validated": false,
+    "content_extracted": false,
+    "executable_converted": false,
+    "game_import_supported": false,
+    "summary": "Source metadata registered only. Header signature and minimum size do not prove container validity, platform identity, title identity, authenticity, or game compatibility. No content extraction or game conversion is implemented."
+  },
+  "receipt": {
+    "schema": "reborn.install-receipt.v1",
+    "foundation_only": true,
+    "game_data_imported": false,
+    "payload_authenticity": "Local SHA-256 integrity only; no digital signature",
+    "files": [
+      {
+        "path": "CHANGELOG.md",
+        "size_bytes": 1465,
+        "sha256": "46b1d1d7e0453d8e966e9201dc0e91bd18c8d5dec67dfa9f7bc06b80b18d0a28"
+      },
+      {
+        "path": "JStarsReborn.exe",
+        "size_bytes": 1893888,
+        "sha256": "2ccccf1e8a7ac6879550e533e54098684daae065722ff62f7910bf973567d1b1"
+      },
+      {
+        "path": "README.md",
+        "size_bytes": 2954,
+        "sha256": "d3aa4616b09cfe09e34a6a8b5c90d6423e8c67dcdc532e87ea49d7982d3ef194"
+      },
+      {
+        "path": "THIRD_PARTY_NOTICES.md",
+        "size_bytes": 1350,
+        "sha256": "b3641a7e4a928721b9d48439ac234e3101692c5546596b35edbc00da50de4291"
+      },
+      {
+        "path": "config/settings.ini",
+        "size_bytes": 133,
+        "sha256": "287bcc2ccebdc7bdea19fb33f8803867f8c6059c1db7cc50728cee72964ff466"
+      },
+      {
+        "path": "docs/ARCHITECTURE.md",
+        "size_bytes": 4411,
+        "sha256": "51abd07b5043b6aac05f2bf1b3f93b839a6b694c8aca8fd9a9cd2322808b0170"
+      },
+      {
+        "path": "docs/ASSET_PIPELINE.md",
+        "size_bytes": 4459,
+        "sha256": "457c85c3ed3ba7a55ede558049046d7c6abb4c788f57d97c06b728704155b1b3"
+      },
+      {
+        "path": "docs/BUILD.md",
+        "size_bytes": 4863,
+        "sha256": "7fe65b5db3e683f02c4d1105ba00f2df23d660a80661ef6ac5d944f7f33dba82"
+      },
+      {
+        "path": "docs/FEASIBILITY.md",
+        "size_bytes": 5514,
+        "sha256": "b3de6a6f91e8326ef54644082dd93e7fd8ee1d9a673aa0875f06b79b378aa3d9"
+      },
+      {
+        "path": "docs/PKG_SUPPORT.md",
+        "size_bytes": 2865,
+        "sha256": "8e6d0f8d9f36e2ae35afcb0805af3a6399b90868889b6ffe0c4c4f7216e3d4ba"
+      },
+      {
+        "path": "docs/REFERENCE_PROTOCOL.md",
+        "size_bytes": 3170,
+        "sha256": "26c4dddf0abb16096f658fd1f2f660753c3605aa0e86d110510f427cf37fc4f7"
+      },
+      {
+        "path": "docs/SETUP.md",
+        "size_bytes": 3168,
+        "sha256": "73000a4f5ea36493a683e9ef7e46c3b9793eff5a2e12d1124ee1ee6d7b12adcf"
+      },
+      {
+        "path": "docs/SETUP_QA.md",
+        "size_bytes": 5510,
+        "sha256": "b12325e519b9ab7f96f2461d8eca06c59fba34a6b111747e5d0097e9bda56196"
+      },
+      {
+        "path": "docs/TEST_REPORT.md",
+        "size_bytes": 5338,
+        "sha256": "c1bdb538f9d648e42b35b68a6af229950f75fa88b738fc0bb49263e2aa859a77"
+      },
+      {
+        "path": "licenses/LLVM-LICENSE.txt",
+        "size_bytes": 15141,
+        "sha256": "8d85c1057d742e597985c7d4e6320b015a9139385cff4cbae06ffc0ebe89afee"
+      },
+      {
+        "path": "licenses/mingw-w64-COPYING.txt",
+        "size_bytes": 2326,
+        "sha256": "99a69660981156c21336fdb5661f89341b013c94e4bf9e1c7467b4745718397f"
+      },
+      {
+        "path": "licenses/mingw-w64-notices.txt",
+        "size_bytes": 5905,
+        "sha256": "f38e6194bd3bfa1b654f118e5acefe0aead437bbe669eee43957ccc65a7127f1"
+      },
+      {
+        "path": "licenses/mingw-w64-runtime-COPYING.txt",
+        "size_bytes": 12155,
+        "sha256": "1db8da07b436c68833c0673ffee3d9fcb2526047f3820b81661865dfedc79a1f"
+      },
+      {
+        "path": "milestones.json",
+        "size_bytes": 4105,
+        "sha256": "50cb62f34600f41fe90549d7cb295410477f303f41b3ed6075eb52517bd6d112"
+      }
+    ]
+  },
+  "runtime_log": "{\"time\":\"2026-10-31T22:29:24.178Z\",\"level\":\"info\",\"event\":\"startup\",\"message\":\"Native Windows x64 foundation. No original game data or gameplay is implemented.\"}\n{\"time\":\"2026-10-31T22:29:24.179Z\",\"level\":\"info\",\"event\":\"settings_loaded\",\"message\":\"settings validated\"}\n{\"time\":\"2026-10-31T22:29:24.317Z\",\"level\":\"info\",\"event\":\"graphics_ready\",\"message\":\"AMD Radeon RX 9070 XT\"}\n{\"time\":\"2026-10-31T22:29:24.317Z\",\"level\":\"info\",\"event\":\"graphics_dimensions\",\"message\":\"1280x720\"}\n{\"time\":\"2026-10-31T22:29:24.317Z\",\"level\":\"info\",\"event\":\"audio_disabled\",\"message\":\"Requested by command line\"}\n{\"time\":\"2026-10-31T22:29:24.898Z\",\"level\":\"info\",\"event\":\"frame_summary\",\"message\":\"clear-only,frames=60,samples=60,mean_ms=8.97061,p95_ms=15.8712,p99_ms=15.8961,scheduler_ticks=32\"}\n{\"time\":\"2026-10-31T22:29:24.898Z\",\"level\":\"info\",\"event\":\"shutdown\",\"message\":\"Clean shutdown completed\"}\n"
+}

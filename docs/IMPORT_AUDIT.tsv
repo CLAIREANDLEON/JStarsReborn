@@ -1,0 +1,478 @@
+import	name	status	origin	evidence	executed_in	note
+8zTFvBIAIN8#libc	memset	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+Ou3iL1abvng#libkernel	__stack_chk_fail	Implemented, verified	runtime	-		terminates with exit code 8 and logs the caller; the guest never expects it to return
+EH-x713A99c#libc	atan2f	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+QI-x0SL8jhw#libc	acosf	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+ZtjspkJQ+vw#libc	_FSin	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+tsvEmnenz48#libc	__cxa_atexit	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+PDX01ziUz+4#libc	_ZSt13_Syserror_mapi	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+j4ViWNHEgww#libc	strlen	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+Q3VBxCXhUHs#libc	memcpy	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
++P6FRGH4LfA#libc	memmove	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+tQIo+GIPklo#libc	_ZSt14_Xlength_errorPKc	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+eT2UsmTewbU#libc	_ZSt11_Xbad_allocv	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+ozMAr28BwSY#libc	_ZSt14_Xout_of_rangePKc	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+tcVi5SivF7Q#libc	sprintf	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+3GPpjQdAMTw#libc	__cxa_guard_acquire	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+9rAeANT2tyE#libc	__cxa_guard_release	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+1D0H2KNjshE#libc	powf	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+88Vv-AzHVj8#libc	fmodf	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+Ovb2dSJOAuE#libc	strcmp	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+eLdDw6l0-bU#libc	snprintf	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+zXCi78bYrEI#libc	_Log	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+Vo5V8KAwCmk#libSceSystemService	sceSystemServiceHideSplashScreen	Diagnostic stub	runtime	-	game-gpu.log	no splash is shown
+DfivPArhucg#libc	memcmp	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+kiZSXIWd9vg#libc	strcpy	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+ZE6RNL+eLbk#libc	tanf	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+aZK8lNei-Qw#libc	fputc	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+fffwELXNVFA#libc	fprintf	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+xeYO4u7uyJ0#libc	fopen	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+uodLYyUip20#libc	fclose	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+9yDWMxEFdJU#libc	strrchr	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+zlfEH8FmyUA#libc	_Stoul	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+aesyjrHVWy4#libc	strncmp	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+6sJWiWSRuqk#libc	strncpy	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+viiwFMaNamA#libc	strstr	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+Ls4tzzhimqQ#libc	strcat	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+6fIC3XKt2k0#libSceMsgDialog	sceMsgDialogUpdateStatus	Diagnostic stub	runtime	-		reports the stored state only
+Lr8ovHH9l6A#libSceMsgDialog	sceMsgDialogGetResult	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+ePw-kqZmelo#libSceMsgDialog	sceMsgDialogTerminate	Diagnostic stub	runtime	-		state only
+lDqxaY1UbEo#libSceMsgDialog	sceMsgDialogInitialize	Diagnostic stub	runtime	-		state only; Open is not implemented and stops the run if reached
+b06Hh0DPEaE#libSceMsgDialog	sceMsgDialogOpen	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+HTrcDKlFKuM#libSceMsgDialog	sceMsgDialogClose	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+I88KChlynSs#libSceErrorDialog	sceErrorDialogInitialize	Diagnostic stub	runtime	-	game-gpu.log	state only; Open is not implemented
+9XAxK2PMwk8#libSceErrorDialog	sceErrorDialogTerminate	Diagnostic stub	runtime	-		state only
+M2ZF-ClLhgY#libSceErrorDialog	sceErrorDialogOpen	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+ekXHb1kDBl0#libSceErrorDialog	sceErrorDialogClose	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+WWiGuh9XfgQ#libSceErrorDialog	sceErrorDialogUpdateStatus	Diagnostic stub	runtime	-		reports the stored state only
+NUeBrN7hzf0#libSceImeDialog	sceImeDialogInit	Diagnostic stub	runtime	-		state only; no on-screen keyboard exists
+IADmD4tScBY#libSceImeDialog	sceImeDialogGetStatus	Diagnostic stub	runtime	-		reports the stored state only
+x01jxu+vxlc#libSceImeDialog	sceImeDialogGetResult	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+gyTyVn+bXMw#libSceImeDialog	sceImeDialogTerm	Diagnostic stub	runtime	-		state only
+n7AepwR0s34#libc	mktime	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+-VVn74ZyhEs#libc	difftime	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+S1GkePI17zQ#libSceSaveData	sceSaveDataDelete	Implemented, verified	runtime	selftest-host		selftest-host: delete removes the save
+hay1CfTmLyA#libSceSaveDataDialog	sceSaveDataDialogProgressBarSetValue	Partially implemented	runtime	-	game-gpu.log	always NOT_RUNNING (0x80B8000B): there is no system dialog; the game ignores the result (disassembly)
+32HQAQdwM2o#libSceSaveData	sceSaveDataMount	Partially implemented	runtime	selftest-host	game-gpu.log	legacy mount used by the game; shares the Mount2 path that selftest-host exercises; observed on Windows: the game's own create-save flow mounts with CREATE, writes about 200 kB and unmounts (SYSTEM-DATA/SAVE-DATA.DAT); loading an existing save on a second launch has not been run
+85zul--eGXs#libSceSaveData	sceSaveDataSetParam	Implemented, verified	runtime	selftest-host	game-gpu.log	selftest-host: SetParam and read-only BAD_MOUNTED
+c88Yy54Mx0w#libSceSaveData	sceSaveDataSaveIcon	Partially implemented	runtime	-	game-gpu.log	icon written to the save folder; observed once in the game's create-save flow; not covered by selftest
+BMR4F-Uek3E#libSceSaveData	sceSaveDataUmount	Implemented, verified	runtime	selftest-host	game-gpu.log	selftest-host: umount then NOT_MOUNTED
+dyIhnXq-0SM#libSceSaveData	sceSaveDataDirNameSearch	Implemented, verified	runtime	selftest-host	game-gpu.log	selftest-host: finds saves with parameters, non-matching pattern finds nothing
+AUXVxWeJU-A#libkernel	sceKernelUnlink	Partially implemented	runtime	selftest-host	game-gpu.log	selftest-host (Linux backend); writable mounts only
+1G3lF1Gg1k8#libkernel	sceKernelOpen	Partially implemented	runtime	selftest-host	game-gpu.log	selftest-host (synthetic files, Linux backend); /app0 read-only, writable mounts under --user-dir; Windows backend awaits the Windows self-test
+4wSze92BhLI#libkernel	sceKernelWrite	Partially implemented	runtime	selftest-host	game-gpu.log	selftest-host (Linux backend); fds 1 and 2 go to the log
+UK2Tl2DWUns#libkernel	sceKernelClose	Partially implemented	runtime	selftest-host	game-gpu.log	selftest-host (Linux backend)
+52NcYU9+lEo#libkernel	sceKernelRename	Partially implemented	runtime	selftest-host	game-gpu.log	selftest-host (Linux backend); both paths on writable mounts
+eV9wAD2riIA#libkernel	sceKernelStat	Partially implemented	runtime	selftest-host	game-gpu.log	selftest-host (Linux backend); mode bits are synthesized (0555 read-only mounts, 0777 writable), inode is a path hash, timestamps are the host's
+Cg4srZ6TKbU#libkernel	sceKernelRead	Partially implemented	runtime	selftest-host	game-gpu.log	selftest-host (Linux backend)
+KK3Bdg1RWK0#libSceSaveDataDialog	sceSaveDataDialogUpdateStatus	Diagnostic stub	runtime	-		reports the stored state only
+yEiJ-qqr6Cg#libSceSaveDataDialog	sceSaveDataDialogGetResult	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+fH46Lag88XY#libSceSaveDataDialog	sceSaveDataDialogClose	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+en7gNVnh878#libSceSaveDataDialog	sceSaveDataDialogIsReadyToDisplay	Diagnostic stub	runtime	-		always ready; nothing is displayed
+ERKzksauAJA#libSceSaveDataDialog	sceSaveDataDialogGetStatus	Diagnostic stub	runtime	-	game-gpu.log	reports the stored state only
+s9e3+YpRnzw#libSceSaveDataDialog	sceSaveDataDialogInitialize	Diagnostic stub	runtime	-		state only; Open is not implemented
+4tPhsP6FpDI#libSceSaveDataDialog	sceSaveDataDialogOpen	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+YuH2FA7azqQ#libSceSaveDataDialog	sceSaveDataDialogTerminate	Diagnostic stub	runtime	-		state only
+ZPD1YOKI+Kw#libSceRtc	sceRtcGetCurrentClockLocalTime	Partially implemented	runtime	-	game-gpu.log	host local time; DST rules are the host's
+rPo6tV8D9bM#libSceSystemService	sceSystemServiceGetStatus	Diagnostic stub	runtime	-	game-gpu.log	zeroed status: no system events, no overlays
+656LMQSrg6U#libSceSystemService	sceSystemServiceReceiveEvent	Diagnostic stub	runtime	-		always reports no event
+XbkjbobZlCY#libSceNpTrophy	sceNpTrophyCreateContext	Partially implemented	runtime	-	game-gpu.log	bookkeeping only (4 contexts); nothing is read from the trophy pack, which is encrypted
+q7U6tEAQf7c#libSceNpTrophy	sceNpTrophyCreateHandle	Partially implemented	runtime	-	game-gpu.log	bookkeeping only (4 handles)
+GNcF4oidY0Y#libSceNpTrophy	sceNpTrophyDestroyHandle	Partially implemented	runtime	-		bookkeeping only
+E1Wrwd07Lr8#libSceNpTrophy	sceNpTrophyDestroyContext	Partially implemented	runtime	-		bookkeeping only
+TJCAxto9SEU#libSceNpTrophy	sceNpTrophyRegisterContext	Diagnostic stub	runtime	-	game-gpu.log	registers an EMPTY trophy set (logged): the trophy configuration is encrypted and not read; needed for the game to leave its startup screen
+28xmRUFao68#libSceNpTrophy	sceNpTrophyUnlockTrophy	Diagnostic stub	runtime	-	game-gpu.log	answers INVALID_TROPHY_ID (loud log): the registered trophy set is empty because the trophy pack is encrypted and not decrypted; reached in the first battle (Windows run 20261101-061005 trapped here before this was added)
+LHuSmO3SLd8#libSceNpTrophy	sceNpTrophyGetTrophyUnlockState	Diagnostic stub	runtime	-	game-gpu.log	reports zero trophies; no unlock is ever recorded
+g8cM39EUZ6o#libSceSysmodule	sceSysmoduleLoadModule	Diagnostic stub	runtime	-	game-gpu.log	reports success; availability is decided per import by the runtime
+CdWp0oHWGr0#libSceUserService	sceUserServiceGetInitialUser	Partially implemented	runtime	-	game-gpu.log	single fixed user (id 1)
+1xxcMiGu2fo#libSceUserService	sceUserServiceGetUserName	Partially implemented	runtime	-	game-gpu.log	JSTARS_USER_NAME or 'Player'
+uoUpLGNkygk#libSceCommonDialog	sceCommonDialogInitialize	Diagnostic stub	runtime	-	game-gpu.log	succeeds; no system dialog can be displayed
+ZkZhskCPXFw#libSceSaveData	sceSaveDataInitialize	Implemented, verified	runtime	-	game-gpu.log	selftest: mount before initialize is NOT_INITIALIZED
+isruqthpYcw#libSceSharePlay	sceSharePlayInitialize	Partially implemented	runtime	-	game-gpu.log	records initialization; Share Play sessions cannot exist on this host
+co2NCj--pnc#libSceSharePlay	sceSharePlaySetProhibition	Partially implemented	runtime	-	game-gpu.log	mode recorded and logged
+tIYf0W5VTi8#libSceScreenShot	sceScreenShotDisable	Diagnostic stub	runtime	-	game-gpu.log	flag only
+ahHhOf+QNkQ#libSceScreenShot	sceScreenShotSetOverlayImage	Diagnostic stub	runtime	-	game-gpu.log	path logged, overlay never drawn
+2xxUtuC-RzE#libSceScreenShot	sceScreenShotEnable	Diagnostic stub	runtime	-	game-gpu.log	flag only; no console screenshot service
+eR2bZFAAU0Q#libSceSysmodule	sceSysmoduleUnloadModule	Diagnostic stub	runtime	-	game-gpu.log	no-op
+UaLjloJinow#libSceSharePlay	sceSharePlayTerminate	Partially implemented	runtime	-		records termination
+yKDy8S5yLA0#libSceSaveData	sceSaveDataTerminate	Partially implemented	runtime	-		clears initialized state
+OOrLKB0bSDs#libSceSharePlay	sceSharePlayGetCurrentConnectionInfo	Partially implemented	runtime	-	game-gpu.log	reports a DORMANT connection (zeroed info), which is the true state here
+yH17Q6NWtVg#libSceUserService	sceUserServiceGetEvent	Diagnostic stub	runtime	-	game-gpu.log	no user events
+F8bUHwAG284#libkernel	scePthreadMutexattrInit	Implemented, verified	runtime	selftest-host	game-gpu.log	selftest-host
+iMp8QpE+XO4#libkernel	scePthreadMutexattrSettype	Partially implemented	runtime	selftest-host	game-gpu.log	selftest-host covers recursive; adaptive (4) is treated as error-checking
+cmo1RIYva9o#libkernel	scePthreadMutexInit	Implemented, verified	runtime	selftest-host	game-gpu.log	selftest-host (init/lock/trylock/unlock)
+smWEktiyyG0#libkernel	scePthreadMutexattrDestroy	Implemented, verified	runtime	selftest-host	game-gpu.log	selftest-host
+2Of0f+3mhhE#libkernel	scePthreadMutexDestroy	Implemented, verified	runtime	selftest-host		selftest-host
+9UK1vLZQft4#libkernel	scePthreadMutexLock	Implemented, verified	runtime	selftest-host	game-gpu.log	selftest-host
+tn3VlD0hG60#libkernel	scePthreadMutexUnlock	Implemented, verified	runtime	selftest-host	game-gpu.log	selftest-host
+0aR2aWmQal4#libSceNpCommerce	sceNpCommerceDialogInitialize	Diagnostic stub	runtime	-		state only
+DfSCDRA3EjY#libSceNpCommerce	sceNpCommerceDialogOpen	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+LR5cwFMMCVE#libSceNpCommerce	sceNpCommerceDialogUpdateStatus	Diagnostic stub	runtime	-		reports the stored state only
+r42bWcQbtZY#libSceNpCommerce	sceNpCommerceDialogGetResult	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+m-I92Ab50W8#libSceNpCommerce	sceNpCommerceDialogTerminate	Diagnostic stub	runtime	-		state only
+CCbC+lqqvF0#libSceNpCommerce	sceNpCommerceDialogGetStatus	Diagnostic stub	runtime	-		reports the stored state only
+NU3ckGHMFXo#libSceNpCommerce	sceNpCommerceDialogClose	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+obuxdTiwkF8#libSceNetCtl	sceNetCtlGetInfo	Partially implemented	runtime	-		returns the not-connected error
+8Kcp5d-q1Uo#libSceNet	sceNetInetPton	Partially implemented	runtime	-		IPv4 only through the host resolver library; IPv6 returns 0
+p-o74CnoNzY#libSceNpManager	sceNpGetNpId	Partially implemented	runtime	-		returns the SIGNED_OUT error
+XvA5KS56wcs#libSceInvitationDialog	sceInvitationDialogInitialize	Diagnostic stub	runtime	-		state only
+0zU0G+wiVLA#libSceInvitationDialog	sceInvitationDialogOpen	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+9+g9iOq+7kg#libSceInvitationDialog	sceInvitationDialogUpdateStatus	Diagnostic stub	runtime	-		reports the stored state only
+8XKR6wa64iQ#libSceInvitationDialog	sceInvitationDialogGetResult	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+B6HVJtDYxEE#libSceInvitationDialog	sceInvitationDialogTerminate	Diagnostic stub	runtime	-		state only
+A2CQ3kgSopQ#libSceNpManager	sceNpSetContentRestriction	Diagnostic stub	runtime	-	game-gpu.log	ignored
+Nlev7Lg8k3A#libSceNet	sceNetInit	Diagnostic stub	runtime	-	game-gpu.log	succeeds; no network interface is up
+dgJBaeJnGpo#libSceNet	sceNetPoolCreate	Diagnostic stub	runtime	-	game-gpu.log	bookkeeping id only
+gky0+oaNM4k#libSceNetCtl	sceNetCtlInit	Diagnostic stub	runtime	-	game-gpu.log	succeeds
+hdpVEUDFW3s#libSceSsl	sceSslInit	Diagnostic stub	runtime	-	game-gpu.log	returns an increasing id; no TLS exists
+A9cVMUtEp4Y#libSceHttp	sceHttpInit	Diagnostic stub	runtime	-	game-gpu.log	returns an increasing id; no HTTP exists
+Ec63y59l9tw#libSceNpManager	sceNpSetNpTitleId	Diagnostic stub	runtime	-	game-gpu.log	ignored
+10t3e5+JPnU#libSceNpMatching2	sceNpMatching2Initialize	Diagnostic stub	runtime	-	game-gpu.log	records initialization; no matchmaking exists
+3KOuC4RmZZU#libSceNpSignaling	sceNpSignalingInitialize	Diagnostic stub	runtime	-	game-gpu.log	records initialization; no signaling exists
+VfRSmPmj8Q8#libSceNpManager	sceNpRegisterStateCallback	Partially implemented	runtime	-	game-gpu.log	callback recorded and never invoked: the sign-in state never changes
+NPhw0UXaNrk#libSceNpSignaling	sceNpSignalingTerminate	Diagnostic stub	runtime	-		records termination
+Mqp3lJ+sjy4#libSceNpMatching2	sceNpMatching2Terminate	Diagnostic stub	runtime	-		records termination
+Ik-KpLTlf7Q#libSceHttp	sceHttpTerm	Diagnostic stub	runtime	-		returns
+0K1yQ6Lv-Yc#libSceSsl	sceSslTerm	Diagnostic stub	runtime	-		returns
+Z4wwCFiBELQ#libSceNetCtl	sceNetCtlTerm	Diagnostic stub	runtime	-		returns
+K7RlrTkI-mw#libSceNet	sceNetPoolDestroy	Diagnostic stub	runtime	-		bookkeeping only
+cTGkc6-TBlI#libSceNet	sceNetTerm	Diagnostic stub	runtime	-		succeeds
+pFzhpCMlJXQ#libSceNpMatching2	sceNpMatching2AbortContextStart	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+-f6M4caNe8k#libSceNpMatching2	sceNpMatching2ContextStop	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+p+2EnxmaAMM#libSceNpMatching2	sceNpMatching2RegisterRoomEventCallback	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+fQQfP87I7hs#libSceNpMatching2	sceNpMatching2RegisterContextCallback	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+Nz-ZE7ur32I#libSceNpMatching2	sceNpMatching2DestroyContext	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+uBPlr0lbuiI#libSceNetCtl	sceNetCtlGetState	Partially implemented	runtime	-	game-gpu.log	DISCONNECTED, the true state of this port
+3Zl8BePTh9Y#libSceNpManager	sceNpCheckCallback	Partially implemented	runtime	-	game-gpu.log	nothing to dispatch
+eQH7nWPcAgc#libSceNpManager	sceNpGetState	Partially implemented	runtime	-		SIGNED_OUT for the one local user
+JO4yuTuMoKI#libSceNetCtl	sceNetCtlGetNatInfo	Partially implemented	runtime	-		returns the not-connected error
+i8UmXTSq7N4#libSceNpCommon	sceNpCmpNpId	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+XDncXQIJUSk#libSceNpManager	sceNpGetOnlineId	Partially implemented	runtime	-		returns the SIGNED_OUT error
+2rsFmlGWleQ#libSceNpManager	sceNpCheckNpAvailability	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+Ghz9iWDUtC4#libSceNpManager	sceNpGetAccountCountry	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+CSIMDsVjs-g#libSceNpMatching2	sceNpMatching2JoinRoom	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+YfmpW719rMo#libSceNpMatching2	sceNpMatching2CreateContext	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+7vjNQ6Z1op0#libSceNpMatching2	sceNpMatching2ContextStart	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+LhCPctIICxQ#libSceNpMatching2	sceNpMatching2GetServerId	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+rJNPJqDCpiI#libSceNpMatching2	sceNpMatching2GetWorldInfoList	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+zCWZmXXN600#libSceNpMatching2	sceNpMatching2CreateJoinRoom	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+VqZX7POg2Mk#libSceNpMatching2	sceNpMatching2SearchRoom	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+BD6kfx442Do#libSceNpMatching2	sceNpMatching2LeaveRoom	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+q7GK98-nYSE#libSceNpMatching2	sceNpMatching2SetRoomDataExternal	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+KZ1Mj9yEGYc#libSceNpManager	sceNpGetAccountLanguage	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+zO9UL3qIINQ#libSceRtc	sceRtcGetCurrentNetworkTick	Diagnostic stub	runtime	-		returns the host clock, not network time
+fZo48un7LK4#libSceSystemService	sceSystemServiceParamGetInt	Partially implemented	runtime	-	game-gpu.log	language, date/time format, time zone, enter button; other ids refused with a log line
+mn-tf4QiFzk#libSceRtc	sceRtcTickAddMinutes	Partially implemented	runtime	-		plain tick arithmetic
+ueega6v3GUw#libSceRtc	sceRtcSetTick	Implemented, verified	runtime	selftest-host		selftest-host (round trip)
+AN3h0EBSX7A#libSceNpSignaling	sceNpSignalingGetConnectionInfo	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+bD-JizUb3JM#libSceNpSignaling	sceNpSignalingGetConnectionStatus	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+r6MyYJkryz8#libSceNpManager	sceNpCheckPlus	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+Gaxrp3EWY-M#libSceNpManager	sceNpNotifyPlusFeature	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+Lg+NCE6pTwQ#libSceNpProfileDialog	sceNpProfileDialogInitialize	Diagnostic stub	runtime	-		state only
+uj9Cz7Tk0cc#libSceNpProfileDialog	sceNpProfileDialogOpen	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+haVZE9FgKqE#libSceNpProfileDialog	sceNpProfileDialogUpdateStatus	Diagnostic stub	runtime	-		reports the stored state only
+0Sp9vJcB1-w#libSceNpProfileDialog	sceNpProfileDialogTerminate	Diagnostic stub	runtime	-		state only
+eiqMCt9UshI#libSceNpManager	sceNpCreateAsyncRequest	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+GpLQDNKICac#libSceNpManager	sceNpCreateRequest	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+OzKvTvg3ZYU#libSceNpManager	sceNpAbortRequest	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+S7QTn72PrDw#libSceNpManager	sceNpDeleteRequest	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+uqcPJLWL08M#libSceNpManager	sceNpPollAsync	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+dK8-SgYf6r4#libSceNpScore	sceNpScoreDeleteRequest	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+G0pE+RNCwfk#libSceNpScore	sceNpScoreDeleteNpTitleCtx	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+gW8qyjYrUbk#libSceNpScore	sceNpScoreCreateRequest	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+ANJssPz3mY0#libSceNpScore	sceNpScoreRecordScoreAsync	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+Rd27dqUFZV8#libSceNpScore	sceNpScoreGetRankingByNpIdAsync	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+rShmqXHwoQE#libSceNpScore	sceNpScoreGetRankingByRangeAsync	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+m1DfNRstkSQ#libSceNpScore	sceNpScorePollAsync	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+1i7kmKbX6hk#libSceNpScore	sceNpScoreAbortRequest	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+7SuMUlN7Q6I#libSceNpScore	sceNpScoreGetFriendsRankingAsync	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+KnNA1TEgtBI#libSceNpScore	sceNpScoreCreateNpTitleCtx	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+5yYjEdd4t8Y#libSceNpSignaling	sceNpSignalingCreateContext	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+hx+LIg-1koI#libSceNpSignaling	sceNpSignalingDeleteContext	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+wUmwXZHaX1w#libSceNpMatching2	sceNpMatching2SignalingGetPingInfo	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+AUVfU6byg3c#libSceNpMatching2	sceNpMatching2KickoutRoomMember	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+CcIH40dYS88#libSceNpTus	sceNpTusDeleteRequest	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+H3uq7x0sZOI#libSceNpTus	sceNpTusDeleteNpTitleCtx	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+BIkMmUfNKWM#libSceNpTus	sceNpTusCreateNpTitleCtx	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+3bh2aBvvmvM#libSceNpTus	sceNpTusCreateRequest	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+0DT5bP6YzBo#libSceNpTus	sceNpTusDeleteMultiSlotData	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+Qyek420uZmM#libSceNpTus	sceNpTusGetMultiSlotDataStatusAsync	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+t7b6dmpQNiI#libSceNpTus	sceNpTusPollAsync	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+G68xdfQuiyU#libSceNpTus	sceNpTusSetDataAsync	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+uHtKS5V1T5k#libSceNpTus	sceNpTusGetDataAsync	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+6UEembipgrM#libSceNpSignaling	sceNpSignalingDeactivateConnection	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+0UvTFeomAUM#libSceNpSignaling	sceNpSignalingActivateConnection	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+zJGf8xjFnQE#libSceNet	sceNetSocketAbort	Partially implemented	runtime	-		fails with EBADF: no socket can exist
+HQOwnfMGipQ#libSceNet	sceNetErrnoLoc	Partially implemented	runtime	-		per-thread net errno cell
+onNY9Byn-W8#libkernel	scePthreadJoin	Partially implemented	runtime	-		wraps pthread_join; exit values passed through
+TSM6whtekok#libSceNet	sceNetShutdown	Partially implemented	runtime	-		fails with EBADF: no socket can exist
+45ggEzakPJQ#libSceNet	sceNetSocketClose	Partially implemented	runtime	-		fails with EBADF: no socket can exist
+Q4qBuN-c0ZM#libSceNet	sceNetSocket	Partially implemented	runtime	-		fails with ENETDOWN: no network interface exists
+2mKX2Spso7I#libSceNet	sceNetSetsockopt	Partially implemented	runtime	-		fails with EBADF: no socket can exist
+iWQWrwiSt8A#libSceNet	sceNetHtons	Partially implemented	runtime	-		byte swap; not covered by a test
+bErx49PgxyY#libSceNet	sceNetBind	Partially implemented	runtime	-		fails with EBADF: no socket can exist
+nsYoNRywwNg#libkernel	scePthreadAttrInit	Implemented, verified	runtime	selftest-host	game-gpu.log	selftest-host
+DzES9hQF4f4#libkernel	scePthreadAttrSetschedparam	Partially implemented	runtime	-	game-gpu.log	stored, not applied
+UTXzJbWhhTE#libkernel	scePthreadAttrSetstacksize	Implemented, verified	runtime	selftest-host	game-gpu.log	selftest-host (thread created with it); sizes under 64 KiB are raised to 64 KiB
+6UgtwV+0zb4#libkernel	scePthreadCreate	Partially implemented	runtime	-	game-gpu.log	host thread with guest TCB/TLS; detach/stack-size honoured, scheduling attributes not applied
+304ooNZxWDY#libSceNet	sceNetRecvfrom	Partially implemented	runtime	-		fails with EBADF: no socket can exist
+3kg7rT0NQIs#libkernel	scePthreadExit	Implemented, verified	runtime	selftest-host		selftest-host (exit value reaches join)
+gvD1greCu0A#libSceNet	sceNetSendto	Partially implemented	runtime	-		fails with EBADF: no socket can exist
+XUjdsSTTZ3U#libSceNpWebApi	sceNpWebApiDeleteContext	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+asz3TtIqGF8#libSceNpWebApi	sceNpWebApiTerminate	Diagnostic stub	runtime	-		bookkeeping only
+G3AnLNdRBjE#libSceNpWebApi	sceNpWebApiInitialize	Diagnostic stub	runtime	-	game-gpu.log	library context bookkeeping only; no PlayStation Network request can be made
+x1Y7yiYSk7c#libSceNpWebApi	sceNpWebApiCreateContext	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+JzhYTP2fG18#libSceNpWebApi	sceNpWebApiAbortRequest	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+noQgleu+KLE#libSceNpWebApi	sceNpWebApiDeleteRequest	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+rdgs5Z1MyFw#libSceNpWebApi	sceNpWebApiCreateRequest	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+kVbL4hL3K7w#libSceNpWebApi	sceNpWebApiSendRequest	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+k210oKgP80Y#libSceNpWebApi	sceNpWebApiGetHttpStatusCode	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+CQtPRSF6Ds8#libSceNpWebApi	sceNpWebApiReadData	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+2qSZ0DgwTsc#libSceNpWebApi	sceNpWebApiGetErrorCode	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+or0e885BlXo#libSceNpWebApi	sceNpWebApiUtilityParseNpId	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+aI+OeCz8xrQ#libkernel	scePthreadSelf	Implemented, verified	runtime	selftest-host	game-gpu.log	selftest-host (self/equal)
+AEJdIVZTEmo#libc	qsort	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+MpxhMh8QFro#libc	fwrite	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+kHg45qPC6f0#libc	strncat	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+bzQExy189ZI#libc	_init_env	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+8G2LB+A3rzg#libc	atexit	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+XKRegsFpEpk#libc	catchReturnFromMain	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+uMei1W9uyNo#libc	exit	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+jjjRS7l1MPM#libc	_FLog	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+ob5xAW4ln-0#libc	strchr	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+1jfXLRVzisc#libkernel	sceKernelUsleep	Implemented, verified	runtime	selftest-host	game-gpu.log	selftest-host (sleeps at least the requested time)
+IOnSvHzqu6A#libkernel	sceKernelSetEventFlag	Implemented, verified	runtime	selftest-host	game-gpu.log	selftest-host (wakes AND waiters only when the whole pattern is set)
+BpFoboUJoZU#libkernel	sceKernelCreateEventFlag	Implemented, verified	runtime	selftest-host	game-gpu.log	selftest-host
+8mql9OcQnd4#libkernel	sceKernelDeleteEventFlag	Partially implemented	runtime	selftest-host		selftest-host covers delete without waiters; waking blocked waiters with EACCES is untested
+yFVnOdGxvZY#libScePad	scePadSetVibration	Partially implemented	runtime	-	game-gpu.log	forwarded to XInput motors when an XInput controller is in use; otherwise ignored
+6ncge5+l5Qs#libScePad	scePadClose	Partially implemented	runtime	-		validates the handle only
+xk0AcarP3V4#libScePad	scePadOpen	Partially implemented	runtime	-	game-gpu.log	always handle 1 (one pad); source order scripted test input, XInput, keyboard (docs/INPUT.md); not exercised with a physical controller yet
+YndgXqQVV7c#libScePad	scePadReadState	Partially implemented	runtime	-	game-gpu.log	buttons/sticks/triggers from scripted test input, XInput or keyboard; motion sensors, touchpad and orientation are neutral (the game does not import them); XInput/keyboard unverified without a human at the machine
+8zsu04XNsZ4#libc	expf	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+pO96TwzOm5E#libkernel	sceKernelGetDirectMemorySize	Partially implemented	runtime	-	game-gpu.log	fixed 6 GiB direct memory
+rTXw65xmLIA#libkernel	sceKernelAllocateDirectMemory	Implemented, verified	runtime	selftest-host	game-gpu.log	selftest-host (extent allocator)
+L-Q3LEjIbgA#libkernel	sceKernelMapDirectMemory	Partially implemented	runtime	-	game-gpu.log	shared-backing aliasing works on Linux; Windows needs 64 KiB alignment; GPU-visible maps are reported to the renderer
+Up36PTk687E#libSceVideoOut	sceVideoOutOpen	Diagnostic stub	runtime	-	game-gpu.log	stop-at-first-gnm mode only; the GPU library provides the real VideoOut
+D0OdFMjp46I#libkernel	sceKernelCreateEqueue	Partially implemented	gpu-library	-	game-gpu.log	vendored shadPS4 code; not verified by this port until exercised with evidence
+jpFjmgAC5AE#libkernel	sceKernelDeleteEqueue	Partially implemented	gpu-library	-		vendored shadPS4 code; not verified by this port until exercised with evidence
+i6-sR91Wt-4#libSceVideoOut	sceVideoOutSetBufferAttribute	Partially implemented	runtime	-	game-gpu.log	stop-at-first-gnm mode only
+w3BY+tAEiQY#libSceVideoOut	sceVideoOutRegisterBuffers	Diagnostic stub	runtime	-	game-gpu.log	stop-at-first-gnm mode only; records the buffers and presents nothing
+hdTyRzCXQeQ#libSceAvPlayer	sceAvPlayerStreamCount	Diagnostic stub	runtime	-	game-gpu.log	always 0: no stream is demuxed
+d8FcbzfAdQw#libSceAvPlayer	sceAvPlayerGetStreamInfo	Diagnostic stub	runtime	-		always INVALID_PARAMS: there is no stream
+ODJK2sn9w4A#libSceAvPlayer	sceAvPlayerEnableStream	Diagnostic stub	runtime	-		always INVALID_PARAMS: there is no stream
+ET4Gr-Uu07s#libSceAvPlayer	sceAvPlayerStart	Diagnostic stub	runtime	-	game-gpu.log	records the call; nothing plays
+aS66RI0gGgo#libSceAvPlayer	sceAvPlayerInit	Diagnostic stub	runtime	-	game-gpu.log	returns an opaque handle and logs the init data; no decoder exists, memory/file/event callbacks are never called
+KMcEa+rHsIo#libSceAvPlayer	sceAvPlayerAddSource	Diagnostic stub	runtime	-	game-gpu.log	reads size and MP4 brand of the named file for the log; nothing is demuxed or decoded
+OVths0xGfho#libSceAvPlayer	sceAvPlayerSetLooping	Diagnostic stub	runtime	-	game-gpu.log	recorded only
+NkJwDzKmIlw#libSceAvPlayer	sceAvPlayerClose	Diagnostic stub	runtime	-	game-gpu.log	releases the bookkeeping slot
+ZC17w3vB5Lo#libSceAvPlayer	sceAvPlayerStop	Diagnostic stub	runtime	-		records the call
+UbQoYawOsfY#libSceAvPlayer	sceAvPlayerIsActive	Diagnostic stub	runtime	-	game-gpu.log	always false: the movie is treated as finished
+JdksQu8pNdQ#libSceAvPlayer	sceAvPlayerGetVideoDataEx	Diagnostic stub	runtime	-	game-gpu.log	never returns a frame
+CyIK-i4XdgQ#libSceRtc	sceRtcGetDayOfWeek	Implemented, verified	runtime	selftest-host	game-gpu.log	selftest-host
+18B2NS1y9UU#libSceRtc	sceRtcGetCurrentTick	Partially implemented	runtime	-	game-gpu.log	host UTC clock
+IWIBBdTHit4#libkernel	sceKernelMapFlexibleMemory	Partially implemented	runtime	-	game-gpu.log	anonymous memory; 16 KiB granularity not enforced on the host
+MBuItvba6z8#libkernel	sceKernelReleaseDirectMemory	Partially implemented	runtime	-		whole-extent release only; partial release is refused with a log line
+cQke9UuBQOk#libkernel	sceKernelMunmap	Partially implemented	runtime	-		Windows can only release whole reservations/views
+9LCjpWyQ5Zc#libc	pow	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+GZWjF-YIFFk#libc	asinf	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+4qGrR6eoP9Y#libkernel	scePthreadDetach	Partially implemented	runtime	selftest-host		wraps pthread_detach; not exercised by selftest-host
+3qxgM4ezETA#libkernel	scePthreadAttrSetaffinity	Partially implemented	runtime	-	game-gpu.log	stored, not applied to the host thread
+-Wreprtu0Qs#libkernel	scePthreadAttrSetdetachstate	Implemented, verified	runtime	selftest-host	game-gpu.log	selftest-host (joinable and detached threads)
+El+cQ20DynU#libkernel	scePthreadAttrSetguardsize	Partially implemented	runtime	-	game-gpu.log	stored, not applied
+eXbUSpEaTsA#libkernel	scePthreadAttrSetinheritsched	Diagnostic stub	runtime	-	game-gpu.log	value ignored
+4+h9EzwKF4I#libkernel	scePthreadAttrSetschedpolicy	Diagnostic stub	runtime	-	game-gpu.log	value ignored
+62KCwEMmzcM#libkernel	scePthreadAttrDestroy	Implemented, verified	runtime	selftest-host	game-gpu.log	selftest-host
+JTvBflhYazQ#libkernel	sceKernelWaitEventFlag	Implemented, verified	runtime	selftest-host	game-gpu.log	selftest-host (immediate, timed-out, cross-thread wake, clear modes)
+4J2sUJmuHZQ#libkernel	sceKernelGetProcessTime	Implemented, verified	runtime	selftest-host	game-gpu.log	selftest-host (monotonic microseconds)
+wuAQt-j+p4o#libc	exp2f	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+cCXjU72Z0Ow#libc	_Sin	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+dnaeGXbjP6E#libc	exp2	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+9kPCz7Or+1Y#libSceSystemService	sceSystemServiceReenableMusicPlayer	Diagnostic stub	runtime	-	game-gpu.log	no music player exists
+x1UB9bwDSOw#libSceSystemService	sceSystemServiceDisableMusicPlayer	Diagnostic stub	runtime	-		no music player exists
+hv1luiJrqQM#libScePad	scePadInit	Partially implemented	runtime	-	game-gpu.log	returns success; no state to initialise
+Qs0wWulgl7U#libSceMouse	sceMouseInit	Diagnostic stub	runtime	-	game-gpu.log	no mouse backend
+j3YMu1MVNNo#libSceUserService	sceUserServiceInitialize	Partially implemented	runtime	-	game-gpu.log	single fixed user (id 1)
+bwFjS+bX9mA#libSceUserService	sceUserServiceTerminate	Partially implemented	runtime	-		single fixed user
+CBiu4mCE1DA#libSceVideoOut	sceVideoOutSetFlipRate	Diagnostic stub	runtime	-	game-gpu.log	stop-at-first-gnm mode only
+fzyMKs9kim0#libkernel	sceKernelWaitEqueue	Partially implemented	gpu-library	-	game-gpu.log	vendored shadPS4 code; not verified by this port until exercised with evidence
+SbU3dwp80lQ#libSceVideoOut	sceVideoOutGetFlipStatus	Diagnostic stub	runtime	-	game-gpu.log	stop-at-first-gnm mode only
+cfAXurvfl5o#libc	__cxa_allocate_exception	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+vkuuLfhnSZI#libc	__cxa_throw	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+usKbuvy2hQg#libc	__cxa_call_unexpected	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+f1zwJ3jAI2k#libc	_Unwind_Resume	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+c41UEHVtiEA#libc	_Stod	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+3cUUypQzMiI#libc	__cxa_begin_catch	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+lX+4FNUklF0#libc	__cxa_end_catch	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+lbB+UlZqVG0#libc	fread	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+qYhnoevd9bI#libc	_ZSt9terminatev	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+ZL9FV4mJXxo#libc	__cxa_rethrow	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+0H2vBYbTLHI#libSceGnmDriver	sceGnmDrawInitDefaultHardwareState200	Partially implemented	gpu-library	-	game-gpu.log	vendored shadPS4 code; not verified by this port until exercised with evidence
+bQVd5YzCal0#libSceGnmDriver	sceGnmSetPsShader	Partially implemented	gpu-library	-	game-gpu.log	vendored shadPS4 code; not verified by this port until exercised with evidence
+4MgRw-bVNQU#libSceGnmDriver	sceGnmUpdatePsShader	Partially implemented	gpu-library	-	game-gpu.log	vendored shadPS4 code; not verified by this port until exercised with evidence
+gAhCn6UiU4Y#libSceGnmDriver	sceGnmSetVsShader	Partially implemented	gpu-library	-	game-gpu.log	vendored shadPS4 code; not verified by this port until exercised with evidence
+V31V01UiScY#libSceGnmDriver	sceGnmUpdateVsShader	Partially implemented	gpu-library	-	game-gpu.log	vendored shadPS4 code; not verified by this port until exercised with evidence
+FUHG8sQ3R58#libSceGnmDriver	sceGnmSetEsShader	Partially implemented	gpu-library	-		vendored shadPS4 code; not verified by this port until exercised with evidence
+VJNjFtqiF5w#libSceGnmDriver	sceGnmSetHsShader	Partially implemented	gpu-library	-		vendored shadPS4 code; not verified by this port until exercised with evidence
+GNlx+y7xPdE#libSceGnmDriver	sceGnmUpdateHsShader	Partially implemented	gpu-library	-		vendored shadPS4 code; not verified by this port until exercised with evidence
+vckdzbQ46SI#libSceGnmDriver	sceGnmSetLsShader	Partially implemented	gpu-library	-		vendored shadPS4 code; not verified by this port until exercised with evidence
+KXltnCwEJHQ#libSceGnmDriver	sceGnmSetCsShader	Partially implemented	gpu-library	-	game-gpu.log	vendored shadPS4 code; not verified by this port until exercised with evidence
+UJwNuMBcUAk#libSceGnmDriver	sceGnmSetGsShader	Partially implemented	gpu-library	-		vendored shadPS4 code; not verified by this port until exercised with evidence
+nLM2i2+65hA#libSceGnmDriver	sceGnmUpdateGsShader	Partially implemented	gpu-library	-		vendored shadPS4 code; not verified by this port until exercised with evidence
+jiItzS6+22g#libSceGnmDriver	sceGnmInsertSetMarker	Partially implemented	gpu-library	-		vendored shadPS4 code; not verified by this port until exercised with evidence
+aj3L-iaFmyk#libSceGnmDriver	sceGnmInsertSetColorMarker	Diagnostic stub	gpu-library	-		upstream shadPS4 stub: logs '(STUBBED)' and returns a fixed value
+W1Etj-jlW7Y#libSceGnmDriver	sceGnmInsertPushMarker	Partially implemented	gpu-library	-		vendored shadPS4 code; not verified by this port until exercised with evidence
+aPIZJTXC+cU#libSceGnmDriver	sceGnmInsertPushColorMarker	Partially implemented	gpu-library	-		vendored shadPS4 code; not verified by this port until exercised with evidence
+7qZVNgEu+SY#libSceGnmDriver	sceGnmInsertPopMarker	Partially implemented	gpu-library	-		vendored shadPS4 code; not verified by this port until exercised with evidence
+1qXLHIpROPE#libSceGnmDriver	sceGnmInsertWaitFlipDone	Partially implemented	gpu-library	-	game-gpu.log	vendored shadPS4 code; not verified by this port until exercised with evidence
+26PM5Mzl8zc#libSceGnmDriver	sceGnmLogicalCuIndexToPhysicalCuIndex	Partially implemented	gpu-library	-		vendored shadPS4 code; not verified by this port until exercised with evidence
+RU74kek-N0c#libSceGnmDriver	sceGnmLogicalCuMaskToPhysicalCuMask	Partially implemented	gpu-library	-		vendored shadPS4 code; not verified by this port until exercised with evidence
+zwY0YV91TTI#libSceGnmDriver	sceGnmSubmitCommandBuffers	Partially implemented	gpu-library	-		vendored shadPS4 code; not verified by this port until exercised with evidence
+xbxNatawohc#libSceGnmDriver	sceGnmSubmitAndFlipCommandBuffers	Partially implemented	gpu-library	-	game-gpu.log	vendored shadPS4 code; not verified by this port until exercised with evidence
+iCO804ZgzdA#libSceGnmDriver	sceGnmValidateCommandBuffers	Partially implemented	gpu-library	-		vendored shadPS4 code; not verified by this port until exercised with evidence
+b0xyllnVY-I#libSceGnmDriver	sceGnmAddEqEvent	Partially implemented	gpu-library	-	game-gpu.log	vendored shadPS4 code; not verified by this port until exercised with evidence
+PVT+fuoS9gU#libSceGnmDriver	sceGnmDeleteEqEvent	Partially implemented	gpu-library	-		vendored shadPS4 code; not verified by this port until exercised with evidence
+UoYY0DWMC0U#libSceGnmDriver	sceGnmGetEqEventType	Partially implemented	gpu-library	-		vendored shadPS4 code; not verified by this port until exercised with evidence
+H7-fgvEutM0#libSceGnmDriver	sceGnmGetEqTimeStamp	Diagnostic stub	gpu-library	-		upstream shadPS4 stub: logs '(STUBBED)' and returns a fixed value
+29oKvKXzEZo#libSceGnmDriver	sceGnmMapComputeQueue	Partially implemented	gpu-library	-		vendored shadPS4 code; not verified by this port until exercised with evidence
+A+uGq+3KFtQ#libSceGnmDriver	sceGnmMapComputeQueueWithPriority	Partially implemented	gpu-library	-		vendored shadPS4 code; not verified by this port until exercised with evidence
+ArSg-TGinhk#libSceGnmDriver	sceGnmUnmapComputeQueue	Partially implemented	gpu-library	-		vendored shadPS4 code; not verified by this port until exercised with evidence
+bX5IbRvECXk#libSceGnmDriver	sceGnmDingDong	Partially implemented	gpu-library	-		vendored shadPS4 code; not verified by this port until exercised with evidence
+iBt3Oe00Kvc#libSceGnmDriver	sceGnmFlushGarlic	Diagnostic stub	gpu-library	-		upstream shadPS4 stub: logs '(STUBBED)' and returns a fixed value
+qpGITzPE+Zc#libSceGnmDriver	sceGnmDebugHardwareStatus	Diagnostic stub	gpu-library	-		upstream shadPS4 stub: logs '(STUBBED)' and returns a fixed value
+yvZ73uQUqrk#libSceGnmDriver	sceGnmSubmitDone	Partially implemented	gpu-library	-	game-gpu.log	vendored shadPS4 code; not verified by this port until exercised with evidence
+b08AgtPlHPg#libSceGnmDriver	sceGnmAreSubmitsAllowed	Partially implemented	gpu-library	-		vendored shadPS4 code; not verified by this port until exercised with evidence
+gObODli-OH8#libSceGnmDriver	sceGnmRequestFlipAndSubmitDone	Diagnostic stub	gpu-library	-		upstream shadPS4 stub: logs '(STUBBED)' and returns a fixed value
++xuDhxlWRPg#libSceGnmDriver	sceGnmSetupMipStatsReport	Diagnostic stub	gpu-library	-		upstream shadPS4 stub: logs '(STUBBED)' and returns a fixed value
+f85orjx7qts#libSceGnmDriver	sceGnmRequestMipStatsReportAndReset	Diagnostic stub	gpu-library	-		upstream shadPS4 stub: logs '(STUBBED)' and returns a fixed value
+HHo1BAljZO8#libSceGnmDriver	sceGnmDisableMipStatsReport	Diagnostic stub	gpu-library	-		upstream shadPS4 stub: logs '(STUBBED)' and returns a fixed value
+jtkqXpAOY6w#libSceGnmDriver	sceGnmSetGsRingSizes	Diagnostic stub	gpu-library	-		upstream shadPS4 stub: logs '(STUBBED)' and returns a fixed value
+ln33zjBrfjk#libSceGnmDriver	sceGnmGetTheTessellationFactorRingBufferBaseAddress	Partially implemented	gpu-library	-		vendored shadPS4 code; not verified by this port until exercised with evidence
+f33OrruQYbM#libSceGnmDriver	sceRazorIsLoaded	Partially implemented	gpu-library	-		vendored shadPS4 code; not verified by this port until exercised with evidence
+u9YKpRRHe-M#libSceGnmDriver	sceRazorCaptureImmediate	Partially implemented	gpu-library	-		vendored shadPS4 code; not verified by this port until exercised with evidence
+4UFagYlfuAM#libSceGnmDriver	sceRazorCaptureSinceLastFlip	Partially implemented	gpu-library	-		vendored shadPS4 code; not verified by this port until exercised with evidence
+xeTLfxVIQO4#libSceGnmDriver	sceRazorCaptureCommandBuffersOnlyImmediate	Partially implemented	gpu-library	-		vendored shadPS4 code; not verified by this port until exercised with evidence
+9thMn+uB1is#libSceGnmDriver	sceRazorCaptureCommandBuffersOnlySinceLastFlip	Partially implemented	gpu-library	-		vendored shadPS4 code; not verified by this port until exercised with evidence
+d88anrgNoKY#libSceGnmDriver	sceGnmDriverTriggerCapture	Partially implemented	gpu-library	-		vendored shadPS4 code; not verified by this port until exercised with evidence
+TLV4mswiZ4A#libSceGnmDriver	sceGnmDriverCaptureInProgress	Partially implemented	gpu-library	-		vendored shadPS4 code; not verified by this port until exercised with evidence
+jg33rEKLfVs#libSceGnmDriver	sceGnmIsUserPaEnabled	Partially implemented	gpu-library	-	game-gpu.log	vendored shadPS4 code; not verified by this port until exercised with evidence
+nF6bFRUBRAU#libSceGnmDriver	sceGnmDispatchInitDefaultHardwareState	Partially implemented	gpu-library	-		vendored shadPS4 code; not verified by this port until exercised with evidence
+T72hz6ffq08#libkernel	scePthreadYield	Implemented, verified	runtime	selftest-host		selftest-host
+1-LFLmRFxxM#libkernel	sceKernelMkdir	Partially implemented	runtime	selftest-host		selftest-host (Linux backend); writable mounts only
+kBwCPsYX-m4#libkernel	sceKernelFstat	Partially implemented	runtime	selftest-host	game-gpu.log	selftest-host (Linux backend); same synthesized fields as sceKernelStat
+oib76F-12fk#libkernel	sceKernelLseek	Partially implemented	runtime	selftest-host	game-gpu.log	selftest-host (Linux backend); seeking a directory resets its listing
+fTx66l5iWIA#libkernel	sceKernelFsync	Partially implemented	runtime	selftest-host		host fsync; not exercised by selftest-host
+VW3TVZiM4-E#libkernel	sceKernelFtruncate	Partially implemented	runtime	selftest-host		selftest-host (Linux backend)
+Q2V+iqvjgC0#libc	vsnprintf	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+1Pk0qZQGeWo#libc	sscanf	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+1FGvU0i9saQ#libkernel	scePthreadMutexattrSetprotocol	Diagnostic stub	runtime	-	game-gpu.log	priority protocol ignored
+2Tb92quprl0#libkernel	scePthreadCondInit	Implemented, verified	runtime	selftest-host	game-gpu.log	selftest-host
+g+PZd2hiacg#libkernel	scePthreadCondDestroy	Implemented, verified	runtime	selftest-host		selftest-host
+WKAXJ4XBPQ4#libkernel	scePthreadCondWait	Implemented, verified	runtime	selftest-host	game-gpu.log	selftest-host (waiter woken by broadcast)
+JGgj7Uvrl+A#libkernel	scePthreadCondBroadcast	Implemented, verified	runtime	selftest-host	game-gpu.log	selftest-host
+W0Hpm2X0uPE#libkernel	scePthreadSetprio	Partially implemented	runtime	-	game-gpu.log	stored, not applied to the host thread
+1tKyG7RlMJo#libkernel	scePthreadGetprio	Partially implemented	runtime	-		stored value returned
+bt3CTBKmGyI#libkernel	scePthreadSetaffinity	Partially implemented	runtime	-		stored, not applied to the host thread
+rcrVFJsQWRY#libkernel	scePthreadGetaffinity	Partially implemented	runtime	-		stored value returned
+-2IRUCO--PM#libkernel	sceKernelReadTsc	Partially implemented	runtime	-	game-gpu.log	host-clock based virtual TSC
+1j3S3n-tTW4#libkernel	sceKernelGetTscFrequency	Partially implemented	runtime	-	game-gpu.log	fixed 1 GHz virtual TSC derived from the host clock
+JfEPXVxhFqA#libSceAudioOut	sceAudioOutInit	Partially implemented	runtime	-	game-gpu.log	returns success; no state to initialise
+QOQtbeDqsT4#libSceAudioOut	sceAudioOutOutput	Partially implemented	runtime	selftest-host	game-gpu.log	converts the submitted buffer to stereo float (8ch downmix drops LFE), meters it, optionally records it (--dump-audio) and writes it to the host device, blocking until the device has room; selftest-host checks conversion and the WAV; observed on Windows: the game submits music-like audio (peak 0.3-0.85) with 0 device underruns over 440 s; audibility and sync have not been confirmed by a listener; volume/port-type/priority semantics are ignored
+s1--uE9mBFw#libSceAudioOut	sceAudioOutClose	Partially implemented	runtime	selftest-host		releases the host port and finalizes the WAV; selftest-host covers it, the game has not been observed closing a port
+ekNvsT22rsY#libSceAudioOut	sceAudioOutOpen	Partially implemented	runtime	-	game-gpu.log	up to 8 ports; all 8 console sample formats are accepted and converted; 48000 Hz ports open a WASAPI shared-mode stream (jstars_audiohost.c), other rates or --no-audio or a failed open fall back to a timed null sink (logged); observed: the game opens two ports (256 frames, 48 kHz, formats 5 and 0x10005); user id/type/index are ignored
+T7uyNqP7vQA#libc	tan	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+HUbZmOnT-Dg#libc	atan2	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+hcuQgD53UxM#libc	printf	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+f7uOxY9mM1U#libkernel	__stack_chk_guard	Implemented, verified	runtime	-		fixed canary value; read by guest prologues
+zr094EQ39Ww#libc	__cxa_pure_virtual	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+P330P3dFF68#libc	Need_sceLibc	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+St4apgcBNfo#libc	_ZTIi	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+byV+FWlAnB4#libc	_ZTVN10__cxxabiv117__class_type_infoE	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+pZ9WXcClPO8#libc	_ZTVN10__cxxabiv120__si_class_type_infoE	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+XwLA5cTHjt4#libc	__gxx_personality_v0	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+OMDRKKAZ8I4#libkernel	sceKernelDebugRaiseException	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+zE-wXIZjLoM#libkernel	sceKernelDebugRaiseExceptionOnReleaseMode	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+vNe1w4diLCs#libkernel	__tls_get_addr	Implemented, verified	runtime	-	game-gpu.log	per-thread TLS blocks from PT_TLS templates; libc init uses them
+kOcnerypnQA#libkernel	sceKernelGettimezone	Partially implemented	runtime	selftest-host	game-gpu.log	host time zone offset and DST flag; selftest-host checks plausibility only
+BmMjYxmew1w#libkernel	scePthreadCondTimedwait	Implemented, verified	runtime	selftest-host		selftest-host (SCE ETIMEDOUT code and wait duration)
+kDh-NfxgMtE#libkernel	scePthreadCondSignal	Implemented, verified	runtime	selftest-host		selftest-host
+yS8U2TGCe1A#libkernel	nanosleep	Implemented, verified	runtime	selftest-host		selftest-host
+9BcDykPmo1I#libkernel	__error	Partially implemented	runtime	selftest-host	game-gpu.log	per-thread errno cell; reachability checked by selftest-host, per-thread isolation not separately tested
+3PtV6p3QNX4#libkernel	scePthreadEqual	Implemented, verified	runtime	selftest-host		selftest-host
+upoVrzMHFeE#libkernel	scePthreadMutexTrylock	Implemented, verified	runtime	selftest-host		selftest-host
+14bOACANTBo#libkernel	scePthreadOnce	Implemented, verified	runtime	selftest-host		selftest-host
+geDaqgH9lTg#libkernel	scePthreadKeyCreate	Partially implemented	runtime	selftest-host		selftest-host covers create/set/get; key destructors are not run at thread exit
+PrdHuuDekhY#libkernel	scePthreadKeyDelete	Implemented, verified	runtime	selftest-host		selftest-host
++BzXYkqYeLE#libkernel	scePthreadSetspecific	Implemented, verified	runtime	selftest-host		selftest-host
+eoht7mQOCmo#libkernel	scePthreadGetspecific	Implemented, verified	runtime	selftest-host		selftest-host
+n88vx3C5nW8#libkernel	gettimeofday	Implemented, verified	runtime	selftest-host		selftest-host
+VADc3MNQ3cM#libkernel	signal	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+959qrazPIrg#libkernel	sceKernelGetProcParam	Implemented, verified	runtime	observed in boot log	game-gpu.log	returns the eboot's SCE_PROCESS_PARAM; read by libc init (boot log)
+p5EcQeEeJAE#libkernel	_sceKernelRtldSetApplicationHeapAPI	Partially implemented	runtime	-	game-gpu.log	callbacks recorded; libc heap is not routed through them
+Wl2o5hOVZdw#libkernel	sceKernelPrintBacktraceWithModuleInfo	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+mL8NDH86iQI#libkernel	sceKernelMapNamedFlexibleMemory	Partially implemented	runtime	-	game-gpu.log	name ignored
+3k6kx-zOOSQ#libkernel	sceKernelMlock	Diagnostic stub	runtime	-		no-op
+8IGjwtnvYwI#libSceFios2	sceFiosIsValidHandle	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+Bn2ZF4ZjeuQ#libSceFios2	sceFiosFHReadSync	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+DRuBt2pvICk#libkernel	_read	Partially implemented	runtime	-		POSIX-style wrapper over the same descriptors; fd 0 reads as end of file
+FxVZqBAA7ks#libkernel	_write	Partially implemented	runtime	-		POSIX-style wrapper; fds 1 and 2 go to the log
+Kl-TbrDU9YM#libSceFios2	sceFiosFHWriteSync	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+w13Ojm7ON9o#libSceFios2	sceFiosFHOpenWithModeSync	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+AOujSGqU+ms#libSceFios2	sceFiosFHCloseSync	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+xReSebwKApA#libSceFios2	sceFiosFHSeek	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+G-39lsdSgXo#libSceFios2	sceFiosRenameSync	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+KsVTc04kN9k#libSceFios2	sceFiosDeleteSync	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+hHlZQUnlxSM#libkernel	getrusage	Partially implemented	runtime	-		user time from the host process CPU clock; system time and all other counters report 0
+lLMT9vJAck0#libkernel	clock_gettime	Implemented, verified	runtime	selftest-host		selftest-host (monotonic and realtime clock ids)
+f7KBOafysXo#libkernel	sceKernelGetModuleInfoFromAddr	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+Fjc4-n1+y2g#libkernel	__elf_phdr_match_addr	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+kbw4UHHSYy0#libkernel	__pthread_cxa_finalize	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+6xVpy0Fdq+I#libkernel	_sigprocmask	Partially implemented	runtime	-		same implementation as sigprocmask
+6XG4B33N09g#libkernel	sched_yield	Implemented, verified	runtime	selftest-host		selftest-host
+DFmMT80xcNI#libkernel	sysctl	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+BPE9s9vQQXo#libkernel	mmap	Partially implemented	runtime	-		anonymous private mappings only; other flags are refused loudly
+UqDGjXA5yUM#libkernel	munmap	Partially implemented	runtime	-		see sceKernelMunmap
+mqQMh1zPPT8#libkernel	fstat	Partially implemented	runtime	-		POSIX-style wrapper; fds 0-2 report a character device
+VkTAsrZDcJ0#libkernel	sigfillset	Implemented, verified	runtime	selftest-host		selftest-host
+aPcyptbOiZs#libkernel	sigprocmask	Partially implemented	runtime	selftest-host		per-thread mask bookkeeping (selftest-host); the guest never receives signals, so masks have no effect
+tZY4+SZNFhA#libkernel	msync	Diagnostic stub	runtime	-		no-op: mappings are always coherent on this host
+HoLVWNanBBc#libkernel	getpid	Implemented, verified	runtime	selftest-host		fixed pid 1 (selftest-host); not the host pid
+crb5j7mkk1c#libkernel	_is_signal_return	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+mo0bFmWppIw#libkernel	sigreturn	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+OjWstbIRPUo#libkernel	__Ux86_64_setcontext	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+k+AXqu2-eBc#libkernel	getpagesize	Implemented, verified	runtime	-		16384, the console page size
+x1X76arYMxU#libkernel	scePthreadAttrGet	Partially implemented	runtime	-	game-gpu.log	returns a fresh attribute with the thread's priority and affinity; stack size is not reported
+8+s5BzZjxSg#libkernel	scePthreadAttrGetaffinity	Partially implemented	runtime	-	game-gpu.log	stored value returned
+6Z83sYWFlA8#libkernel	_exit	Partially implemented	runtime	-		logs and terminates the process with the given code; no guest atexit handlers or GPU shutdown run
+djxxOmW6-aw#libkernel	__progname	Partially implemented	runtime	-		string is a fixed '/app0/eboot.bin' basename
+H2e8t5ScQGc#libSceLibcInternal	__cxa_finalize	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+hcuQgD53UxM#libSceLibcInternal	printf	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+Q2V+iqvjgC0#libSceLibcInternal	vsnprintf	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+Q3VBxCXhUHs#libSceLibcInternal	memcpy	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+8zTFvBIAIN8#libSceLibcInternal	memset	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+ioKMruft1ek#libSceDiscMap		Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+GMpvxPFW924#libSceLibcInternal	vprintf	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+MUjC4lbHrK4#libSceLibcInternal	fflush	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+QBi7HCK03hw#libkernel	sceKernelClockGettime	Implemented, verified	runtime	selftest-host		selftest-host
+ejekcaNQNq0#libkernel	sceKernelGettimeofday	Implemented, verified	runtime	selftest-host		selftest-host
+n7AepwR0s34#libSceLibcInternal	mktime	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+wLlFkwG9UcQ#libSceLibcInternal	time	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+efhK-YSUYYQ#libSceLibcInternal	localtime	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+1mecP7RgI2A#libSceLibcInternal	gmtime	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+5bBacGLyLOs#libSceLibcInternal	gmtime_s	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
++r3rMFwItV4#libkernel	sceKernelPread	Partially implemented	runtime	selftest-host		selftest-host (Linux backend)
+nKWi-N2HBV4#libkernel	sceKernelPwrite	Partially implemented	runtime	selftest-host		implemented over the host pwrite; not exercised by selftest-host
+taRWhTJFTgE#libkernel	sceKernelGetdirentries	Partially implemented	runtime	selftest-host		selftest-host (Linux backend); fixed 264-byte records, no sorting, base offset reported as bytes consumed
+naInUjYt3so#libkernel	sceKernelRmdir	Partially implemented	runtime	selftest-host		selftest-host (Linux backend); writable mounts only
+WlyEA-sLDf0#libkernel	sceKernelTruncate	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+lbQKqsERhtE#libSceDiscMap	sceDiscMapIsRequestOnHDD	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+6ULAa0fq4jA#libkernel	scePthreadRwlockInit	Implemented, verified	runtime	selftest-host		selftest-host
+BB+kb08Tl9A#libkernel	scePthreadRwlockDestroy	Implemented, verified	runtime	selftest-host		selftest-host
+Ox9i0c7L5w0#libkernel	scePthreadRwlockRdlock	Implemented, verified	runtime	selftest-host		selftest-host
+XD3mDeybCnk#libkernel	scePthreadRwlockTryrdlock	Implemented, verified	runtime	selftest-host		selftest-host (fails while write-locked)
++L98PIbGttk#libkernel	scePthreadRwlockUnlock	Implemented, verified	runtime	selftest-host		selftest-host
+mqdNorrB+gI#libkernel	scePthreadRwlockWrlock	Implemented, verified	runtime	selftest-host		selftest-host (excludes readers)
+bIHoZCTomsI#libkernel	scePthreadRwlockTrywrlock	Implemented, verified	runtime	selftest-host		selftest-host
+gQX+4GDQjpM#libSceLibcInternal	malloc	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+tIhsqj0qsFE#libSceLibcInternal	free	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs
+ZT4ODD2Ts9o#libSceLibcInternal	Need_sceLibcInternal	Unsupported	-	-		no implementation: bound to a trap (exit 3) that names the import
+2sWzhYqFH4E#libSceLibcInternal	_Stdout	Original code	game module	-		resolved against the game's bundled module (libc.prx / libSceFios2.prx): original code runs

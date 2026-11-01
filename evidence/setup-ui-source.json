@@ -1,0 +1,14 @@
+{
+  "schema": "reborn.pkg-source.v1",
+  "source_path": "C:/Users/<user>/Documents/Codex/2026-10-31/ok-x20-2/work/setup-fixtures/source/sample.pkg",
+  "size_bytes": 1440,
+  "sha256": "b32fd75e174257f2fb166e3b0986ad00ead28e46278ef3a9b4e2e5b6a47c2042",
+  "signature_hint": "CNT-package",
+  "content_id_hint": "SYNTHETIC-NOT-A-GAME",
+  "source_registered": true,
+  "container_validated": false,
+  "content_extracted": false,
+  "executable_converted": false,
+  "game_import_supported": false,
+  "summary": "Source metadata registered only. Header signature and minimum size do not prove container validity, platform identity, title identity, authenticity, or game compatibility. No content extraction or game conversion is implemented."
+}

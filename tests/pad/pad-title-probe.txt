@@ -1,0 +1,5 @@
+# Automated test input for the J-Stars Victory VS+ port (NOT a controller; every transition is logged as
+# "SCRIPTED TEST INPUT"). Seconds count from the first scePadOpen. This probe alternates OPTIONS (the console's
+# START) and CROSS (confirm) so the title/menu flow can be followed in the captures; it never presses CIRCLE.
+every 4000 from 8 to 80 press OPTIONS for 200
+every 4000 from 10 to 82 press CROSS for 200

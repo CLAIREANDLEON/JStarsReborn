@@ -1,0 +1,31 @@
+build/
+logs/
+saves/
+__pycache__/
+*.tmp
+assets/local/
+
+# Build outputs and executables (releases are built with tools/build_release.sh; never commit binaries)
+*.exe
+*.o
+*.a
+*.res
+*.pyc
+runtime/jstars-boot
+runtime/jstars-boot-gpu
+runtime/jstars-boot-gpu-hg
+runtime/obj*/
+runtime/*.log
+runtime/*.log.selftest/
+build-*/
+gpu/build*/
+
+# Never commit game content, saves, captures or prepared data
+*.bin
+*.prx
+*.sprx
+*.sfo
+*.pkg
+captures/
+prepared/
+user/

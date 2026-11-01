@@ -1,0 +1,8 @@
+OS: Microsoft Windows 11 Pro 10.0.26300 64-bit
+CPU: AMD Ryzen 7 9800X3D 8-Core Processor           
+GPU: Parsec Virtual Display Adapter driver 0.45.0.0
+GPU: AMD Radeon RX 9070 XT driver 32.0.32015.7029
+GPU: AMD Radeon(TM) Graphics driver 32.0.21045.16010
+Vulkan loader: 1.4.357.0
+VulkanSDK dirs: Releases, vulkaninfo.txt
+Runner: run-gpu22.ps1 20261101-070533

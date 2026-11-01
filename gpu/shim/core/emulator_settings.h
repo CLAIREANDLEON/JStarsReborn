@@ -1,0 +1,52 @@
+// JStarsReborn: the settings the vendored shadPS4 video core reads. Values come from JSTARS_GPU_*
+// environment variables (read once); defaults are conservative and match upstream where it matters.
+// Interface follows shadPS4 b4e7ae77 core/emulator_settings.h (names used by the vendored code only).
+#pragma once
+#include <algorithm>
+#include <cstdlib>
+#include <string>
+#include "common/types.h"
+
+enum GpuReadbacksMode : int { Disabled, Relaxed, Precise };
+
+class EmulatorSettingsImpl {
+public:
+    static EmulatorSettingsImpl* GetInstance() { static EmulatorSettingsImpl s; return &s; }
+    static bool Flag(const char* name, bool fallback) {
+        const char* v = std::getenv(name);
+        return v ? (v[0] == '1' || v[0] == 'y' || v[0] == 't') : fallback;
+    }
+    static long Number(const char* name, long fallback) {
+        const char* v = std::getenv(name);
+        return v ? std::strtol(v, nullptr, 10) : fallback;
+    }
+    s32 GetGpuId() { static const auto value = s32(Number("JSTARS_GPU_ID", -1)); return value; }
+    u32 GetInternalScreenWidth() { static const auto value = u32(Number("JSTARS_INTERNAL_WIDTH", 1920)); return value; }
+    u32 GetInternalScreenHeight() { static const auto value = u32(Number("JSTARS_INTERNAL_HEIGHT", 1080)); return value; }
+    std::string GetPresentMode() { const char* v = std::getenv("JSTARS_PRESENT_MODE"); return v ? v : "Fifo"; }
+    u32 GetReadbacksMode() { static const auto value = u32(Number("JSTARS_READBACKS", GpuReadbacksMode::Disabled)); return value; }
+    u32 GetVblankFrequency() { static const auto value = u32(std::max(1L, Number("JSTARS_VBLANK_HZ", 60))); return value; }
+    bool IsCopyGpuBuffers() { static const auto value = Flag("JSTARS_COPY_GPU_BUFFERS", false); return value; }
+    bool IsDirectMemoryAccessEnabled() { static const auto value = Flag("JSTARS_DIRECT_MEMORY_ACCESS", false); return value; }
+    bool IsDumpShaders() { static const auto value = Flag("JSTARS_DUMP_SHADERS", false); return value; }
+    bool IsHdrAllowed() { return false; }
+    bool IsNullGPU() { static const auto value = Flag("JSTARS_NULL_GPU", false); return value; }
+    bool IsPatchShaders() { return false; }
+    bool IsPipelineCacheArchived() { return false; }
+    bool IsPipelineCacheEnabled() { return false; } // no on-disk pipeline cache in this checkpoint
+    bool IsReadbackLinearImagesEnabled() { static const auto value = Flag("JSTARS_READBACK_LINEAR", false); return value; }
+    bool IsRenderdocEnabled() { return false; }
+    bool IsShaderCollect() { return false; }
+    bool IsUserfaultfdTracking() { return false; } // page tracking uses the fault handler on every host
+    bool IsVkCrashDiagnosticEnabled() { static const auto value = Flag("JSTARS_VK_CRASH_DIAG", false); return value; }
+    bool IsVkGuestMarkersEnabled() { static const auto value = Flag("JSTARS_VK_MARKERS", false); return value; }
+    bool IsVkHostMarkersEnabled() { static const auto value = Flag("JSTARS_VK_MARKERS", false); return value; }
+    bool IsVkValidationCoreEnabled() { return true; }
+    bool IsVkValidationEnabled() { static const auto value = Flag("JSTARS_VK_VALIDATION", false); return value; }
+    bool IsVkValidationGpuEnabled() { static const auto value = Flag("JSTARS_VK_VALIDATION_GPU", false); return value; }
+    bool IsVkValidationSyncEnabled() { static const auto value = Flag("JSTARS_VK_VALIDATION_SYNC", false); return value; }
+    bool IsFsrEnabled() { return false; }
+    bool IsRcasEnabled() { return false; }
+    float GetRcasAttenuation() { return 0.25f; }
+};
+#define EmulatorSettings (*EmulatorSettingsImpl::GetInstance())

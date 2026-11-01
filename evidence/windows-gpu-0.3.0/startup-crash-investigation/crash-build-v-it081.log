@@ -1,0 +1,54 @@
+[    0.011] fs: /app0 -> (not configured) (read-only), writable mounts under E:\JStarsWork\results\regress-loop-20261101-070254-PC-246a53\it081-jstars-boot-gpu-0.3.0-v.exe.log.user
+[    0.074] jstars-boot: boot file E:\JStarsWork\work\CUSA01593_01.02_d43b7b5db10b\prepared\boot-linked.bin
+[    4.187] image mapped at 0000000200000000 (11028540 bytes, 6 segments, 26919 relocations, 477 imports)
+[    4.693] imports bound: 238 host, 94 game modules, 145 unimplemented (trapped)
+[    5.466] diagnostic mode: GPU library not started (stops at the first Gnm call)
+[    5.560] module 0 initializer at image+0x830000
+[    5.592] FIRST CALL #407 sceKernelGetProcParam 959qrazPIrg#libkernel [runtime: verified] [returns the eboot's SCE_PROCESS_PARAM; read by libc init (boot log)] from libc.prx+0x1f8fc a0=0x0
+[    5.810] FIRST CALL #408 _sceKernelRtldSetApplicationHeapAPI p5EcQeEeJAE#libkernel [runtime: partial] [callbacks recorded; libc heap is not routed through them] from libc.prx+0x1fb5d a0=0x2008ea1e0
+[    5.824] FIRST CALL #99 scePthreadMutexattrInit F8bUHwAG284#libkernel [runtime: verified] [selftest-host] from libc.prx+0x239f0 a0=0x7cef7ff9f8
+[    5.832] FIRST CALL #101 scePthreadMutexInit cmo1RIYva9o#libkernel [runtime: verified] [selftest-host (init/lock/trylock/unlock)] from libc.prx+0x23a15 a0=0x2008efb00
+[    5.839] FIRST CALL #102 scePthreadMutexattrDestroy smWEktiyyG0#libkernel [runtime: verified] [selftest-host] from libc.prx+0x23a30 a0=0x7cef7ff9f8
+[    5.849] FIRST CALL #410 sceKernelMapNamedFlexibleMemory mL8NDH86iQI#libkernel [runtime: partial] [name ignored] from libc.prx+0x23ec5 a0=0x7cef7ff928
+[    5.872] FIRST CALL #212 scePthreadAttrInit nsYoNRywwNg#libkernel [runtime: verified] [selftest-host] from libc.prx+0x81aad a0=0x7cef7ffa30
+[    5.878] FIRST CALL #231 scePthreadSelf aI+OeCz8xrQ#libkernel [runtime: verified] [selftest-host (self/equal)] from libc.prx+0x81ab8 a0=0x7cef7ffa30
+[    5.884] FIRST CALL #441 scePthreadAttrGet x1X76arYMxU#libkernel [runtime: partial] [returns a fresh attribute with the thread's priority and affinity; stack size is not reported] from libc.prx+0x81ac4 a0=0x1c706ddef50
+[    5.891] FIRST CALL #442 scePthreadAttrGetaffinity 8+s5BzZjxSg#libkernel [runtime: partial] [stored value returned] from libc.prx+0x81ad5 a0=0x7cef7ffa30
+[    5.898] FIRST CALL #282 scePthreadAttrDestroy 62KCwEMmzcM#libkernel [runtime: verified] [selftest-host] from libc.prx+0x81ade a0=0x7cef7ffa30
+[    5.910] FAULT exception 0xc0000005 (access 0) address ffffffffffffffff at host/other ntdll.dll+0x27381 stage=1
+[    5.916]   rax = 0xffffffffffffffff
+[    5.920]   rcx = 0x0000000000240000
+[    5.923]   rdx = 0x0000000000000240
+[    5.926]   rbx = 0x0000007cef7ffa30
+[    5.929]   rsp = 0x0000007cef7ff8d0
+[    5.933]   rbp = 0x0000007cef7ffa50
+[    5.936]   rsi = 0x000001c7070dbe50
+[    5.939]   rdi = 0x000001c706ff6900
+[    5.943]   r8  = 0x0000000020ab2159
+[    5.946]   r9  = 0x000001c7070dbe70
+[    5.949]   r10 = 0x0000000000000000
+[    5.953]   r11 = 0x00007ff690c02e20
+[    5.956]   r12 = 0x0000000000000000
+[    5.959]   r13 = 0x0000000000000000
+[    5.962]   r14 = 0x0000000000000010
+[    5.965]   r15 = 0x00000000ffffffff
+[    5.969]   rip = 0x00007ffb0f3b7381
+[    5.972]   faulting thread: main
+[    5.977]   stack[ 0] -> libc.prx+0xbecb8
+[    5.981]   stack[ 1] -> libc.prx+0xbecc0
+[    5.986]   stack[ 5] -> libc.prx+0xb01a
+[    5.990]   stack[ 7] -> libc.prx+0xd1c54
+[    5.993]   stack[ 8] -> libc.prx+0xbecc0
+[    5.997]   stack[ 9] -> libc.prx+0xbecc0
+[    6.007]   host stack[  2] -> jstars-boot-gpu-0.3.0-v.exe+0x592120
+[    6.014]   host stack[ 10] -> jstars-boot-gpu-0.3.0-v.exe+0x592120
+[    6.020]   host stack[ 13] -> jstars-boot-gpu-0.3.0-v.exe+0x90f7
+[    6.028]   host stack[ 23] -> jstars-boot-gpu-0.3.0-v.exe+0x592120
+[    6.035]   host stack[ 29] -> msvcrt.dll+0x1d60c
+[    6.041]   host stack[ 35] -> jstars-boot-gpu-0.3.0-v.exe+0x2e30
+[    6.051]   host stack[ 52] -> jstars-boot-gpu-0.3.0-v.exe+0x597128
+[    6.055]   host stack[ 53] -> jstars-boot-gpu-0.3.0-v.exe+0x597100
+[    6.076]   host stack[ 54] -> jstars-boot-gpu-0.3.0-v.exe+0x7920b0
+[    7.079]   host stack[ 57] -> jstars-boot-gpu-0.3.0-v.exe+0x1a51
+[    7.096]   host stack[ 91] -> jstars-boot-gpu-0.3.0-v.exe+0x428ebb
+[    7.102]   host stack[ 93] -> msvcrt.dll+0x3eb3b

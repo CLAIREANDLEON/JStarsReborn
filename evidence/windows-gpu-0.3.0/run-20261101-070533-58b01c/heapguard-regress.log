@@ -1,0 +1,52 @@
+[    0.011] fs: /app0 -> (not configured) (read-only), writable mounts under E:\JStarsWork\results\20261101-070533-PC-58b01c\heapguard-regress.log.user
+[    0.064] jstars-boot: boot file E:\JStarsWork\work\CUSA01593_01.02_d43b7b5db10b\prepared\boot-linked.bin
+[    4.290] image mapped at 0000000200000000 (11028540 bytes, 6 segments, 26919 relocations, 477 imports)
+[    4.807] imports bound: 238 host, 94 game modules, 145 unimplemented (trapped)
+[    5.579] diagnostic mode: GPU library not started (stops at the first Gnm call)
+[    5.694] module 0 initializer at image+0x830000
+[    5.712] FIRST CALL #407 sceKernelGetProcParam 959qrazPIrg#libkernel [runtime: verified] [returns the eboot's SCE_PROCESS_PARAM; read by libc init (boot log)] from libc.prx+0x1f8fc a0=0x0
+[    5.952] FIRST CALL #408 _sceKernelRtldSetApplicationHeapAPI p5EcQeEeJAE#libkernel [runtime: partial] [callbacks recorded; libc heap is not routed through them] from libc.prx+0x1fb5d a0=0x2008ea1e0
+[    5.975] FIRST CALL #99 scePthreadMutexattrInit F8bUHwAG284#libkernel [runtime: verified] [selftest-host] from libc.prx+0x239f0 a0=0xff403ff548
+[    5.987] FIRST CALL #101 scePthreadMutexInit cmo1RIYva9o#libkernel [runtime: verified] [selftest-host (init/lock/trylock/unlock)] from libc.prx+0x23a15 a0=0x2008efb00
+[    5.997] FIRST CALL #102 scePthreadMutexattrDestroy smWEktiyyG0#libkernel [runtime: verified] [selftest-host] from libc.prx+0x23a30 a0=0xff403ff548
+[    6.011] FIRST CALL #410 sceKernelMapNamedFlexibleMemory mL8NDH86iQI#libkernel [runtime: partial] [name ignored] from libc.prx+0x23ec5 a0=0xff403ff478
+[    6.037] FIRST CALL #212 scePthreadAttrInit nsYoNRywwNg#libkernel [runtime: verified] [selftest-host] from libc.prx+0x81aad a0=0xff403ff580
+[    6.044] FIRST CALL #231 scePthreadSelf aI+OeCz8xrQ#libkernel [runtime: verified] [selftest-host (self/equal)] from libc.prx+0x81ab8 a0=0xff403ff580
+[    6.051] FIRST CALL #441 scePthreadAttrGet x1X76arYMxU#libkernel [runtime: partial] [returns a fresh attribute with the thread's priority and affinity; stack size is not reported] from libc.prx+0x81ac4 a0=0x500002350fb0
+[    6.059] FIRST CALL #442 scePthreadAttrGetaffinity 8+s5BzZjxSg#libkernel [runtime: partial] [stored value returned] from libc.prx+0x81ad5 a0=0xff403ff580
+[    6.066] FIRST CALL #282 scePthreadAttrDestroy 62KCwEMmzcM#libkernel [runtime: verified] [selftest-host] from libc.prx+0x81ade a0=0xff403ff580
+[    6.083] FIRST CALL #100 scePthreadMutexattrSettype iMp8QpE+XO4#libkernel [runtime: partial] [selftest-host covers recursive; adaptive (4) is treated as error-checking] from libc.prx+0xf375 a0=0xff403ff4a8
+[    6.123] FIRST CALL #104 scePthreadMutexLock 9UK1vLZQft4#libkernel [runtime: verified] [selftest-host] from libc.prx+0xf3f9 a0=0x2008ef410
+[    6.146] FIRST CALL #105 scePthreadMutexUnlock tn3VlD0hG60#libkernel [runtime: verified] [selftest-host] from libc.prx+0xf419 a0=0x2008ef410
+[    6.166] module 0 initializer returned 0
+[    6.170] module 1 initializer at image+0x910000
+[    6.175] module 1 initializer returned 0
+[    6.179] entering original x86-64 code at image+0x305780
+[    6.190] FIRST CALL #250 sceKernelGetDirectMemorySize pO96TwzOm5E#libkernel [runtime: partial] [fixed 6 GiB direct memory] from eboot.bin+0x3e8c8e a0=0x20082ed18
+[    6.197] FIRST CALL #251 sceKernelAllocateDirectMemory rTXw65xmLIA#libkernel [runtime: verified] [selftest-host (extent allocator)] from eboot.bin+0x3e8cc0 a0=0x0
+[    6.209] FIRST CALL #252 sceKernelMapDirectMemory L-Q3LEjIbgA#libkernel [runtime: partial] [shared-backing aliasing works on Linux; Windows needs 64 KiB alignment; GPU-visible maps are reported to the renderer] from eboot.bin+0x3e8cdd a0=0xff403ff530
+[   13.025] FIRST CALL #271 sceKernelMapFlexibleMemory IWIBBdTHit4#libkernel [runtime: partial] [anonymous memory; 16 KiB granularity not enforced on the host] from eboot.bin+0x3e8cf2 a0=0xff403ff538
+[   14.022] FIRST CALL #162 sceSystemServiceParamGetInt fZo48un7LK4#libSceSystemService [runtime: partial] [language, date/time format, time zone, enter button; other ids refused with a log line] from eboot.bin+0x43d4f4 a0=0x1
+[   15.060] FIRST CALL #288 sceSystemServiceReenableMusicPlayer 9kPCz7Or+1Y#libSceSystemService [runtime: diagnostic-stub] [no music player exists] from eboot.bin+0x43d513 a0=0x1
+[   15.072] FIRST CALL #84 sceSysmoduleLoadModule g8cM39EUZ6o#libSceSysmodule [runtime: diagnostic-stub] [reports success; availability is decided per import by the runtime] from eboot.bin+0x43d6ee a0=0xa9
+[   15.079] sceSysmoduleLoadModule(0xa9): API availability is decided per import by this runtime
+[   15.084] sceSysmoduleLoadModule(0xa5): API availability is decided per import by this runtime
+[   15.094] FIRST CALL #290 scePadInit hv1luiJrqQM#libScePad [runtime: partial] [returns success; no state to initialise] from eboot.bin+0x43d6fd a0=0xa5
+[   15.101] FIRST CALL #291 sceMouseInit Qs0wWulgl7U#libSceMouse [runtime: diagnostic-stub] [no mouse backend] from eboot.bin+0x43d702 a0=0xa5
+[   15.109] FIRST CALL #292 sceUserServiceInitialize j3YMu1MVNNo#libSceUserService [runtime: partial] [single fixed user (id 1)] from eboot.bin+0x2ae359 a0=0x0
+[   15.114] sceSysmoduleLoadModule(0xad): API availability is decided per import by this runtime
+[   15.119] sceSysmoduleLoadModule(0xa0): API availability is decided per import by this runtime
+[   15.124] sceSysmoduleLoadModule(0xac): API availability is decided per import by this runtime
+[   15.129] sceSysmoduleLoadModule(0x1c): API availability is decided per import by this runtime
+[   15.133] sceSysmoduleLoadModule(0xb5): API availability is decided per import by this runtime
+[   15.138] sceSysmoduleLoadModule(0xa4): API availability is decided per import by this runtime
+[   15.142] sceSysmoduleLoadModule(0x96): API availability is decided per import by this runtime
+[   15.147] sceSysmoduleLoadModule(0xb2): API availability is decided per import by this runtime
+[   15.151] sceSysmoduleLoadModule(0xa2): API availability is decided per import by this runtime
+[   15.156] sceSysmoduleLoadModule(0x1e): API availability is decided per import by this runtime
+[   15.161] sceSysmoduleLoadModule(0x2c): API availability is decided per import by this runtime
+[   15.165] sceSysmoduleLoadModule(0xa8): API availability is decided per import by this runtime
+[   15.170] sceSysmoduleLoadModule(0xd3): API availability is decided per import by this runtime
+[   30.907] FIRST CALL #253 sceVideoOutOpen Up36PTk687E#libSceVideoOut [runtime: diagnostic-stub] [stop-at-first-gnm mode only; the GPU library provides the real VideoOut] from eboot.bin+0x375975 a0=0xff
+[   30.928] sceVideoOutOpen(user 0xff) -> 1
+[   30.953] UNIMPLEMENTED IMPORT #307 0H2vBYbTLHI#libSceGnmDriver [sceGnmDrawInitDefaultHardwareState200] called from eboot.bin+0x45e3a9 (first arg 0x8bece3058) stage=entry

@@ -1,0 +1,77 @@
+[
+    {
+        "name":  "test-core",
+        "exit":  "0",
+        "seconds":  0.06
+    },
+    {
+        "name":  "test-input",
+        "exit":  "0",
+        "seconds":  0.02
+    },
+    {
+        "name":  "test-paths",
+        "exit":  "0",
+        "seconds":  0.03
+    },
+    {
+        "name":  "test-gamecheck",
+        "exit":  "0",
+        "seconds":  0.2
+    },
+    {
+        "name":  "test-pkg_intake",
+        "exit":  "0",
+        "seconds":  0.04
+    },
+    {
+        "name":  "test-setup_inventory",
+        "exit":  "0",
+        "seconds":  4.27
+    },
+    {
+        "name":  "test-setup_install",
+        "exit":  "0",
+        "seconds":  0.13
+    },
+    {
+        "name":  "validate-game",
+        "exit":  "1",
+        "seconds":  0.05
+    },
+    {
+        "name":  "runtime-smoke-audio",
+        "exit":  "0",
+        "seconds":  1.2
+    },
+    {
+        "name":  "runtime-smoke-noaudio",
+        "exit":  "0",
+        "seconds":  1.18
+    },
+    {
+        "name":  "runtime-validation-layer",
+        "exit":  "1",
+        "seconds":  0.03
+    },
+    {
+        "name":  "runtime-resize",
+        "exit":  "0",
+        "seconds":  1.24
+    },
+    {
+        "name":  "crash-access",
+        "exit":  "-1073741819",
+        "seconds":  0.09
+    },
+    {
+        "name":  "crash-terminate",
+        "exit":  "-531476908",
+        "seconds":  0.11
+    },
+    {
+        "name":  "boot-windows",
+        "exit":  "3",
+        "seconds":  0.06
+    }
+]

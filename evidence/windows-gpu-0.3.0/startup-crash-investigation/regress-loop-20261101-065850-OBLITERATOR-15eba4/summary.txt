@@ -1,0 +1,5 @@
+jstars-boot-gpu-0.3.0-hg.exe exit 4: 200
+jstars-boot-gpu-0.3.0-t.exe exit 3: 196
+jstars-boot-gpu-0.3.0-t.exe exit 4: 4
+jstars-boot-gpu-0.3.0-v.exe exit 3: 195
+jstars-boot-gpu-0.3.0-v.exe exit 4: 5

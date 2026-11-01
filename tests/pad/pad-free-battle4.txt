@@ -1,0 +1,21 @@
+# Automated test input (NOT a controller; every transition is logged as "SCRIPTED TEST INPUT"). Seconds count from the
+# first scePadOpen. Identical to pad-free-battle2.txt up to t=121 (title -> save prompt -> Yes -> OK -> main menu ->
+# Free Battle -> 1 Player -> Character Select, one character picked for Player 1, slot popup opened with OPTIONS at 114
+# and closed with CROSS at 121). In the 0.3.0-s run a581c0 the cursor was then on the partner slot and the footer showed
+# "OPTIONS Finish" at t~125 s. This script presses OPTIONS there (Finish: remaining slots stay Random Select) and then
+# confirms whatever follows (stage select / battle settings) with a slow CROSS cadence.
+at 40 press CROSS for 200
+at 48 press LEFT for 200
+at 50 press CROSS for 200
+at 62 press CROSS for 200
+at 72 press DOWN for 200
+at 75 press DOWN for 200
+at 78 press DOWN for 200
+at 83 press CROSS for 200
+at 90 press CROSS for 200
+at 102 press CROSS for 200
+at 108 press CROSS for 200
+at 114 press OPTIONS for 200
+at 121 press CROSS for 200
+at 125 press OPTIONS for 200
+every 8000 from 137 to 400 press CROSS for 200

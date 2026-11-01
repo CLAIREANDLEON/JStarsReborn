@@ -1,0 +1,8 @@
+# J-Stars Reborn supported-build manifest (read by JStarsSetup.exe --validate-game).
+# One build per line, tab-separated:
+#   TITLE_ID<TAB>APP_VER<TAB>EBOOT_SHA256 or -<TAB>verified|untested<TAB>notes
+# "verified" means that exact build was played through this runtime and checked against
+# reference behaviour. Gameplay has not been tested for any build, so none is verified;
+# an "untested" entry records only what was observed. Entries must come
+# from a real dump validated with --validate-game, never from guesswork.
+CUSA01593	01.02	d43b7b5db10b5808c06691b27ef0ce1b5d27da6b1e07d811db5bea125ceaed54	untested	plaintext SELF, base game merged with patch; original code runs through module initializers and the entry point to the first Gnm call on Linux and Windows hosts; no frame rendered; gameplay not tested

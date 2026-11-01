@@ -1,0 +1,9 @@
+# Automated test input (NOT a controller; every transition is logged as "SCRIPTED TEST INPUT"). Seconds count from the
+# first scePadOpen. Probe 2b: the title "Press any button" is accepted from about t=38 s (build m), and the game's own
+# "There is no save data for this game. Create new save data?" prompt (Yes / No; No highlighted first) appears a few
+# seconds later: CROSS opens it, LEFT highlights Yes, CROSS answers Yes. CROSS is then pressed slowly so the screens that
+# follow can be seen in the captures.
+at 40 press CROSS for 200
+at 48 press LEFT for 200
+at 50 press CROSS for 200
+every 6000 from 62 to 125 press CROSS for 200

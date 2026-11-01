@@ -1,0 +1,44 @@
+[
+    {
+        "name":  "regress-stop-at-first-gnm",
+        "exit":  "3",
+        "seconds":  0.07,
+        "args":  "--boot \"E:\\JStarsWork\\work\\CUSA01593_01.02_d43b7b5db10b\\prepared\\boot-linked.bin\" --stop-at-first-gnm --log \"E:\\JStarsWork\\results\\20261101-070533-PC-58b01c\\regress-stop-at-first-gnm.log\"",
+        "note":  ""
+    },
+    {
+        "name":  "selftest-host",
+        "exit":  "0",
+        "seconds":  0.27,
+        "args":  "--selftest-host --log \"E:\\JStarsWork\\results\\20261101-070533-PC-58b01c\\selftest-host.log\"",
+        "note":  ""
+    },
+    {
+        "name":  "audit-dump",
+        "exit":  "0",
+        "seconds":  0.02,
+        "args":  "--audit-dump",
+        "note":  ""
+    },
+    {
+        "name":  "heapguard-regress-stop-at-first-gnm",
+        "exit":  "3",
+        "seconds":  0.06,
+        "args":  "--boot \"E:\\JStarsWork\\work\\CUSA01593_01.02_d43b7b5db10b\\prepared\\boot-linked.bin\" --stop-at-first-gnm --log \"E:\\JStarsWork\\results\\20261101-070533-PC-58b01c\\heapguard-regress.log\"",
+        "note":  ""
+    },
+    {
+        "name":  "heapguard-game-gpu",
+        "exit":  "7",
+        "seconds":  61.15,
+        "args":  "--boot \"E:\\JStarsWork\\work\\CUSA01593_01.02_d43b7b5db10b\\prepared\\boot-linked.bin\" --game-root \"E:\\CUSA01593\" --user-dir \"E:\\JStarsWork\\results\\20261101-070533-PC-58b01c\\user-heapguard\" --log \"E:\\JStarsWork\\results\\20261101-070533-PC-58b01c\\heapguard-game-gpu.log\" --gpu-dir \"E:\\JStarsWork\\results\\20261101-070533-PC-58b01c\\gpu-heapguard\" --capture-dir \"E:\\JStarsWork\\results\\20261101-070533-PC-58b01c\\captures-heapguard\" --capture-flips 90 --capture-max 1 --capture-interval 60 --pad-script \"E:\\JStarsWork\\tests\\pad-free-battle6.txt\" --no-audio --max-seconds 60",
+        "note":  ""
+    },
+    {
+        "name":  "game-gpu",
+        "exit":  "7",
+        "seconds":  626.71,
+        "args":  "--boot \"E:\\JStarsWork\\work\\CUSA01593_01.02_d43b7b5db10b\\prepared\\boot-linked.bin\" --game-root \"E:\\CUSA01593\" --user-dir \"E:\\JStarsWork\\results\\20261101-070533-PC-58b01c\\user\" --log \"E:\\JStarsWork\\results\\20261101-070533-PC-58b01c\\game-gpu.log\" --gpu-dir \"E:\\JStarsWork\\results\\20261101-070533-PC-58b01c\\gpu\" --capture-dir \"E:\\JStarsWork\\results\\20261101-070533-PC-58b01c\\captures\" --capture-flips 30 --capture-interval 90 --capture-max 320 --pad-script \"E:\\JStarsWork\\tests\\pad-free-battle6.txt\" --dump-audio \"E:\\JStarsWork\\results\\20261101-070533-PC-58b01c\\audio\\game\" --sample-threads 20  --max-seconds 620",
+        "note":  ""
+    }
+]

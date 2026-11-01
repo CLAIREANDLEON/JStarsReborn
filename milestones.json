@@ -1,0 +1,196 @@
+{
+  "schema_version": 1,
+  "project": "J-Stars Victory VS+ PC: Reborn",
+  "checkpoint": "0.2.1-audit",
+  "updated": "2026-10-31",
+  "full_project_complete": false,
+  "status_vocabulary": [
+    "implemented",
+    "tested",
+    "blocked",
+    "not_started"
+  ],
+  "phases": [
+    {
+      "id": 0,
+      "status": "tested",
+      "scope": "Available-material assessment; native runtime feasibility verified only",
+      "evidence": [
+        "docs/FEASIBILITY.md",
+        "docs/REFERENCE_PROTOCOL.md"
+      ],
+      "game_feasibility": "unproven_without_inputs"
+    },
+    {
+      "id": 1,
+      "status": "tested",
+      "scope": "Native Windows foundation on one Windows 11 AMD host",
+      "evidence": [
+        "evidence/ctest.txt",
+        "evidence/runtime-smoke.json"
+      ],
+      "limits": [
+        "clear-only renderer",
+        "no physical input matrix",
+        "no audible test",
+        "debug layer unavailable",
+        "no sanitizer run"
+      ]
+    },
+    {
+      "id": 2,
+      "status": "blocked",
+      "implemented": [
+        "read-only inventory, not importer",
+        "native PKG source registration; not extraction/conversion"
+      ],
+      "missing": [
+        "accessible authorized source data",
+        "verified game format specifications",
+        "content provenance and permission scope"
+      ]
+    },
+    {
+      "id": 3,
+      "status": "blocked",
+      "missing": [
+        "reference build identity and PS4 captures",
+        "measured gameplay and animation specification",
+        "verified imported assets"
+      ]
+    },
+    {
+      "id": 4,
+      "status": "not_started",
+      "foundation_only": [
+        "initial resolution",
+        "session borderless",
+        "VSync toggle",
+        "settings parser"
+      ],
+      "remaining": [
+        "mesh/material renderer",
+        "texture streaming/replacement",
+        "mod loader and SDK",
+        "complete controller mapping",
+        "graphics settings UI",
+        "performance profiling"
+      ]
+    },
+    {
+      "id": 5,
+      "status": "not_started",
+      "decision_gate": "Measure real combat determinism before choosing authoritative/rollback synchronization",
+      "remaining": [
+        "dedicated server",
+        "authentication",
+        "matchmaking/lobbies",
+        "UDP transport",
+        "session compatibility",
+        "loss/jitter/desync tests"
+      ]
+    },
+    {
+      "id": 6,
+      "status": "not_started",
+      "foundation_tests": "executed; not game stabilization",
+      "remaining": [
+        "sanitizers",
+        "graphics validation",
+        "hardware matrix",
+        "gameplay soak",
+        "network stress",
+        "crash dump handling"
+      ]
+    },
+    {
+      "id": 7,
+      "status": "not_started",
+      "foundation_package": "source, native EXE, inventory tool, tests and documentation only",
+      "remaining": [
+        "complete game runtime",
+        "dedicated server",
+        "asset importer",
+        "mod SDK",
+        "release candidate validation"
+      ]
+    }
+  ],
+  "next_actions": [
+    {
+      "independent": false,
+      "action": "Owner chooses architecture option A or B (PROJECT_AUDIT.md section 5)"
+    },
+    {
+      "independent": false,
+      "action": "Run JStarsSetup.exe --validate-game on the owner's own decrypted dump and share the JSON report (no game files)"
+    },
+    {
+      "independent": true,
+      "action": "On Windows: rebuild binaries from 0.2.1 source, run ctest with Developer Mode enabled (symlink tests), and run --crash-test access"
+    },
+    {
+      "independent": true,
+      "action": "Install/enable Windows Graphics Tools if authorized and rerun debug-layer checks; execute MSVC AddressSanitizer build on supported toolchain"
+    },
+    {
+      "independent": true,
+      "action": "Add independently licensed mesh/material and standard audio/texture fixtures before implementing bounded resource loaders"
+    },
+    {
+      "independent": false,
+      "action": "Provide authorized source/export materials or accessible local data with provenance; identify PS4 release and supply reference captures using documented protocol"
+    }
+  ],
+  "setup": {
+    "status": "tested",
+    "features": [
+      "native menu",
+      "PKG source metadata registration",
+      "native folder inventory",
+      "hash-verified transactional foundation installation",
+      "installed-runtime launch"
+    ],
+    "limits": [
+      "no PKG content extraction or decryption",
+      "no game conversion",
+      "synthetic PKG fixtures only",
+      "symlink creation unavailable on test host"
+    ],
+    "evidence": [
+      "evidence/setup-ctest.txt",
+      "evidence/setup-integration.json",
+      "docs/SETUP_TEST_REPORT.md"
+    ]
+  },
+  "audit": {
+    "document": "PROJECT_AUDIT.md",
+    "status": "tested",
+    "verified_here": [
+      "GCC 13 MinGW rebuild, warning-free",
+      "all native suites under Wine 9.0",
+      "portable validator under ASan/UBSan with mutation fuzzing",
+      "crash reporter JSON + minidump under Wine"
+    ],
+    "not_verified_here": [
+      "DX12 rendering",
+      "XAudio2 playback",
+      "physical input",
+      "setup GUI",
+      "LLVM-MinGW build (sandbox refused to execute the downloaded toolchain)"
+    ],
+    "open_gaps": [
+      "symlink/reparse rejection never exercised against a real link on any host",
+      "packaged .exe files predate 0.2.1 source"
+    ]
+  },
+  "architecture_decision_required": {
+    "question": "Original HLE runtime (A) vs game-specific runtime derived from GPL-2.0 shadPS4 (B); source port (C) needs original source",
+    "owner": "project owner",
+    "blocks": [
+      "loader",
+      "boot to first frame",
+      "all gameplay milestones"
+    ]
+  }
+}

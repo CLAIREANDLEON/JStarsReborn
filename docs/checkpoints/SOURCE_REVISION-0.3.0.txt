@@ -1,0 +1,6 @@
+JStarsReborn checkpoint 0.3.0 (unpublished)
+build revision (no git history exists for this tree): source tree digest 3bfc3e5c7bba2093 = first 16 hex of sha256 over the sorted "sha256  path" listing of the 832 files in source/JStarsReborn-0.3.0-source.tar.gz (listing: source-tree.sha256)
+runtime binary under test: bin/jstars-boot-gpu-0.3.0-w.exe  sha256 37207a32f3b8d057fad177680a32ba78040f30498202e994a5b360aba62724a2
+heap-guard diagnostic build: bin/jstars-boot-gpu-0.3.0-whg.exe sha256 ef7765b076b635fee306f169bc504232893a9a003379fb7e534d78c649c22a08
+Both executables were linked from this source tree on 2026-11-01 (mingw-w64 GCC 13 posix + clang for four gpu TUs; gpu library built from gpu/ at pinned shadPS4 b4e7ae77 + gpu/patches/shadps4-local.patch).
+Not rebuilt at this checkpoint and therefore NOT in this package: JStarsReborn.exe, JStarsSetup.exe, checkpoint-manifest.json (0.2.2; preserved at /home/claude/baselines/JStarsReborn-0.2.2/).

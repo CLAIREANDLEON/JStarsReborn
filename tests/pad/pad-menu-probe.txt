@@ -1,0 +1,8 @@
+# Automated test input (NOT a controller; every transition is logged as "SCRIPTED TEST INPUT"). Seconds count from the
+# first scePadOpen. Same opening as pad-save-yes.txt (title -> save prompt -> Yes -> OK), then one CROSS to leave the title
+# screen and a slow DOWN walk through the main menu so that every entry's highlighted state and caption is captured.
+at 40 press CROSS for 200
+at 48 press LEFT for 200
+at 50 press CROSS for 200
+at 62 press CROSS for 200
+every 5000 from 74 to 110 press DOWN for 200

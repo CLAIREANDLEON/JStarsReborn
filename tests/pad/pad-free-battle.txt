@@ -1,0 +1,13 @@
+# Automated test input (NOT a controller; every transition is logged as "SCRIPTED TEST INPUT"). Seconds count from the
+# first scePadOpen. Same opening as pad-save-yes.txt (title -> save prompt -> Yes -> OK), one CROSS to leave the title screen,
+# then the main menu entries in the order seen in the 0.3.0-q captures: J-Adventure, Victory Road, Arcade, FREE BATTLE (3 x DOWN),
+# CROSS to open it, and then CROSS every 5 s to accept whatever the game offers next (mode, characters, stage) towards a battle.
+at 40 press CROSS for 200
+at 48 press LEFT for 200
+at 50 press CROSS for 200
+at 62 press CROSS for 200
+at 72 press DOWN for 200
+at 75 press DOWN for 200
+at 78 press DOWN for 200
+at 83 press CROSS for 200
+every 5000 from 90 to 230 press CROSS for 200

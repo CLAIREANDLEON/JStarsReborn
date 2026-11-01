@@ -1,0 +1,2 @@
+SKIP symbolic-link fixture unavailable on this host
+PASS: 13 data-path checks, 1 environment skips

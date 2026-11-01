@@ -1,0 +1,9 @@
+{"time":"2026-11-01T00:33:51.094Z","level":"info","event":"data_dir","message":"explicit: E:\\JStarsWork\\results\\rt-data-a"}
+{"time":"2026-11-01T00:33:51.095Z","level":"info","event":"startup","message":"Native Windows x64 foundation. No original game data or gameplay is implemented."}
+{"time":"2026-11-01T00:33:51.095Z","level":"info","event":"settings_default","message":"settings file is absent; defaults loaded"}
+{"time":"2026-11-01T00:33:51.224Z","level":"info","event":"graphics_ready","message":"AMD Radeon RX 9070 XT"}
+{"time":"2026-11-01T00:33:51.224Z","level":"info","event":"graphics_dimensions","message":"1280x720"}
+{"time":"2026-11-01T00:33:51.260Z","level":"info","event":"audio_ready","message":"XAudio2 mastering and source voices initialized; F1 plays a procedural diagnostic tone"}
+{"time":"2026-11-01T00:33:51.288Z","level":"info","event":"controller","message":"XInput slot 0 connected"}
+{"time":"2026-11-01T00:33:52.229Z","level":"info","event":"frame_summary","message":"clear-only,frames=120,samples=120,mean_ms=6.90408,p95_ms=15.0816,p99_ms=15.3104,scheduler_ticks=54"}
+{"time":"2026-11-01T00:33:52.229Z","level":"info","event":"shutdown","message":"Clean shutdown completed"}

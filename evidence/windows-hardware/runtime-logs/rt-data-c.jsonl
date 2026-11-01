@@ -1,0 +1,4 @@
+{"time":"2026-11-01T00:33:53.377Z","level":"info","event":"data_dir","message":"explicit: E:\\JStarsWork\\results\\rt-data-c"}
+{"time":"2026-11-01T00:33:53.377Z","level":"info","event":"startup","message":"Native Windows x64 foundation. No original game data or gameplay is implemented."}
+{"time":"2026-11-01T00:33:53.378Z","level":"info","event":"settings_default","message":"settings file is absent; defaults loaded"}
+{"time":"2026-11-01T00:33:53.396Z","level":"error","event":"fatal","message":"Enable D3D12 validation (install Windows Graphics Tools if unavailable) failed (HRESULT 0x887a002d)"}

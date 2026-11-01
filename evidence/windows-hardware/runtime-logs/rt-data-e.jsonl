@@ -1,0 +1,3 @@
+{"time":"2026-11-01T00:33:54.635Z","level":"info","event":"data_dir","message":"explicit: E:\\JStarsWork\\results\\rt-data-e"}
+{"time":"2026-11-01T00:33:54.636Z","level":"info","event":"startup","message":"Native Windows x64 foundation. No original game data or gameplay is implemented."}
+{"time":"2026-11-01T00:33:54.636Z","level":"warning","event":"crash_test","message":"Deliberate crash requested for reporter verification"}

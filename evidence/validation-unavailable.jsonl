@@ -1,0 +1,3 @@
+{"time":"2026-10-31T22:09:55.357Z","level":"info","event":"startup","message":"Native Windows x64 foundation. No original game data or gameplay is implemented."}
+{"time":"2026-10-31T22:09:55.357Z","level":"info","event":"settings_default","message":"settings file is absent; defaults loaded"}
+{"time":"2026-10-31T22:09:55.363Z","level":"error","event":"fatal","message":"Enable D3D12 validation (install Windows Graphics Tools if unavailable) failed (HRESULT 0x887a002d)"}

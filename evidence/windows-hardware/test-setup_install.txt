@@ -1,0 +1,2 @@
+SKIP: real symlink fixture unavailable (Windows error 1314)
+PASS: 121 setup installer checks

@@ -1,0 +1,24 @@
+{
+  "schema":"reborn.crash.v1",
+  "time":"2026-11-01T00:33:54.764Z",
+  "process_id":50520,
+  "thread_id":44568,
+  "exception_code":"0xe0524e54",
+  "exception_name":"STD_TERMINATE",
+  "fault":{"address":"0x7ffb02b2569a","module":"KERNELBASE.dll","rva":"0xc569a"},
+  "stack":[
+    {"address":"0x7ffb02b2569a","module":"KERNELBASE.dll","rva":"0xc569a"},
+    {"address":"0x7ff7a450f26a","module":"JStarsReborn.exe","rva":"0xf26a"},
+    {"address":"0x7ff7a4532046","module":"JStarsReborn.exe","rva":"0x32046"},
+    {"address":"0x7ff7a45f6333","module":"JStarsReborn.exe","rva":"0xf6333"},
+    {"address":"0x7ff7a4510e58","module":"JStarsReborn.exe","rva":"0x10e58"},
+    {"address":"0x7ff7a450703e","module":"JStarsReborn.exe","rva":"0x703e"},
+    {"address":"0x7ff7a4508281","module":"JStarsReborn.exe","rva":"0x8281"},
+    {"address":"0x7ff7a4501306","module":"JStarsReborn.exe","rva":"0x1306"},
+    {"address":"0x7ff7a45013fa","module":"JStarsReborn.exe","rva":"0x13fa"},
+    {"address":"0x7ffb03eedda7","module":"KERNEL32.DLL","rva":"0x2dda7"},
+    {"address":"0x7ffb058d9c5c","module":"ntdll.dll","rva":"0xc9c5c"}
+  ],
+  "minidump":"E:\\JStarsWork\\results\\rt-data-f\\crashes\\crash-20261101T003354.764Z-50520.dmp",
+  "note":"Symbolize frames with the matching build's map/PDB using module + rva."
+}

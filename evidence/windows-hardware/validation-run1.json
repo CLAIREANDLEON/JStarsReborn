@@ -1,0 +1,12 @@
+{
+  "schema":"reborn.game-validation.v1",
+  "folder":"E:\\CUSA01593",
+  "param_sfo":{"present":true,"valid":true,"title_id":"CUSA01593","content_id":"UP0700-CUSA01593_00-WJ45JSVVSPS40000","app_ver":"01.02","title":"J-STARS Victory VS+","category":"gp","system_ver":33554432},
+  "executable":{"present":true,"kind":"self","bytes":8895899,"sha256":"d43b7b5db10b5808c06691b27ef0ce1b5d27da6b1e07d811db5bea125ceaed54","elf":{"is_64bit":true,"little_endian":true,"type":65040,"machine":62},"self":{"segment_count":8,"segments_flagged_encrypted":0,"embedded_elf_readable":true,"payloads_examined":false}},
+  "bundled_modules":[{"name":"libSceFios2.prx","bytes":385249},{"name":"libc.prx","bytes":934754}],
+  "supported_build":"untested",
+  "game_import_supported":false,
+  "structurally_valid":true,
+  "problems":[],
+  "warnings":["CATEGORY is 'gp' and sce_discmap_patch.plt is present: this looks like a base game merged with its patch, so APP_VER is the patch version","eboot.bin is a SELF container with a readable embedded ELF header (8 segments, 0 carrying the 'encrypted' flag). Segment payloads were not decrypted or examined; the flag alone does not establish whether they are plaintext."]
+}

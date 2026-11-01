@@ -1,0 +1,25 @@
+[    0.005] jstars-boot: boot file Z:/tmp/claude-0/-home-claude/177c52db-e892-5e75-82b6-bfbfee09b8ba/scratchpad/smoke/CUSA01593_01.02_d43b7b5db10b/prepared/boot-linked.bin
+[   16.426] image mapped at 0000000200000000 (11028540 bytes, 6 segments, 26919 relocations, 477 imports)
+[   17.149] imports bound: 112 host, 94 game modules, 271 unimplemented (trapped)
+[   18.299] module 0 initializer at image+0x830000
+[   18.435] module 0 initializer returned 0
+[   18.444] module 1 initializer at image+0x910000
+[   18.451] module 1 initializer returned 0
+[   18.470] entering original x86-64 code at image+0x305780
+[   19.915] sceSysmoduleLoadModule(0xa9): API availability is decided per import by this runtime
+[   19.972] sceSysmoduleLoadModule(0xa5): API availability is decided per import by this runtime
+[   20.010] sceSysmoduleLoadModule(0xad): API availability is decided per import by this runtime
+[   20.018] sceSysmoduleLoadModule(0xa0): API availability is decided per import by this runtime
+[   20.026] sceSysmoduleLoadModule(0xac): API availability is decided per import by this runtime
+[   20.058] sceSysmoduleLoadModule(0x1c): API availability is decided per import by this runtime
+[   20.112] sceSysmoduleLoadModule(0xb5): API availability is decided per import by this runtime
+[   20.148] sceSysmoduleLoadModule(0xa4): API availability is decided per import by this runtime
+[   20.188] sceSysmoduleLoadModule(0x96): API availability is decided per import by this runtime
+[   20.196] sceSysmoduleLoadModule(0xb2): API availability is decided per import by this runtime
+[   20.204] sceSysmoduleLoadModule(0xa2): API availability is decided per import by this runtime
+[   20.211] sceSysmoduleLoadModule(0x1e): API availability is decided per import by this runtime
+[   20.217] sceSysmoduleLoadModule(0x2c): API availability is decided per import by this runtime
+[   20.224] sceSysmoduleLoadModule(0xa8): API availability is decided per import by this runtime
+[   20.231] sceSysmoduleLoadModule(0xd3): API availability is decided per import by this runtime
+[   21.233] sceVideoOutOpen(user 0xff) -> 1
+[   21.528] UNIMPLEMENTED IMPORT #307 0H2vBYbTLHI#libSceGnmDriver [sceGnmDrawInitDefaultHardwareState200] called from eboot.bin+0x45e3a9 (first arg 0x7ff9b4bb3058) stage=entry

@@ -1,0 +1,22 @@
+{
+  "schema":"reborn.crash.v1",
+  "time":"2026-11-01T00:33:54.635Z",
+  "process_id":48932,
+  "thread_id":32788,
+  "exception_code":"0xc0000005",
+  "exception_name":"EXCEPTION_ACCESS_VIOLATION",
+  "fault":{"address":"0x7ff7a4510e22","module":"JStarsReborn.exe","rva":"0x10e22"},
+  "access":"write",
+  "target_address":"0x0",
+  "stack":[
+    {"address":"0x7ff7a4510e22","module":"JStarsReborn.exe","rva":"0x10e22"},
+    {"address":"0x7ff7a450703e","module":"JStarsReborn.exe","rva":"0x703e"},
+    {"address":"0x7ff7a4508281","module":"JStarsReborn.exe","rva":"0x8281"},
+    {"address":"0x7ff7a4501306","module":"JStarsReborn.exe","rva":"0x1306"},
+    {"address":"0x7ff7a45013fa","module":"JStarsReborn.exe","rva":"0x13fa"},
+    {"address":"0x7ffb03eedda7","module":"KERNEL32.DLL","rva":"0x2dda7"},
+    {"address":"0x7ffb058d9c5c","module":"ntdll.dll","rva":"0xc9c5c"}
+  ],
+  "minidump":"E:\\JStarsWork\\results\\rt-data-e\\crashes\\crash-20261101T003354.635Z-48932.dmp",
+  "note":"Symbolize frames with the matching build's map/PDB using module + rva."
+}

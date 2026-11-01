@@ -1,0 +1,12 @@
+{
+  "schema":"reborn.install-receipt.v1",
+  "foundation_only":true,
+  "game_data_imported":false,
+  "payload_authenticity":"Local SHA-256 integrity only; no digital signature",
+  "files":[
+    {"path":"JStarsReborn.exe","size_bytes":1893888,"sha256":"2ccccf1e8a7ac6879550e533e54098684daae065722ff62f7910bf973567d1b1"},
+    {"path":"config/settings.ini","size_bytes":133,"sha256":"287bcc2ccebdc7bdea19fb33f8803867f8c6059c1db7cc50728cee72964ff466"},
+    {"path":"README.md","size_bytes":2542,"sha256":"f6dd65ec1e5da7c1827b598c01cd58fc3727164219fd489ea13d32bf32cd9c21"},
+    {"path":"THIRD_PARTY_NOTICES.md","size_bytes":1350,"sha256":"b3641a7e4a928721b9d48439ac234e3101692c5546596b35edbc00da50de4291"}
+  ]
+}

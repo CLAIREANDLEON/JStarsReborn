@@ -1,0 +1,48 @@
+2026-11-01T14:36:43Z first run: earlier data backed up to <user>\AppData\Local\JStarsReborn\backup-before-launcher-0.4.0-20261101-143643 (originals left in place)
+2026-11-01T14:36:43Z first run: window size imported from 0.2.2 settings
+2026-11-01T14:36:43Z first run: default game folder E:\CUSA01593 validated and selected
+2026-11-01T14:36:43Z launcher 0.4.0 started from E:\JStarsWork\JStarsReborn 0.4.0
+2026-11-01T14:36:43Z game check: Ready. [E:\CUSA01593]
+2026-11-01T14:36:43Z runtime: JStarsReborn runtime 0.4.0 sha256 988ca01792c6d2be0ba8d059faf012c8e99c6a982eab62b32ba5a1a11018e349
+2026-11-01T14:37:43Z prepare: start -> <user>\AppData\Local\JStarsReborn\prepared\CUSA01593_01.02_d43b7b5db10b
+2026-11-01T14:37:43Z prepare: done
+2026-11-01T14:37:43Z session start <user>\AppData\Local\JStarsReborn\sessions\20261101-143743 pid 4700 : "E:\JStarsWork\JStarsReborn 0.4.0\runtime\jstars-runtime.exe" --boot <user>\AppData\Local\JStarsReborn\prepared\CUSA01593_01.02_d43b7b5db10b\boot-linked.bin --game-root E:\CUSA01593 --user-dir <user>\AppData\Local\JStarsReborn\user --log game.log --gpu-dir gpu --capture-dir captures --window 1280x720 --volume 100
+2026-11-01T14:39:23Z stop: WM_CLOSE sent to the game window
+2026-11-01T14:39:23Z session end exit=0 : Game closed.
+2026-11-01T14:39:34Z session start <user>\AppData\Local\JStarsReborn\sessions\20261101-143934 pid 29748 : "E:\JStarsWork\JStarsReborn 0.4.0\runtime\jstars-runtime.exe" --boot <user>\AppData\Local\JStarsReborn\prepared\CUSA01593_01.02_d43b7b5db10b\boot-linked.bin --game-root E:\CUSA01593 --user-dir <user>\AppData\Local\JStarsReborn\user --log game.log --gpu-dir gpu --capture-dir captures --window 1280x720 --volume 100
+2026-11-01T14:41:23Z session end exit=0 : Game closed.
+2026-11-01T14:43:40Z launcher 0.4.0 started from E:\JStarsWork\JStarsReborn 0.4.0
+2026-11-01T14:43:40Z game check: Ready. [E:\CUSA01593]
+2026-11-01T14:43:41Z runtime: JStarsReborn runtime 0.4.0 sha256 25bc88b9ae23afb0abb38f6904ded69ea4ccb5003dd01ac2cc2b17badbda87e0
+2026-11-01T14:45:15Z game folder chosen: E:\CUSA01593
+2026-11-01T14:45:15Z game check: Ready. [E:\CUSA01593]
+2026-11-01T14:45:45Z game folder chosen: E:\<other-folder>
+2026-11-01T14:45:45Z game check: This folder is not a usable game dump. See the Game folder page for details. [E:\<other-folder>]
+2026-11-01T14:46:06Z game folder chosen: E:\CUSA01593
+2026-11-01T14:46:06Z game check: Ready. [E:\CUSA01593]
+2026-11-01T14:46:18Z game folder chosen: E:\CUSA01593
+2026-11-01T14:46:18Z game check: Ready. [E:\CUSA01593]
+2026-11-01T14:46:47Z report written: E:\JStarsWork\launcher-report-test.zip
+2026-11-01T14:47:15Z session start <user>\AppData\Local\JStarsReborn\sessions\20261101-144715 pid 27148 : "E:\JStarsWork\JStarsReborn 0.4.0\runtime\jstars-runtime.exe" --boot <user>\AppData\Local\JStarsReborn\prepared\CUSA01593_01.02_d43b7b5db10b\boot-linked.bin --game-root E:\CUSA01593 --user-dir <user>\AppData\Local\JStarsReborn\user --log game.log --gpu-dir gpu --capture-dir captures --window 1600x900 --volume 70
+2026-11-01T14:58:25Z session end exit=0 : Game closed.
+2026-11-01T15:05:00Z launcher 0.4.0 started from E:\JStarsWork\JStarsReborn 0.4.0
+2026-11-01T15:05:00Z game check: Ready. [E:\CUSA01593]
+2026-11-01T15:05:00Z runtime: JStarsReborn runtime 0.4.0 sha256 25bc88b9ae23afb0abb38f6904ded69ea4ccb5003dd01ac2cc2b17badbda87e0
+2026-11-01T15:06:28Z session start <user>\AppData\Local\JStarsReborn\sessions\20261101-150628 pid 29780 : "E:\JStarsWork\JStarsReborn 0.4.0\runtime\jstars-runtime.exe" --boot <user>\AppData\Local\JStarsReborn\prepared\CUSA01593_01.02_d43b7b5db10b\boot-linked.bin --game-root E:\CUSA01593 --user-dir <user>\AppData\Local\JStarsReborn\user --log game.log --gpu-dir gpu --capture-dir captures --window 1600x900 --volume 70
+2026-11-01T15:11:28Z session end exit=0 : Game closed.
+2026-11-01T15:12:08Z launcher 0.4.0 started from E:\JStarsWork\JStarsReborn 0.4.0
+2026-11-01T15:12:08Z game check: Ready. [E:\CUSA01593]
+2026-11-01T15:12:08Z runtime: JStarsReborn runtime 0.4.0 sha256 25bc88b9ae23afb0abb38f6904ded69ea4ccb5003dd01ac2cc2b17badbda87e0
+2026-11-01T15:12:16Z session start <user>\AppData\Local\JStarsReborn\sessions\20261101-151216 pid 13756 : "E:\JStarsWork\JStarsReborn 0.4.0\runtime\jstars-runtime.exe" --boot <user>\AppData\Local\JStarsReborn\prepared\CUSA01593_01.02_d43b7b5db10b\boot-linked.bin --game-root E:\CUSA01593 --user-dir <user>\AppData\Local\JStarsReborn\user --log game.log --gpu-dir gpu --capture-dir captures --window 1600x900 --volume 70
+2026-11-01T15:12:16Z session end exit=2 : The game could not start.
+2026-11-01T15:13:02Z prepared data deleted by the player
+2026-11-01T15:13:02Z game check: Ready. [E:\CUSA01593]
+2026-11-01T15:13:09Z prepare: start -> <user>\AppData\Local\JStarsReborn\prepared\CUSA01593_01.02_d43b7b5db10b
+2026-11-01T15:13:09Z prepare: done
+2026-11-01T15:13:09Z session start <user>\AppData\Local\JStarsReborn\sessions\20261101-151309 pid 9544 : "E:\JStarsWork\JStarsReborn 0.4.0\runtime\jstars-runtime.exe" --boot <user>\AppData\Local\JStarsReborn\prepared\CUSA01593_01.02_d43b7b5db10b\boot-linked.bin --game-root E:\CUSA01593 --user-dir <user>\AppData\Local\JStarsReborn\user --log game.log --gpu-dir gpu --capture-dir captures --window 1600x900 --volume 70
+2026-11-01T15:13:25Z session end exit=0 : Game closed.
+2026-11-01T15:27:12Z launcher 0.4.0 started from E:\JStarsWork\JStarsReborn 0.4.0
+2026-11-01T15:27:12Z game check: Ready. [E:\CUSA01593]
+2026-11-01T15:27:12Z runtime: JStarsReborn runtime 0.4.0 sha256 25bc88b9ae23afb0abb38f6904ded69ea4ccb5003dd01ac2cc2b17badbda87e0
+2026-11-01T15:27:20Z session start <user>\AppData\Local\JStarsReborn\sessions\20261101-152720 pid 28936 : "E:\JStarsWork\JStarsReborn 0.4.0\runtime\jstars-runtime.exe" --boot <user>\AppData\Local\JStarsReborn\prepared\CUSA01593_01.02_d43b7b5db10b\boot-linked.bin --game-root E:\CUSA01593 --user-dir <user>\AppData\Local\JStarsReborn\user --log game.log --gpu-dir gpu --capture-dir captures --window 1600x900 --volume 70
+2026-11-01T15:27:36Z session end exit=0 : Game closed.

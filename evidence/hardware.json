@@ -1,0 +1,9 @@
+{
+  "platform": "win32",
+  "arch": "x64",
+  "release": "10.0.26300",
+  "version": "Windows 11 Pro",
+  "cpu": "AMD Ryzen 7 9800X3D 8-Core Processor           ",
+  "logical_processors": 16,
+  "memory_bytes": 33458929664
+}

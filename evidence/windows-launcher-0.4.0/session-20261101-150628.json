@@ -1,0 +1,17 @@
+{
+  "launcher_version": "0.4.0",
+  "runtime_version": "JStarsReborn runtime 0.4.0",
+  "runtime_sha256": "25bc88b9ae23afb0abb38f6904ded69ea4ccb5003dd01ac2cc2b17badbda87e0",
+  "game": {"title_id": "CUSA01593", "version": "01.02", "supported_build": "J-Stars Victory VS+ (US, version 01.02)"},
+  "settings": {"window": "1600x900", "sound": true, "volume": 70, "keyboard": true, "confirm_button": "cross"},
+  "mode": "normal play: live input (controller/keyboard), no scripted input, no time limit, no capture",
+  "command_line": "\"E:\\JStarsWork\\JStarsReborn 0.4.0\\runtime\\jstars-runtime.exe\" --boot <user>\\AppData\\Local\\JStarsReborn\\prepared\\CUSA01593_01.02_d43b7b5db10b\\boot-linked.bin --game-root E:\\CUSA01593 --user-dir <user>\\AppData\\Local\\JStarsReborn\\user --log game.log --gpu-dir gpu --capture-dir captures --window 1600x900 --volume 70",
+  "started_utc": "2026-11-01T15:06:28Z",
+  "ended_utc": "2026-11-01T15:11:28Z",
+  "duration_seconds": 299,
+  "exit_code": 0,
+  "exit_code_hex": "0x00000000",
+  "ended_by_launcher": false,
+  "result": "normal",
+  "explanation": "Game closed."
+}

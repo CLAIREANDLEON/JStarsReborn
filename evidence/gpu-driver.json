@@ -1,0 +1,14 @@
+[
+  {
+    "Name": "Parsec Virtual Display Adapter",
+    "DriverVersion": "0.45.0.0"
+  },
+  {
+    "Name": "AMD Radeon RX 9070 XT",
+    "DriverVersion": "32.0.32015.7029"
+  },
+  {
+    "Name": "AMD Radeon(TM) Graphics",
+    "DriverVersion": "32.0.21045.16010"
+  }
+]

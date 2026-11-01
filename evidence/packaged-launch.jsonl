@@ -1,0 +1,7 @@
+{"time":"2026-10-31T22:12:03.735Z","level":"info","event":"startup","message":"Native Windows x64 foundation. No original game data or gameplay is implemented."}
+{"time":"2026-10-31T22:12:03.736Z","level":"info","event":"settings_loaded","message":"settings validated"}
+{"time":"2026-10-31T22:12:03.851Z","level":"info","event":"graphics_ready","message":"AMD Radeon RX 9070 XT"}
+{"time":"2026-10-31T22:12:03.851Z","level":"info","event":"graphics_dimensions","message":"1280x720"}
+{"time":"2026-10-31T22:12:03.851Z","level":"info","event":"audio_disabled","message":"Requested by command line"}
+{"time":"2026-10-31T22:12:04.584Z","level":"info","event":"frame_summary","message":"clear-only,frames=60,samples=60,mean_ms=11.6475,p95_ms=16.1813,p99_ms=16.5338,scheduler_ticks=41"}
+{"time":"2026-10-31T22:12:04.584Z","level":"info","event":"shutdown","message":"Clean shutdown completed"}

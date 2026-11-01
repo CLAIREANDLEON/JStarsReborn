@@ -1,0 +1,1 @@
+Game folder structurally valid. TITLE_ID=CUSA01593 APP_VER=01.02 executable=self build=untested. Not playable: this build has no graphics path; the execution runtime is still in development.

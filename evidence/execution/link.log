@@ -1,0 +1,1 @@
+Linked modules: libc.prx@0x830000, libSceFios2.prx@0x910000; 94 native bindings, 383 imports left to the host runtime, fs->gs patched=0

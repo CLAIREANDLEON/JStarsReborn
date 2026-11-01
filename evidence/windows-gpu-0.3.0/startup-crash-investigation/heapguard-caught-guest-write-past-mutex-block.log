@@ -1,0 +1,45 @@
+[    0.018] fs: /app0 -> (not configured) (read-only), writable mounts under E:\JStarsWork\results\regress-loop-20261101-065850-PC-15eba4\it001-jstars-boot-gpu-0.3.0-hg.exe.log.user
+[    0.090] jstars-boot: boot file E:\JStarsWork\work\CUSA01593_01.02_d43b7b5db10b\prepared\boot-linked.bin
+[    4.244] image mapped at 0000000200000000 (11028540 bytes, 6 segments, 26919 relocations, 477 imports)
+[    4.770] imports bound: 238 host, 94 game modules, 145 unimplemented (trapped)
+[    5.421] diagnostic mode: GPU library not started (stops at the first Gnm call)
+[    5.567] module 0 initializer at image+0x830000
+[    5.603] FIRST CALL #407 sceKernelGetProcParam 959qrazPIrg#libkernel [runtime: verified] [returns the eboot's SCE_PROCESS_PARAM; read by libc init (boot log)] from libc.prx+0x1f8fc a0=0x0
+[    6.056] FIRST CALL #408 _sceKernelRtldSetApplicationHeapAPI p5EcQeEeJAE#libkernel [runtime: partial] [callbacks recorded; libc heap is not routed through them] from libc.prx+0x1fb5d a0=0x2008ea1e0
+[    6.100] FIRST CALL #99 scePthreadMutexattrInit F8bUHwAG284#libkernel [runtime: verified] [selftest-host] from libc.prx+0x239f0 a0=0xd7fe9ff868
+[    6.125] FIRST CALL #101 scePthreadMutexInit cmo1RIYva9o#libkernel [runtime: verified] [selftest-host (init/lock/trylock/unlock)] from libc.prx+0x23a15 a0=0x2008efb00
+[    6.147] FAULT exception 0xc0000005 (access 1) address 0000500002381010 at libc.prx+0x23a20 stage=1
+[    6.168]   HEAPGUARD: address is in the guard page ABOVE (a write or read past the end of) a 8-byte block at 0000500002380ff0 allocated from jstars-boot-gpu-0.3.0-hg.exe+0x33a1
+[    6.180]   rax = 0x0000500002380ff0
+[    6.186]   rcx = 0x00007ff6e1573108
+[    6.192]   rdx = 0x000050000237dfe0
+[    6.198]   rbx = 0x00000002008efb00
+[    6.204]   rsp = 0x000000d7fe9ff860
+[    6.210]   rbp = 0x000000d7fe9ff8b0
+[    6.218]   rsi = 0x000000d7fe9ff868
+[    6.224]   rdi = 0x00000002008efb00
+[    6.230]   r8  = 0x0000000000000000
+[    6.236]   r9  = 0x0000500002380000
+[    6.242]   r10 = 0x0000000000000000
+[    6.248]   r11 = 0x0000000000000246
+[    6.254]   r12 = 0x00000002008eecb8
+[    6.260]   r13 = 0x00000002008eecc0
+[    6.266]   r14 = 0x0000000000000001
+[    6.271]   r15 = 0x00007ff6e1573120
+[    6.278]   rip = 0x0000000200853a20
+[    6.285]   faulting thread: main
+[    6.298]   stack[ 7] -> libc.prx+0xbec98
+[    6.307]   stack[11] -> libc.prx+0x5b9
+[    6.314]   stack[13] -> libc.prx+0x4b
+[    6.329]   host stack[  0] -> msvcrt.dll+0xa0500
+[    6.349]   host stack[ 16] -> jstars-boot-gpu-0.3.0-hg.exe+0x598128
+[    6.357]   host stack[ 17] -> jstars-boot-gpu-0.3.0-hg.exe+0x598100
+[    6.366]   host stack[ 18] -> jstars-boot-gpu-0.3.0-hg.exe+0x7930b0
+[    6.376]   host stack[ 21] -> jstars-boot-gpu-0.3.0-hg.exe+0x1a51
+[    6.405]   host stack[ 55] -> jstars-boot-gpu-0.3.0-hg.exe+0x4297fb
+[    6.414]   host stack[ 57] -> msvcrt.dll+0x3eb3b
+[    6.425]   host stack[ 63] -> msvcrt.dll+0x3f0ad
+[    6.436]   host stack[ 69] -> msvcrt.dll+0x3f17c
+[    6.443]   host stack[ 70] -> msvcrt.dll+0x9e500
+[    6.454]   host stack[ 75] -> KERNEL32.DLL+0x2dda7
+[    6.465]   host stack[ 81] -> ntdll.dll+0xc9c5c

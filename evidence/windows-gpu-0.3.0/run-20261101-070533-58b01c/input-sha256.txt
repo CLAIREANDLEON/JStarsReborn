@@ -1,0 +1,1 @@
+d43b7b5db10b5808c06691b27ef0ce1b5d27da6b1e07d811db5bea125ceaed54  eboot.bin (read-only input)

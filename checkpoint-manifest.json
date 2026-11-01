@@ -1,0 +1,735 @@
+{
+  "schema_version": 1,
+  "checkpoint": "0.2.2-runtime-entry",
+  "base_checkpoint": "0.2.1-audit",
+  "date": "2026-10-31",
+  "scope": "Execution runtime: original x86-64 code of CUSA01593 v01.02 (with bundled libc/Fios2) runs through module initializers and the entry point on Linux and on Windows 11 hardware until the first Gnm call; per-user data dir; SELF-aware validator; rebuilt Windows binaries",
+  "binaries_note": "JStarsReborn.exe and JStarsSetup.exe are built from this source with GCC 13 MinGW-w64; runtime/ builds separately (make)",
+  "runtime_data_excluded": [
+    "logs",
+    "reports",
+    "saves",
+    "crashes",
+    "build outputs"
+  ],
+  "added_files": [
+    "docs/ADR-005-execution-runtime.md",
+    "docs/IMPORT_STATUS.md",
+    "evidence/execution/boot-CUSA01593-01.02-linux-harness.log",
+    "evidence/execution/boot-CUSA01593-01.02-win32-build-under-wine.log",
+    "evidence/execution/link.json",
+    "evidence/execution/link.log",
+    "evidence/windows-hardware/README.md",
+    "evidence/windows-hardware/boot-windows-run1.err.txt",
+    "evidence/windows-hardware/boot-windows.log",
+    "evidence/windows-hardware/crash-reports/crash-access.json",
+    "evidence/windows-hardware/crash-reports/crash-terminate.json",
+    "evidence/windows-hardware/environment.txt",
+    "evidence/windows-hardware/runtime-logs/rt-data-a.jsonl",
+    "evidence/windows-hardware/runtime-logs/rt-data-b.jsonl",
+    "evidence/windows-hardware/runtime-logs/rt-data-c.jsonl",
+    "evidence/windows-hardware/runtime-logs/rt-data-d.jsonl",
+    "evidence/windows-hardware/runtime-logs/rt-data-e.jsonl",
+    "evidence/windows-hardware/summary-run2.json",
+    "evidence/windows-hardware/test-core.txt",
+    "evidence/windows-hardware/test-gamecheck.txt",
+    "evidence/windows-hardware/test-input.txt",
+    "evidence/windows-hardware/test-paths.txt",
+    "evidence/windows-hardware/test-pkg_intake.txt",
+    "evidence/windows-hardware/test-setup_install.txt",
+    "evidence/windows-hardware/test-setup_inventory.txt",
+    "evidence/windows-hardware/validate-game-run1.txt",
+    "evidence/windows-hardware/validate-game.err.txt",
+    "evidence/windows-hardware/validation-run1.json",
+    "include/reborn/paths.hpp",
+    "runtime/Makefile",
+    "runtime/README.md",
+    "runtime/jstars_av.c",
+    "runtime/jstars_input.c",
+    "runtime/jstars_kernel.c",
+    "runtime/jstars_loader.c",
+    "runtime/jstars_memory.c",
+    "runtime/jstars_os.c",
+    "runtime/jstars_os.h",
+    "runtime/jstars_rt.c",
+    "runtime/jstars_rt.h",
+    "runtime/jstars_system.c",
+    "src/core/paths.cpp",
+    "tests/paths_tests.cpp",
+    "tools/boot_smoke.sh",
+    "tools/make_checkpoint_manifest.py",
+    "tools/prepare/link_libc.py",
+    "tools/prepare/link_modules.py",
+    "tools/prepare/nid_names.py",
+    "tools/prepare/prepare.py",
+    "tools/windows_verify/run-all.cmd",
+    "tools/windows_verify/run-all.ps1"
+  ],
+  "changed_files": [
+    "CHANGELOG.md",
+    "CMakeLists.txt",
+    "JStarsReborn.exe",
+    "JStarsSetup.exe",
+    "README.md",
+    "THIRD_PARTY_NOTICES.md",
+    "docs/BUILD.md",
+    "docs/SETUP.md",
+    "docs/SETUP_QA.md",
+    "include/reborn/game_validate.hpp",
+    "setup-payload.txt",
+    "src/platform/main.cpp",
+    "src/setup/game_validate.cpp",
+    "src/setup/main.cpp",
+    "supported-versions.tsv",
+    "tests/gamecheck_tests.cpp",
+    "tools/portable_tests.sh"
+  ],
+  "removed_files": [],
+  "files": [
+    {
+      "path": ".gitignore",
+      "size_bytes": 53,
+      "sha256": "ec9319ae5464d5cc3f387f1a4a1e19b16f5642b3e273dd3a91b6cb734ac0a3da"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "size_bytes": 5668,
+      "sha256": "f2f7135bd911eb981e781fff5295568e2d3d9d6771f292a7119cad89c2166ba3"
+    },
+    {
+      "path": "CMakeLists.txt",
+      "size_bytes": 6270,
+      "sha256": "d2ac5182bedb56d8c0137c7907b1d90b1891d2b3f65c1fc432293525aa2a8513"
+    },
+    {
+      "path": "CMakePresets.json",
+      "size_bytes": 676,
+      "sha256": "6451b3d7a32a8d55d557a9e6be98519afed0b9fef2b4df7005451a9375a4148e"
+    },
+    {
+      "path": "JStarsReborn.exe",
+      "size_bytes": 3566857,
+      "sha256": "aa6a42be603f6635153c839775f98de75607acb0b18e2fef7b515438a9627dd2"
+    },
+    {
+      "path": "JStarsSetup.exe",
+      "size_bytes": 3717776,
+      "sha256": "c2c30c691de01a1c9c05a26cf113761d4a1488e53c652295c87225b02ac6de67"
+    },
+    {
+      "path": "PROJECT_AUDIT.md",
+      "size_bytes": 12554,
+      "sha256": "93f8fbfde64186be6c4f04fca581da96157abb6b348ccf3adb4ca3cc701d144d"
+    },
+    {
+      "path": "README.md",
+      "size_bytes": 4073,
+      "sha256": "2bac5864329ab20fe45bcf9f19d73823029f03877244fd8a7a9da9ff81568502"
+    },
+    {
+      "path": "THIRD_PARTY_NOTICES.md",
+      "size_bytes": 2290,
+      "sha256": "8a8d7a765a589676ae41118015d8f88b09d34870dc3ea2a50d4718f96baf41aa"
+    },
+    {
+      "path": "assets/README.md",
+      "size_bytes": 161,
+      "sha256": "fa4aac2e824ec689a026260e89a02185181a69ccce815ca1d359d813a6f57a8c"
+    },
+    {
+      "path": "config/settings.ini",
+      "size_bytes": 133,
+      "sha256": "287bcc2ccebdc7bdea19fb33f8803867f8c6059c1db7cc50728cee72964ff466"
+    },
+    {
+      "path": "docs/ADR-005-execution-runtime.md",
+      "size_bytes": 4875,
+      "sha256": "657c3a16362719f3f9bafddf20a3bd409156e1d68d0dd6c41c57d57de6a668e9"
+    },
+    {
+      "path": "docs/ARCHITECTURE.md",
+      "size_bytes": 4411,
+      "sha256": "51abd07b5043b6aac05f2bf1b3f93b839a6b694c8aca8fd9a9cd2322808b0170"
+    },
+    {
+      "path": "docs/ASSET_PIPELINE.md",
+      "size_bytes": 4459,
+      "sha256": "457c85c3ed3ba7a55ede558049046d7c6abb4c788f57d97c06b728704155b1b3"
+    },
+    {
+      "path": "docs/BUILD.md",
+      "size_bytes": 6768,
+      "sha256": "86a786d38be7fc7290f55c2fbe9d037da1d93bcb791cc34d36a067bac96bdfbe"
+    },
+    {
+      "path": "docs/FEASIBILITY.md",
+      "size_bytes": 5514,
+      "sha256": "b3de6a6f91e8326ef54644082dd93e7fd8ee1d9a673aa0875f06b79b378aa3d9"
+    },
+    {
+      "path": "docs/IMPORT_STATUS.md",
+      "size_bytes": 7530,
+      "sha256": "45ab687e3bb11858047ddd064fefd46db7c9af41b6e7342ee24216fff8f655a9"
+    },
+    {
+      "path": "docs/PKG_SUPPORT.md",
+      "size_bytes": 2865,
+      "sha256": "8e6d0f8d9f36e2ae35afcb0805af3a6399b90868889b6ffe0c4c4f7216e3d4ba"
+    },
+    {
+      "path": "docs/REFERENCE_PROTOCOL.md",
+      "size_bytes": 3170,
+      "sha256": "26c4dddf0abb16096f658fd1f2f660753c3605aa0e86d110510f427cf37fc4f7"
+    },
+    {
+      "path": "docs/SETUP.md",
+      "size_bytes": 3347,
+      "sha256": "aa278871a644d2c819a61ca8492f960760d204fea65bd8248196f6e552cdf627"
+    },
+    {
+      "path": "docs/SETUP_QA.md",
+      "size_bytes": 5580,
+      "sha256": "5792b0c75db568a665c4b84da6cb10b9ce3b0528384857ebd6aaf729360ef1e1"
+    },
+    {
+      "path": "docs/SETUP_TEST_REPORT.md",
+      "size_bytes": 3551,
+      "sha256": "ac79c2fc3b5fd1cbbcbff3b7b5d67203eb63fff5a4c8b042032e22c001c82a09"
+    },
+    {
+      "path": "docs/TEST_REPORT.md",
+      "size_bytes": 5338,
+      "sha256": "c1bdb538f9d648e42b35b68a6af229950f75fa88b738fc0bb49263e2aa859a77"
+    },
+    {
+      "path": "evidence/ctest.txt",
+      "size_bytes": 4001,
+      "sha256": "b5b2488be4dd6139e061b00e218a819fcc1e2a81741540256b24908a22181c42"
+    },
+    {
+      "path": "evidence/executable-inspection.txt",
+      "size_bytes": 11199,
+      "sha256": "668be9e7d7968d49360063c5f0a4fd59502d759ee68f68cb29360f62eda5b56b"
+    },
+    {
+      "path": "evidence/execution/boot-CUSA01593-01.02-linux-harness.log",
+      "size_bytes": 2278,
+      "sha256": "ab50e4c8e75881a91b6953f37badf5f66b08c5b0c0b20eef51054e6f3756f4d2"
+    },
+    {
+      "path": "evidence/execution/boot-CUSA01593-01.02-win32-build-under-wine.log",
+      "size_bytes": 2310,
+      "sha256": "41e2497a9f48eb048b771852b606313248a8411b47657a6fd1f32fed4db85f0e"
+    },
+    {
+      "path": "evidence/execution/link.json",
+      "size_bytes": 12628,
+      "sha256": "c11ebfa6cb89f277371811a9294c88b58380288c50c838280e7cf5abcb4461f7"
+    },
+    {
+      "path": "evidence/execution/link.log",
+      "size_bytes": 136,
+      "sha256": "8d9ae4065991440b7fa21bd7ff93795841a15d6a7ab229eac055627d86b8fc5c"
+    },
+    {
+      "path": "evidence/final-build.txt",
+      "size_bytes": 528,
+      "sha256": "658cf31942ebfa213ce232986193405542e13d599ad759e9829834cc04489b7d"
+    },
+    {
+      "path": "evidence/gpu-driver.json",
+      "size_bytes": 277,
+      "sha256": "ae8d3163319cb735895a4ab259c175b6999b598012a948190d4e1f38bc8658e7"
+    },
+    {
+      "path": "evidence/hardware.json",
+      "size_bytes": 219,
+      "sha256": "1b0cee8a4e07749cb0c25e50fd00c3fbfbe786f2343446b43fea05502fab171c"
+    },
+    {
+      "path": "evidence/packaged-launch.jsonl",
+      "size_bytes": 887,
+      "sha256": "f06d6b6037572005476f5a07382e479072f6a88d4cd37a34a2a5c9bec66a9e23"
+    },
+    {
+      "path": "evidence/runtime-smoke.json",
+      "size_bytes": 31318,
+      "sha256": "935a7238a60f2dbd224baad79b5aabd84edffea4097b4848d4ad8eacca596dff"
+    },
+    {
+      "path": "evidence/setup-ctest.txt",
+      "size_bytes": 5366,
+      "sha256": "aa0bffb7d484e25cc57721fa40792dd73a7858cd75277eaa366f88927a325be1"
+    },
+    {
+      "path": "evidence/setup-final-bundle.json",
+      "size_bytes": 4879,
+      "sha256": "c0cfd5480b9b3062da74f5215fcd68689ec97b1054823435ed6973f16e5e738f"
+    },
+    {
+      "path": "evidence/setup-integration.json",
+      "size_bytes": 5891,
+      "sha256": "e74f1101d362f91b66fccbfec122d8579e32dd13c038cc025f985f675be4d06e"
+    },
+    {
+      "path": "evidence/setup-launched-runtime.jsonl",
+      "size_bytes": 950,
+      "sha256": "71cf39659b8c3dde4d36ef2130fc504e3fe2a869401eba1d2f9a0677434e78d8"
+    },
+    {
+      "path": "evidence/setup-ui-install.json",
+      "size_bytes": 706,
+      "sha256": "10393e3671a4715c5d20dbc6c18bffc1747daa10977c57374b10e89a9ab8485c"
+    },
+    {
+      "path": "evidence/setup-ui-source.json",
+      "size_bytes": 732,
+      "sha256": "cb0b160561ebbcba14324754ff85ef4a7caf44dc6b0b613d0246d764db394050"
+    },
+    {
+      "path": "evidence/validation-unavailable.jsonl",
+      "size_bytes": 473,
+      "sha256": "9c7635d98c8faa97a009e96253885492b140ce8870ca00e6b8293fdc8b2a5bdc"
+    },
+    {
+      "path": "evidence/windows-hardware/README.md",
+      "size_bytes": 3106,
+      "sha256": "bd5529bc26afe073ba4d63457d842fa69a7b76696d1be45f441c947d08dc9fd4"
+    },
+    {
+      "path": "evidence/windows-hardware/boot-windows-run1.err.txt",
+      "size_bytes": 573,
+      "sha256": "7410463e6bf611a1f2bffeed0de2e04db572ec676fde4263811ce727621eea72"
+    },
+    {
+      "path": "evidence/windows-hardware/boot-windows.log",
+      "size_bytes": 2245,
+      "sha256": "4ed1cebb9e7f7422a025d76c99da95e64b300696b9931f3ec42d1ff2aaf42590"
+    },
+    {
+      "path": "evidence/windows-hardware/crash-reports/crash-access.json",
+      "size_bytes": 1053,
+      "sha256": "2b33d437a5a0c3ac88c7675e2f3095582cd3a6f7cf9fdafd24f7c03d12e55b29"
+    },
+    {
+      "path": "evidence/windows-hardware/crash-reports/crash-terminate.json",
+      "size_bytes": 1301,
+      "sha256": "8df19ef53f29507a17f5aa8d982580709e256109850696970eefee58d39f7f05"
+    },
+    {
+      "path": "evidence/windows-hardware/environment.txt",
+      "size_bytes": 302,
+      "sha256": "d533c50689ed00a56335276c657c68768239dfe9981441dec053ccc0d6f74301"
+    },
+    {
+      "path": "evidence/windows-hardware/runtime-logs/rt-data-a.jsonl",
+      "size_bytes": 1205,
+      "sha256": "35b8fa9ec316de378fcb07303a934c7a4dfbe8cd1fa0bcbde1221839dd7eb16c"
+    },
+    {
+      "path": "evidence/windows-hardware/runtime-logs/rt-data-b.jsonl",
+      "size_bytes": 1145,
+      "sha256": "146d0a84e9e41eb5dbee32cbaceb81ecbaf72104f93acbd518fc3f2da1043260"
+    },
+    {
+      "path": "evidence/windows-hardware/runtime-logs/rt-data-c.jsonl",
+      "size_bytes": 600,
+      "sha256": "9058d0ef1a1ac13dcf81c5e8be8c9037093ddc33a4760ffdb5ac073d51c1a8dc"
+    },
+    {
+      "path": "evidence/windows-hardware/runtime-logs/rt-data-d.jsonl",
+      "size_bytes": 1414,
+      "sha256": "8199ee81cc0037d9841ba3d7f4b7685fb12954d7af68f68d2d50257ca75e0b65"
+    },
+    {
+      "path": "evidence/windows-hardware/runtime-logs/rt-data-e.jsonl",
+      "size_bytes": 429,
+      "sha256": "e632e571028f8e17cbabb0f5e71d5368140521f959d5ee84c56df024ead77dcf"
+    },
+    {
+      "path": "evidence/windows-hardware/summary-run2.json",
+      "size_bytes": 1538,
+      "sha256": "5729457cc30709d3fdd311f058c602792267ae85184c445342d1186b24aa8d5c"
+    },
+    {
+      "path": "evidence/windows-hardware/test-core.txt",
+      "size_bytes": 24,
+      "sha256": "11e5efa987d3d2497cabb66c64f49779de96402efe2d441acce6c09cb3737dd0"
+    },
+    {
+      "path": "evidence/windows-hardware/test-gamecheck.txt",
+      "size_bytes": 253,
+      "sha256": "c9f0e5d5b6effd566a8c594c31451d25e93b2db8923eb1a92458981053c5a9fe"
+    },
+    {
+      "path": "evidence/windows-hardware/test-input.txt",
+      "size_bytes": 57,
+      "sha256": "d4cd734fe4d952564c31b6518567eb9559f9412e4e905a25bca052e159753abd"
+    },
+    {
+      "path": "evidence/windows-hardware/test-paths.txt",
+      "size_bytes": 101,
+      "sha256": "49ebc8c774ee8969386bf348dc2241f553130fe0b1452c314dfdd88887abd6ec"
+    },
+    {
+      "path": "evidence/windows-hardware/test-pkg_intake.txt",
+      "size_bytes": 74,
+      "sha256": "0e8552a56af18e37c0fca1a36ffd9fbafba0e67a38c0a47aac06f691bf733713"
+    },
+    {
+      "path": "evidence/windows-hardware/test-setup_install.txt",
+      "size_bytes": 95,
+      "sha256": "cf376248de5041d61659eb3639ac531ba6facb7834cbc041d2fd63c8bc7f33c2"
+    },
+    {
+      "path": "evidence/windows-hardware/test-setup_inventory.txt",
+      "size_bytes": 126,
+      "sha256": "ac5f51cf15e19ff25a1f2e33a70e1f4753ea5631257ccb806501a534617a6379"
+    },
+    {
+      "path": "evidence/windows-hardware/validate-game-run1.txt",
+      "size_bytes": 192,
+      "sha256": "36f3f602019121a60b6f70d0f20072cb23dfc32347a023dad337819158ef076b"
+    },
+    {
+      "path": "evidence/windows-hardware/validate-game.err.txt",
+      "size_bytes": 81,
+      "sha256": "feb156adfaf1d9c376d5347f577b4b342e8fe4724d636c4b54f3ff2770930e1f"
+    },
+    {
+      "path": "evidence/windows-hardware/validation-run1.json",
+      "size_bytes": 1193,
+      "sha256": "af94f712c1e888e03bbed07ee7017cd67423fcd7ffb8b8abac019575b4268410"
+    },
+    {
+      "path": "include/reborn/audio.hpp",
+      "size_bytes": 357,
+      "sha256": "4e13cfec731087a3f246655f676ff87e8ea5095f9fd04872df267c09d66c6542"
+    },
+    {
+      "path": "include/reborn/core.hpp",
+      "size_bytes": 1089,
+      "sha256": "9205761255b0c4c69bfc23424f203c9d97148dee828fadad4817fd6a176f8e43"
+    },
+    {
+      "path": "include/reborn/crash.hpp",
+      "size_bytes": 870,
+      "sha256": "66a7231f2bd24819c67dce6555c14a3bf0fe39a4158c11ab411075ae91478b29"
+    },
+    {
+      "path": "include/reborn/game_validate.hpp",
+      "size_bytes": 4825,
+      "sha256": "39ae6956cc035963601342f7e9167557f9bbc80464aed253f9096959f9033bf5"
+    },
+    {
+      "path": "include/reborn/input.hpp",
+      "size_bytes": 1567,
+      "sha256": "8273557a933e6f883e4a41e9be51f43e747c5f0d9d5b78fb894664fc89a139b3"
+    },
+    {
+      "path": "include/reborn/paths.hpp",
+      "size_bytes": 1444,
+      "sha256": "b6be3cc6efc7cfea533770fb05f217451093cc846cd713bb2c3b737792f8c25f"
+    },
+    {
+      "path": "include/reborn/pkg_intake.hpp",
+      "size_bytes": 559,
+      "sha256": "5c3b413c8cfe012f9870e2d19f3cbed2fe6d20a05c1fc1a4aa68847dfe02edb2"
+    },
+    {
+      "path": "include/reborn/renderer.hpp",
+      "size_bytes": 986,
+      "sha256": "52362d450109bb7f06b6e9648951b4181d9d637b8f4e18bd1b83fa83ac081e5c"
+    },
+    {
+      "path": "include/reborn/setup_install.hpp",
+      "size_bytes": 611,
+      "sha256": "01b5ea355fa31daf903522badd557d2fa46a54e483ca99d3599bad14225395a8"
+    },
+    {
+      "path": "include/reborn/setup_inventory.hpp",
+      "size_bytes": 959,
+      "sha256": "d7941aceda851f059b0e8fdcfd13d9ed911e86579d82cfdd7888b88915e7d3a6"
+    },
+    {
+      "path": "include/reborn/sha256.hpp",
+      "size_bytes": 1058,
+      "sha256": "61a5c89ea2b0ad4bad11a36cc3f1c1bf7d3e40493878e14bb03fcdb2df778bf2"
+    },
+    {
+      "path": "licenses/LLVM-LICENSE.txt",
+      "size_bytes": 15141,
+      "sha256": "8d85c1057d742e597985c7d4e6320b015a9139385cff4cbae06ffc0ebe89afee"
+    },
+    {
+      "path": "licenses/mingw-w64-COPYING.txt",
+      "size_bytes": 2326,
+      "sha256": "99a69660981156c21336fdb5661f89341b013c94e4bf9e1c7467b4745718397f"
+    },
+    {
+      "path": "licenses/mingw-w64-notices.txt",
+      "size_bytes": 5905,
+      "sha256": "f38e6194bd3bfa1b654f118e5acefe0aead437bbe669eee43957ccc65a7127f1"
+    },
+    {
+      "path": "licenses/mingw-w64-runtime-COPYING.txt",
+      "size_bytes": 12155,
+      "sha256": "1db8da07b436c68833c0673ffee3d9fcb2526047f3820b81661865dfedc79a1f"
+    },
+    {
+      "path": "milestones.json",
+      "size_bytes": 5710,
+      "sha256": "f22d06a0267478a617aa37cb9a424fc74c9d88e1cd252239ce69230b0422ee06"
+    },
+    {
+      "path": "mods/README.md",
+      "size_bytes": 129,
+      "sha256": "51c100965d0dd984e5998de92d476cb6a17ca663ccd6dbc25e12265ff8d8bcfc"
+    },
+    {
+      "path": "resources/setup.manifest",
+      "size_bytes": 1218,
+      "sha256": "2dae09c554bbd6c6587433ac26cdc886facd0652c12d742dfc0e0c806bee8950"
+    },
+    {
+      "path": "resources/setup.rc",
+      "size_bytes": 22,
+      "sha256": "0af957880ef3503362bb7ec03d57b8a5cc715efb6c3b6fec8697c2b5c8e039a0"
+    },
+    {
+      "path": "runtime/Makefile",
+      "size_bytes": 756,
+      "sha256": "014774b436a29a69661837d1cc60aa70aad8c1302ed21fc9417917b498819bee"
+    },
+    {
+      "path": "runtime/README.md",
+      "size_bytes": 2261,
+      "sha256": "54211685ecb58748f22c176e23bb167ac2574f0ed879935f89004b4fb7f5776d"
+    },
+    {
+      "path": "runtime/jstars_av.c",
+      "size_bytes": 5514,
+      "sha256": "8ce2eef7281ddce697a9d1fd9f8a85150f19e77151e2d94204a331ce31e63a10"
+    },
+    {
+      "path": "runtime/jstars_input.c",
+      "size_bytes": 2575,
+      "sha256": "4757f2d9c1ec56113c0fe5816638a85bed4dcfed3fae3318b3159a98d5957b6b"
+    },
+    {
+      "path": "runtime/jstars_kernel.c",
+      "size_bytes": 19380,
+      "sha256": "e42a733089eeafc0d5b00b99f456bd17c5c1c688561f6793313221340364cac6"
+    },
+    {
+      "path": "runtime/jstars_loader.c",
+      "size_bytes": 15201,
+      "sha256": "422d1e4bd299bb5008dfeac2147b72bf55c550d17a9126c22c320aa0a446443e"
+    },
+    {
+      "path": "runtime/jstars_memory.c",
+      "size_bytes": 6769,
+      "sha256": "91b9a415f616f3c0d400e60136d29e34cb57ddb6f1a296bcbcd2bee4be97b95e"
+    },
+    {
+      "path": "runtime/jstars_os.c",
+      "size_bytes": 6533,
+      "sha256": "ad199d51126884b4651790c950f09044b7be223adf84d1e08be90f72a6c30795"
+    },
+    {
+      "path": "runtime/jstars_os.h",
+      "size_bytes": 1570,
+      "sha256": "b0c833db230605e359debfaf4d34677a1718d6e013c215faad4b45d5f8ecb628"
+    },
+    {
+      "path": "runtime/jstars_rt.c",
+      "size_bytes": 5489,
+      "sha256": "1dfeeb36c238e7e1edffa712b2d2bf65196b701db408f12dcd202cc4ea0c8fb9"
+    },
+    {
+      "path": "runtime/jstars_rt.h",
+      "size_bytes": 1493,
+      "sha256": "22f7bd8f0a0bb5b9d74150698a441c0ddc3d77e256ba07f422171eb32f34658c"
+    },
+    {
+      "path": "runtime/jstars_system.c",
+      "size_bytes": 6605,
+      "sha256": "c603d3fe6047f38edd278a13245a17398414ccda27c321148c4b6671eb4fc73a"
+    },
+    {
+      "path": "setup-payload.txt",
+      "size_bytes": 2028,
+      "sha256": "d7cd7739b2938aae40c28281f455defe81ed4eaa6b08a375c1725bbbd7440a78"
+    },
+    {
+      "path": "src/audio/audio.cpp",
+      "size_bytes": 2636,
+      "sha256": "f4e825ae43845a4fa17a4c65dbf92c0aba8d3f3f02ce1e7f580552cde1dc979d"
+    },
+    {
+      "path": "src/core/core.cpp",
+      "size_bytes": 9915,
+      "sha256": "bc4c1ea755ed37df588703dddcc80ea6aec4304c90e0e9f10d4ef2f1a38c92aa"
+    },
+    {
+      "path": "src/core/crash.cpp",
+      "size_bytes": 9981,
+      "sha256": "6e741d17b716b3361384548eba572a30720a4a8bf355e8ac1521774a95d7dde7"
+    },
+    {
+      "path": "src/core/paths.cpp",
+      "size_bytes": 2470,
+      "sha256": "2fe5d93b49243203f0aac63681493e0396f9714b278445f8ee553fa874d52c6b"
+    },
+    {
+      "path": "src/input/input.cpp",
+      "size_bytes": 3850,
+      "sha256": "831eb21528766351464e44fb232378f31ce85eb46d23e70697d4206d8e683562"
+    },
+    {
+      "path": "src/platform/main.cpp",
+      "size_bytes": 16274,
+      "sha256": "a19dd7665f892773db8b84102bd8776069addda07eb81003ba788b95961a0338"
+    },
+    {
+      "path": "src/rendering/renderer.cpp",
+      "size_bytes": 14207,
+      "sha256": "3a3a2a2a14bd56b5f7a723ba1a0c0e71654d0daaaf042d5aeaee1332ea790f36"
+    },
+    {
+      "path": "src/setup/game_validate.cpp",
+      "size_bytes": 27636,
+      "sha256": "391e76ca3ba16684d1e862db7558012929dbd5a667e62b07f253128b35eae5b5"
+    },
+    {
+      "path": "src/setup/install.cpp",
+      "size_bytes": 18499,
+      "sha256": "798c5b588aa5e0a9207c26289ee5b9fc198d05b16236ad52a746bbf14121ada5"
+    },
+    {
+      "path": "src/setup/inventory.cpp",
+      "size_bytes": 25474,
+      "sha256": "1df2c44eb1a06632300a2ce2b0d331fa9615666f527f44ca7528477f41a5a135"
+    },
+    {
+      "path": "src/setup/main.cpp",
+      "size_bytes": 29714,
+      "sha256": "5fd2cf5007b3b7d0e9a32ca4be76b983705039b27f059510708ff3bd4dc18137"
+    },
+    {
+      "path": "src/setup/sha256.cpp",
+      "size_bytes": 4613,
+      "sha256": "f8648eeb3c9cf0231f5608ca3e5f35f7e4e47bd180a1d6c236add90bafd50b24"
+    },
+    {
+      "path": "supported-versions.tsv",
+      "size_bytes": 813,
+      "sha256": "646233fb2400a11e4a383f354de4a9fe15dc7402ba7cdb6c629ce2819570fa70"
+    },
+    {
+      "path": "tests/core_tests.cpp",
+      "size_bytes": 8489,
+      "sha256": "029e82f628f1faea5839e19b6f89659a2df1377aa833f523fbd7afbf59a498c4"
+    },
+    {
+      "path": "tests/gamecheck_tests.cpp",
+      "size_bytes": 24758,
+      "sha256": "db617003c62586e9c8d93c649f56c45633f0fb338b6f3e22089fe3c160975431"
+    },
+    {
+      "path": "tests/input_tests.cpp",
+      "size_bytes": 4037,
+      "sha256": "6f3668e031b49f13b10b90427e652e71a9386219efdc2cea135e8c08c356dad3"
+    },
+    {
+      "path": "tests/paths_tests.cpp",
+      "size_bytes": 3961,
+      "sha256": "b7c13bbe3c7f480bf20b1b30108c04112de709b747d5e879331bfd0cce815d2b"
+    },
+    {
+      "path": "tests/pkg_intake_tests.cpp",
+      "size_bytes": 4818,
+      "sha256": "c953622d7fb2d358dd0ea8161fab29ca1cc5bb70fbbf861cbd590ba9a793e4da"
+    },
+    {
+      "path": "tests/setup_install_tests.cpp",
+      "size_bytes": 8784,
+      "sha256": "e47c63e957f02a95515c7f80ae618f9455be8a9a392def1a06abc69f77b481c2"
+    },
+    {
+      "path": "tests/setup_inventory_tests.cpp",
+      "size_bytes": 9198,
+      "sha256": "c7fee94608b027670d76fa055301be0f66089b4e030577ecdb846d74acda7192"
+    },
+    {
+      "path": "tests/test_asset_audit.py",
+      "size_bytes": 8647,
+      "sha256": "6d5c420ea12371bb29dafd4c5ce22e8a4e4c43792b73a1198e6f60e54d565c4e"
+    },
+    {
+      "path": "toolchain-lock.json",
+      "size_bytes": 1506,
+      "sha256": "17a11117acc2c15af5c3db78b7ec5e1771131d92399c13a7436081f281cb6be2"
+    },
+    {
+      "path": "tools/asset_audit.py",
+      "size_bytes": 11495,
+      "sha256": "646e3e3be39f5058fd6afda6f38a04f949e86ae7e6ae78ab4216cca502af29ae"
+    },
+    {
+      "path": "tools/boot_smoke.sh",
+      "size_bytes": 2443,
+      "sha256": "f55a0d04d3092dc58e031786de317db8f73a2648f0f84145dee83fbc99caf71f"
+    },
+    {
+      "path": "tools/make_checkpoint_manifest.py",
+      "size_bytes": 2641,
+      "sha256": "b8540779a3561051867e3b5ba74898c68f29e67402af4937a27977e4d52fff86"
+    },
+    {
+      "path": "tools/make_setup_payload.py",
+      "size_bytes": 2819,
+      "sha256": "def11b5febba27a438f0a632bf7761ecca359449e4949c8dfc8f1203ba521f9e"
+    },
+    {
+      "path": "tools/portable_tests.sh",
+      "size_bytes": 2068,
+      "sha256": "5e870fb10721140e2b6d393a3e4eb911b04939a1c3d04b7634199254e01e3682"
+    },
+    {
+      "path": "tools/prepare/link_libc.py",
+      "size_bytes": 10572,
+      "sha256": "35030840b6114478658c88e36b9e7ce40ec51204355ef2c1f39f65f91d1a635d"
+    },
+    {
+      "path": "tools/prepare/link_modules.py",
+      "size_bytes": 13911,
+      "sha256": "7e8aad137fe0dc7fe9b2082f06281faaae2c27cfdaa510927536cef3bff4cf86"
+    },
+    {
+      "path": "tools/prepare/nid_names.py",
+      "size_bytes": 1123,
+      "sha256": "14f85256f8646ca0fef7a05f05e4e4884f83ad987cb3357561cb4f706b7e564b"
+    },
+    {
+      "path": "tools/prepare/prepare.py",
+      "size_bytes": 16226,
+      "sha256": "7bb390612a73b375237abcc5a69110fd1d60a3f42c6dd1dbc7f131746a713454"
+    },
+    {
+      "path": "tools/smoke_test.py",
+      "size_bytes": 15570,
+      "sha256": "99fd8337ced614cb8154975c2d0819e18f3e00a2e92813f7cbc601395eb6a33c"
+    },
+    {
+      "path": "tools/windows_verify/run-all.cmd",
+      "size_bytes": 202,
+      "sha256": "9678c4c3901d8faf746190f0d8fef28db6c866fdb2efe1b92d4de4cb11e1d378"
+    },
+    {
+      "path": "tools/windows_verify/run-all.ps1",
+      "size_bytes": 3532,
+      "sha256": "9df933671d6da7bb45e13ca31dccc6f406a4656c3b70661ed489e2e2a4878587"
+    }
+  ]
+}

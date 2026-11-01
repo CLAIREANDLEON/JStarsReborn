@@ -1,0 +1,81 @@
+UpdateCTestConfiguration  from :C:/Users/<user>/Documents/Codex/2026-10-31/ok-x20-2/work/build-setup/DartConfiguration.tcl
+Parse Config file:C:/Users/<user>/Documents/Codex/2026-10-31/ok-x20-2/work/build-setup/DartConfiguration.tcl
+Test project C:/Users/<user>/Documents/Codex/2026-10-31/ok-x20-2/work/build-setup
+Constructing a list of tests
+Done constructing a list of tests
+Updating test list for fixtures
+Added 0 tests to meet fixture requirements
+Checking test dependency graph...
+Checking test dependency graph end
+test 1
+    Start 1: core
+
+1: Test command: C:\Users\<user>\Documents\Codex\2026-10-31\ok-x20-2\work\build-setup\core_tests.exe
+1: Working Directory: C:/Users/<user>/Documents/Codex/2026-10-31/ok-x20-2/work/build-setup
+1: Test timeout computed to be: 1500
+1: PASS: 8336 core checks
+1/6 Test #1: core .............................   Passed    0.09 sec
+test 2
+    Start 2: input
+
+2: Test command: C:\Users\<user>\Documents\Codex\2026-10-31\ok-x20-2\work\build-setup\input_tests.exe
+2: Working Directory: C:/Users/<user>/Documents/Codex/2026-10-31/ok-x20-2/work/build-setup
+2: Test timeout computed to be: 1500
+2: PASS: normalization and neutral input regression checks
+2/6 Test #2: input ............................   Passed    0.04 sec
+test 3
+    Start 3: setup_inventory
+
+3: Test command: C:\Users\<user>\Documents\Codex\2026-10-31\ok-x20-2\work\build-setup\setup_inventory_tests.exe
+3: Working Directory: C:/Users/<user>/Documents/Codex/2026-10-31/ok-x20-2/work/build-setup
+3: Test timeout computed to be: 1500
+3: SKIP actual symlink fixture unavailable (Windows error 1314)
+3: PASS: 32 native inventory checks, 1 optional environment skips
+3/6 Test #3: setup_inventory ..................   Passed    6.26 sec
+test 4
+    Start 4: setup_install
+
+4: Test command: C:\Users\<user>\Documents\Codex\2026-10-31\ok-x20-2\work\build-setup\setup_install_tests.exe
+4: Working Directory: C:/Users/<user>/Documents/Codex/2026-10-31/ok-x20-2/work/build-setup
+4: Test timeout computed to be: 1500
+4: SKIP: real symlink fixture unavailable (Windows error 1314)
+4: PASS: 121 setup installer checks
+4/6 Test #4: setup_install ....................   Passed    0.25 sec
+test 5
+    Start 5: pkg_intake
+
+5: Test command: C:\Users\<user>\Documents\Codex\2026-10-31\ok-x20-2\work\build-setup\pkg_intake_tests.exe
+5: Working Directory: C:/Users/<user>/Documents/Codex/2026-10-31/ok-x20-2/work/build-setup
+5: Test timeout computed to be: 1500
+5: PASS 24 PKG intake checks (synthetic outer headers; no real game tested)
+5/6 Test #5: pkg_intake .......................   Passed    0.08 sec
+test 6
+    Start 6: asset_audit
+
+6: Test command: C:\Users\<user>\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe "-m" "unittest" "discover" "-s" "tests" "-p" "test_asset_audit.py" "-v"
+6: Working Directory: C:/Users/<user>/Documents/Codex/2026-10-31/ok-x20-2/outputs/JStarsReborn
+6: Test timeout computed to be: 1500
+6: test_bad_parameters_and_cli_exit_codes (test_asset_audit.AssetAuditTests.test_bad_parameters_and_cli_exit_codes) ... ok
+6: test_deterministic_hashes_and_signature_not_validation (test_asset_audit.AssetAuditTests.test_deterministic_hashes_and_signature_not_validation) ... ok
+6: test_empty_file_and_bounded_header (test_asset_audit.AssetAuditTests.test_empty_file_and_bounded_header) ... ok
+6: test_entry_and_depth_limits (test_asset_audit.AssetAuditTests.test_entry_and_depth_limits) ... ok
+6: test_failed_hash_consumes_read_budget (test_asset_audit.AssetAuditTests.test_failed_hash_consumes_read_budget) ... ok
+6: test_growth_during_hash_is_rejected (test_asset_audit.AssetAuditTests.test_growth_during_hash_is_rejected) ... ok
+6: test_non_regular_object_is_reported (test_asset_audit.AssetAuditTests.test_non_regular_object_is_reported) ... ok
+6: test_opened_path_verification_failure_is_reported (test_asset_audit.AssetAuditTests.test_opened_path_verification_failure_is_reported) ... ok
+6: test_output_cannot_modify_input_or_child (test_asset_audit.AssetAuditTests.test_output_cannot_modify_input_or_child) ... ok
+6: test_sibling_with_shared_prefix_is_allowed (test_asset_audit.AssetAuditTests.test_sibling_with_shared_prefix_is_allowed) ... ok
+6: test_size_and_total_caps_report_incomplete (test_asset_audit.AssetAuditTests.test_size_and_total_caps_report_incomplete) ... ok
+6: test_symlink_is_reported_and_never_hashed (test_asset_audit.AssetAuditTests.test_symlink_is_reported_and_never_hashed) ... skipped "Symlink creation unavailable on this host: [WinError 1314] A required privilege is not held by the client: 'C:\\\\Users\\\\<user>\\\\AppData\\\\Local\\\\Packages\\\\sandbox.{46f0cf31-eb94-45a3-9bb8-f5aef8204c58}\\\\AC\\\\Temp\\\\tmptj8ync__\\\\private' -> 'C:\\\\Users\\\\<user>\\\\AppData\\\\Local\\\\Packages\\\\sandbox.{46f0cf31-eb94-45a3-9bb8-f5aef8204c58}\\\\AC\\\\Temp\\\\tmptj8ync__\\\\input\\\\linked'"
+6: test_windows_identity_does_not_compare_deprecated_ctime (test_asset_audit.AssetAuditTests.test_windows_identity_does_not_compare_deprecated_ctime) ... ok
+6: test_windows_reparse_attribute (test_asset_audit.AssetAuditTests.test_windows_reparse_attribute) ... ok
+6: 
+6: ----------------------------------------------------------------------
+6: Ran 14 tests in 0.126s
+6: 
+6: OK (skipped=1)
+6/6 Test #6: asset_audit ......................   Passed    0.48 sec
+
+100% tests passed out of 6
+
+Total Test time (real) =   7.25 sec

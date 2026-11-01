@@ -1,0 +1,44 @@
+[
+  {
+    "repo": "mstorsjo/llvm-mingw",
+    "tag": "20261020",
+    "assets": [
+      {
+        "name": "llvm-mingw-20261020-ucrt-x86_64.zip",
+        "browser_download_url": "https://github.com/mstorsjo/llvm-mingw/releases/download/20261020/llvm-mingw-20261020-ucrt-x86_64.zip",
+        "size": 190612575,
+        "digest": "sha256:fd5462b7f5d93b2ff981fcd3f9c7e427e47f3203c64ea91c27bcc444eebd74cd"
+      }
+    ]
+  },
+  {
+    "repo": "Kitware/CMake",
+    "tag": "v4.4.5",
+    "assets": [
+      {
+        "name": "cmake-4.4.5-SHA-256.txt",
+        "browser_download_url": "https://github.com/Kitware/CMake/releases/download/v4.4.5/cmake-4.4.5-SHA-256.txt",
+        "size": 2015,
+        "digest": "sha256:f502d7058129606f8e468d2373178a5b48eb2c5f9785641b706f45952956dd25"
+      },
+      {
+        "name": "cmake-4.4.5-windows-x86_64.zip",
+        "browser_download_url": "https://github.com/Kitware/CMake/releases/download/v4.4.5/cmake-4.4.5-windows-x86_64.zip",
+        "size": 54412232,
+        "digest": "sha256:326c826486d46a23cf9d5a1c9ee3a567d427bdd02c4a34071937a2a675cff004"
+      }
+    ]
+  },
+  {
+    "repo": "ninja-build/ninja",
+    "tag": "v1.13.2",
+    "assets": [
+      {
+        "name": "ninja-win.zip",
+        "browser_download_url": "https://github.com/ninja-build/ninja/releases/download/v1.13.2/ninja-win.zip",
+        "size": 291570,
+        "digest": "sha256:07fc8261b42b20e71d1720b39068c2e14ffcee6396b76fb7a795fb460b78dc65"
+      }
+    ]
+  }
+]

@@ -1,0 +1,62 @@
+# Automated test input (NOT a controller; every transition is logged as "SCRIPTED TEST INPUT"). Seconds count from the
+# first scePadOpen. As pad-jadventure.txt (title -> save prompt -> Yes -> OK -> main menu -> J-Adventure -> Dynamic Arc, then
+# CROSS every 2.5 s through the story text; the 0.3.0-t captures show the 3D world map from about t=196 s), then the ship on
+# the world map is steered with the left stick through a slow 8-direction sweep (6 s per direction) while CROSS keeps being
+# pressed, so that a landing point / battle prompt is accepted if the ship reaches one.
+at 40 press CROSS for 200
+at 48 press LEFT for 200
+at 50 press CROSS for 200
+at 62 press CROSS for 200
+at 72 press CROSS for 200
+at 80 press CROSS for 200
+every 2500 from 88 to 500 press CROSS for 150
+at 190 stick left 255 128 for 6000
+at 196 stick left 255 0 for 6000
+at 202 stick left 128 0 for 6000
+at 208 stick left 0 0 for 6000
+at 214 stick left 0 128 for 6000
+at 220 stick left 0 255 for 6000
+at 226 stick left 128 255 for 6000
+at 232 stick left 255 255 for 6000
+at 238 stick left 255 128 for 6000
+at 244 stick left 255 0 for 6000
+at 250 stick left 128 0 for 6000
+at 256 stick left 0 0 for 6000
+at 262 stick left 0 128 for 6000
+at 268 stick left 0 255 for 6000
+at 274 stick left 128 255 for 6000
+at 280 stick left 255 255 for 6000
+at 286 stick left 255 128 for 6000
+at 292 stick left 255 0 for 6000
+at 298 stick left 128 0 for 6000
+at 304 stick left 0 0 for 6000
+at 310 stick left 0 128 for 6000
+at 316 stick left 0 255 for 6000
+at 322 stick left 128 255 for 6000
+at 328 stick left 255 255 for 6000
+at 334 stick left 255 128 for 6000
+at 340 stick left 255 0 for 6000
+at 346 stick left 128 0 for 6000
+at 352 stick left 0 0 for 6000
+at 358 stick left 0 128 for 6000
+at 364 stick left 0 255 for 6000
+at 370 stick left 128 255 for 6000
+at 376 stick left 255 255 for 6000
+at 382 stick left 255 128 for 6000
+at 388 stick left 255 0 for 6000
+at 394 stick left 128 0 for 6000
+at 400 stick left 0 0 for 6000
+at 406 stick left 0 128 for 6000
+at 412 stick left 0 255 for 6000
+at 418 stick left 128 255 for 6000
+at 424 stick left 255 255 for 6000
+at 430 stick left 255 128 for 6000
+at 436 stick left 255 0 for 6000
+at 442 stick left 128 0 for 6000
+at 448 stick left 0 0 for 6000
+at 454 stick left 0 128 for 6000
+at 460 stick left 0 255 for 6000
+at 466 stick left 128 255 for 6000
+at 472 stick left 255 255 for 6000
+at 478 stick left 255 128 for 6000
+at 484 stick left 255 0 for 6000

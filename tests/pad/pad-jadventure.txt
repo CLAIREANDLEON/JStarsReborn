@@ -1,0 +1,11 @@
+# Automated test input (NOT a controller; every transition is logged as "SCRIPTED TEST INPUT"). Seconds count from the
+# first scePadOpen. Title -> save prompt -> Yes -> OK -> main menu -> J-ADVENTURE (first entry) -> Dynamic Arc (first entry),
+# then CROSS every 3 s to advance the story text towards its first battle. Free Battle needs a precise character-select
+# sequence (see pad-free-battle*.txt); the story path needs only CROSS.
+at 40 press CROSS for 200
+at 48 press LEFT for 200
+at 50 press CROSS for 200
+at 62 press CROSS for 200
+at 72 press CROSS for 200
+at 80 press CROSS for 200
+every 3000 from 88 to 440 press CROSS for 150

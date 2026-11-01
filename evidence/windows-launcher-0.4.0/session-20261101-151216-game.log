@@ -1,0 +1,4 @@
+[    0.004] JStarsReborn runtime 0.4.0
+[    0.075] fs: /app0 -> E:\CUSA01593 (read-only), writable mounts under <user>\AppData\Local\JStarsReborn\user
+[    0.093] jstars-boot: boot file <user>\AppData\Local\JStarsReborn\prepared\CUSA01593_01.02_d43b7b5db10b\boot-linked.bin
+[    0.157] FATAL: bad boot file signature (run tools/prepare)

@@ -1,0 +1,22 @@
+Runner run 20261101-151401-<PC>-81ec3a (E:\JStarsWork\results), tools/windows_verify/run-gpu.ps1 as run-gpu26.ps1
+Options: -ExeName jstars-boot-gpu-0.4.0-z.exe -SkipNoPad -NoCount -PadScript tests\pad-free-battle6.txt -GpuSeconds 300 (the time limit and the scripted input exist only in this diagnostic runner, never in launcher sessions)
+
+25bc88b9ae23afb0abb38f6904ded69ea4ccb5003dd01ac2cc2b17badbda87e0  jstars-boot-gpu-0.4.0-z.exe
+8d356ebed54bdc6f985a9c88bbf48af370b6941aa9fe6225bf374d96411ef652  boot-linked.bin
+(jstars-boot-gpu-0.4.0-z.exe is byte-identical to the release runtime\jstars-runtime.exe)
+
+step regress-stop-at-first-gnm: exit 3 in 0.24 s
+step selftest-host: exit 0 in 0.28 s
+step audit-dump: exit 0 in 0.02 s
+step game-gpu: exit 7 in 303.2 s
+step game-gpu-vk-validation: exit 7 in 302.96 s
+selftest: ('134', '0')
+regress stop: UNIMPLEMENTED IMPORT #307 0H2vBYbTLHI#libSceGnmDriver [sceGnmDrawInitDefaultHardwareState200] called from eboot.bin+0x45e3a9 (first arg 0x8bece3058) stage=entry
+game-gpu.log: last stats ('300', '3185799', '380045', '7469'); scripted transitions 381; BC5-storage errors 0; VUIDs {}; trophy unlock reached False; FAULT lines 0; gpu error lines 0
+game-gpu-vk-validation.log: last stats ('300', '3230323', '363019', '8998'); scripted transitions 381; BC5-storage errors 0; VUIDs {'VUID-VkBufferCreateInfo-size-06409': 4}; trophy unlock reached False; FAULT lines 0; gpu error lines 2
+
+Notes:
+- exit 7 = the runner's --max-seconds 300 limit (expected for this diagnostic run).
+- 'gpu error lines 2' in the validation run are the two VUID-VkBufferCreateInfo-size-06409 messages (each counted twice in the VUID tally: message + spec text); no other validation message.
+- The previous runner run on build x (20261101-141714-<PC>-8ca0f1) had 5 'storage view requested for a D32SfloatS8Uint image' error lines from a misplaced guard; the guard was corrected in build y and this run has none.
+- The first ~50 s of game-gpu were presented with the window minimised (the test harness hid it while taking a screenshot); the presenter dropped frames as designed and the frame rate afterwards matched the earlier run (about 900 flips per 30 s).

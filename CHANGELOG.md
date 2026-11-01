@@ -1,0 +1,127 @@
+# Change log
+
+## 0.4.0 launcher release candidate (unpublished) — 2026-11-01
+
+**New launcher `JStarsReborn.exe`** around the verified runtime of checkpoint 0.3.0 (build w), which is kept unchanged as the
+baseline (`/mnt/user-data/outputs/jstars-0.3.0-package/`, `evidence/windows-gpu-0.3.0/`). The 0.2.2 `JStarsReborn.exe`
+(DX12 foundation demo) is not part of this release; its source target is now `JStarsFoundation`.
+
+- Launcher (Win32, per-monitor DPI aware, keyboard navigable): Play (enabled only when the game folder validates and the
+  runtime and Vulkan loader are present), Game folder (folder picker, remembered, read-only validation against the
+  supported build: CUSA01593 01.02 by eboot/libc/Fios2 SHA-256), Settings (only what the runtime applies: window size,
+  sound on/off, volume, keyboard as controller, confirm button, player name), Controls (the real mapping), Troubleshooting
+  (latest session logs, log folder, diagnostic report ZIP, delete prepared data, data folder, licenses).
+- Normal Play session: the runtime is started directly (no command window, explicit working directory = the session folder,
+  quoted paths, UTF-8-safe arguments) with live input only: no `--pad-script`, no `--max-seconds`, no captures, no
+  benchmark/diagnostic switches; developer `JSTARS_*` environment variables are removed. One session at a time (single
+  launcher instance; a game window found on screen blocks a second start). The process is tracked until it exits; Stop game
+  sends a normal close to the game window and asks before ending an unresponsive game. Exit codes are explained in context
+  (0 = closed by the player; 3 = unsupported console function, named; 4 = crash; 5/6 = graphics; 7 = test time limit, never
+  used by the launcher).
+- First-run preparation is now native (`src/prepare`, port of `tools/prepare`): byte-identical `boot-linked.bin` and
+  `import-names.tsv` to the Python tools for the same dump (`tools/prepare_native_check.sh`). Prepared data is cached under
+  `%LOCALAPPDATA%\JStarsReborn\prepared\` keyed by the input hashes, verified before each use, rebuilt when inputs change,
+  written atomically and cancellable.
+- Per-user data in `%LOCALAPPDATA%\JStarsReborn`: `launcher.ini`, saves in `user\`, one folder per session in `sessions\`
+  (game.log, stdout/stderr, `session.json` with versions, settings, command line, start/end time, exit code and explanation;
+  newest 30 kept), `logs\launcher.log`. Data from an earlier version is copied to a `backup-before-launcher-*` folder on
+  first start; the 0.2.2 window size is imported, its volume (a test tone) is not.
+- Runtime 0.4.0 (`runtime\jstars-runtime.exe`): `--version`, `--volume 0-100`, UTF-8 command line and file opens on Windows;
+  live input only while the game window is in the foreground; the active XInput controller is read every frame and empty
+  slots are probed every 500 ms (reconnects are picked up, a removed controller is dropped at once); keyboard Esc = OPTIONS,
+  I/J/K/L = right stick (in addition to the numpad).
+- Renderer: the `Bc5UnormBlock ... Storage is not supported` errors are fixed at their cause (verified with `tools/vkprobe`
+  on the RX 9070 XT: the driver rejects storage usage through block-texel views for BC5 and BC6H, accepts it for BC1-4/BC7;
+  such images are now created without storage usage). The Vulkan validation message VUID-VkBufferCreateInfo-size-06409 is
+  traced: the buffer cache creates 4 GiB sparse arena buffers while this device reports maxBufferSize 2 GiB; it is the
+  unchanged upstream shadPS4 design and is **not** fixed in 0.4.0 (see Known issues).
+
+- Launcher polish after testing the packaged copy on Windows: every button is drawn with a clear border and a visible disabled
+  state, Enter presses the focused button, the diagnostic-report dialog starts in Documents (it remembers its own folder,
+  separately from the game-folder picker) and refuses to save inside the game folder, and choosing the folder one level above
+  a dump now names the subfolder that holds the game.
+
+Tests of the packaged copy on the owner's Windows PC, unzipped to `E:\JStarsWork\JStarsReborn 0.4.0\`
+(`evidence/windows-launcher-0.4.0/`; launcher release candidates 1 and 2, then the final launcher): first run with
+migration backup, automatic default folder, invalid-folder messages, preparation, Play, normal exit, relaunch,
+duplicate-launch guard and diagnostic report contents (candidates); settings kept across launcher restarts, Enter on Play,
+the report dialog refusing the game folder, a deliberately damaged prepared image (readable "could not start" report, then
+Delete prepared data and a clean restart) and a final Play/close (final launcher). The release runtime (sha256 `25bc88b9...`) passed the runner: start-up check exit 3 at
+`sceGnmDrawInitDefaultHardwareState200` as before, host self-test 134/0, a 300 s scripted Free Battle with no fault and no
+renderer error, and the same run under the validation layer with only VUID-06409 reported.
+
+Known issues (0.4.0):
+- **Human play and listening are not confirmed by this project.** In launcher sessions on the owner's PC an XInput controller
+  drove the game's own flows (save prompt, menus, a Free Battle to its result screen; about 700 logged transitions), and
+  keyboard presses reach the runtime, but keyboard play has not been seen to work end to end (see docs/INPUT.md). Whether it
+  plays well, and whether the audio sounds right, is for the owner to confirm. The audio soft limiter only keeps the downmix
+  in range; it says nothing about how the game sounds.
+- The title screen ignores presses in some phases of its idle cycle (seen with the controller as well); press again a moment
+  later.
+- Vulkan validation `VUID-VkBufferCreateInfo-size-06409` (two 4 GiB buffer creations per run) is **not fixed**: the vendored buffer cache reserves
+  the console address space in 4 GiB sparse arena buffers (`ARENA_PAGE_BITS = 32`, merged arenas can be larger), while the
+  RX 9070 XT reports `maxBufferSize` = 2 GiB. The driver creates them anyway and no rendering fault has been traced to it, but it
+  is outside the specification; a fix means changing the arena design, which was left for a separate renderer change.
+- The System V red-zone risk on Windows page-tracking faults (ADR-006) remains; no symptom has been observed.
+- The earlier unexplained crash `ace318` is not explained (it may have been the fixed mutex bug; not established).
+- Movies are skipped (no decoder); trophies are an empty set; online/NP features are not available; only CUSA01593 01.02 runs.
+- Only the paths exercised so far are covered: title, save prompt, menus, Free Battle and the J-Adventure world map (scripted),
+  plus whatever the owner plays. Other modes are untested.
+- `stderr.txt` in a session folder repeats `game.log` (the runtime logs to both); the diagnostic report stores it once.
+- Ending an unresponsive game (the launcher's confirmation, then TerminateProcess) is implemented but could not be exercised:
+  no hang occurred during testing.
+
+## 0.3.0 checkpoint (build w; unpublished, not a release) — 2026-11-01
+
+Execution runtime + shadPS4-derived Vulkan renderer (ADR-006, `gpu/`, pinned shadPS4 b4e7ae77). The verified 0.2.2 checkpoint is preserved outside the repo (`/home/claude/baselines/JStarsReborn-0.2.2/`) and `--stop-at-first-gnm` exits 3 at `0H2vBYbTLHI#libSceGnmDriver` (`eboot.bin+0x45e3a9`) with build w, as in 0.2.2.
+
+**Highest game-execution milestone, observed on Windows 11 hardware (Ryzen 7 9800X3D, RX 9070 XT) from the user's own decrypted dump `E:\CUSA01593` (read-only):** the original game code, with native replacements for the console OS, GPU, audio and input, ran a whole Free Battle: copyright screen, title, the game's own save-data prompt, main menu, character select, stage select, loading, battle intro, a live fight with HUD, K.O., Victory Burst, victory pose, "Fight the battle again?" and the post-match menu, then sat on that menu until the 620 s time limit (18,609 flips, 8.88 M draws, 1.26 M dispatches, exit 7 = `--max-seconds`). Every frame was rendered by the vendored renderer from the game's own command buffers and presented in a window. **All input was scripted test input (`--pad-script`), not a controller or keyboard; a human has not played it.** Evidence: `evidence/windows-gpu-0.3.0/`.
+
+What changed since the 0.2.2 checkpoint:
+- Renderer: shadPS4-derived command processor, shader translator and Vulkan renderer linked into the Windows exe (see ADR-006 / `gpu/VENDOR.md` for dependencies, licences and boundaries; local modifications in `gpu/patches/shadps4-local.patch`, 9 files). New this segment: the presenter drops frames while the presentation surface has no size (minimised/hidden window) instead of aborting (one run, 093cfa, had died with a zero-size frame image; the trigger was never proven).
+- Input: scripted pad (`--pad-script`, logged as `SCRIPTED TEST INPUT`), XInput and keyboard sources. Only the scripted source has been exercised.
+- Audio: the game's CRI ADX2 mixer runs on its own threads; `sceAudioOut*` downmixes the 8-channel float ports to stereo (soft limiter) and plays through WASAPI shared mode; `--dump-audio` writes WAVs. The game's own mix goes above full scale in battle (one input channel up to 2.67, stereo downmix up to ~3.2); the limiter engaged in 66 of 126 five-second windows and ~0.25 % of dumped samples are at full scale. **Nobody has listened to it yet.** Over the 620 s run: 0 device underruns.
+- `sceAvPlayer*`: diagnostic stub with the game's observed protocol (**movies are not decoded or shown**). Trophies: an explicitly EMPTY registered set (the trophy pack is encrypted and not read); `sceNpTrophyUnlockTrophy` (first reached in a battle; it stopped run bd7ec2 with exit 3) now answers INVALID_TROPHY_ID with a loud log. Save data mount/create/write works through the game's own flow.
+- **Intermittent start-up crash found and fixed.** About 2 % of Windows starts crashed in `free()` (13 of 660 loop starts on builds t and v, exit 4, identical signature). A debug-only guard-page allocator (`runtime/jstars_heapguard.c`, `make jstars-boot-gpu-hg.exe`) located it deterministically: the game's libc writes at `[obj+0x20]` of the object behind every pthread mutex right after `scePthreadMutexInit`, and the host object was 8 bytes on Windows. Mutex/cond/rwlock/attr slots now point at padded blocks. Build w: 0/200 failures (same loop: build v 3/200); the heap-guard build ran the same path 200 times and a 60 s game run (1,799 flips) without a trap. The earlier unexplained crash `ace318` (run folder kept) may have been the same bug; this is **not** established.
+- Diagnostics: faulting thread name and host return addresses with module+offset; first-call tracing of every import (NID, name, library, who implements it, audit status, caller, first argument); per-thread import counts; WASAPI/AudioOut level meter; `--no-audio`, `--dump-audio`, `--sample-threads`, `--count-imports`, `--trace-draws`; Vulkan validation layer through the runner (`JSTARS_VK_VALIDATION=1`).
+- Runners (`tools/windows_verify/`): `run-gpu.ps1` (unique result folder per run; stdout/stderr/exit code/`COMPLETE.json` for every step even on failure; optional heap-guard steps) and `regress-loop.ps1` (repeated start-up check, keeps the log of every run that does not exit 3). Every run folder is kept.
+- Import audit regenerated for this checkpoint (`docs/IMPORT_AUDIT.md/.tsv`): **477 unique import-table entries** — 94 original game-module code, 58 implemented with verified behaviour, 145 partially implemented, 88 diagnostic stubs, 92 unsupported (trap, exit 3, named). The 26,919 relocation records are uses of those 477 entries, not a count of functions. 131 of the 477 were called in the recorded runs.
+- Host self-test: 134 checks, 0 failed (Linux, and each Windows runner). Build: four gpu translation units are compiled with clang (mingw GCC 13 internal compiler errors); `jstars_input.c` passes structs by pointer for the same reason.
+
+Known gaps and open items (not claims of completeness):
+- A human has not played it: controller/keyboard control is untested; audio has not been listened to; the level/limiter choice is open.
+- Movies are skipped. Trophies are an empty set. Online/NP features answer offline or (92 imports) trap if reached; the dialogs, DiscMap, NP requests/commerce are not implemented.
+- Renderer: ~70 per battle run `image.cpp:166 Bc5UnormBlock ... Storage not supported` errors (image creation continues; whether any texture is wrong is not checked); the Vulkan validation layer's 4 GiB-buffer VUID is not investigated.
+- Windows page-tracking faults in guest leaf functions can in principle clobber the System V red zone (ADR-006); no symptom has been observed in the recorded runs, but the protection does not exist.
+- Only the paths exercised so far are covered: title, menus, Free Battle, J-Adventure world map. Other modes, the result/ranking screens beyond the post-match menu, replay, online and mods are untested.
+- A persistent user folder across launches (second-launch save load) was not retested with build w.
+- No claim of complete decompilation, native performance or full playability is made.
+
+## 0.2.2 — 2026-10-31
+
+- Writable data moved to `%LOCALAPPDATA%\JStarsReborn` (Known Folder API): settings, logs, crash reports, and setup UI reports. A one-time, copy-only migration copies `config\settings.ini` from beside the executable when no per-user settings exist. It never overwrites or deletes either file, and it does not follow links. `--data-dir` still overrides and skips migration.
+- The validator now understands SELF containers. It locates the embedded ELF header after the 32-byte SELF header and 32-byte segment entries, reports segment count and how many segments carry the encrypted flag, and states that payloads are never examined. A SELF whose embedded ELF header is unreadable is now a problem instead of a warning. Previously the validator implied that only a plain ELF could be used, which contradicts how upstream PS4 loaders read decrypted SELF dumps.
+- Rebuilt `JStarsReborn.exe` and `JStarsSetup.exe` from source with GCC 13 MinGW-w64 (statically linked; only system DLLs). Regenerated `setup-payload.txt`, then `checkpoint-manifest.json`.
+- New tests: `paths_tests` (migration), SELF fixtures, and 50,000-input fuzzing of the executable-header inspector.
+- Added docs/ADR-005-execution-runtime.md (accepted on the owner's direction: follow the inFAMOUS Second Son PC-port architecture; nothing published).
+- **Execution runtime (Linux development harness, `runtime/`, `tools/prepare/`, `tools/boot_smoke.sh`)**. Prepares and links the user's CUSA01593 v01.02 eboot with its bundled libc.prx and libSceFios2.prx into a work store keyed by title, version and eboot hash (the game folder is only read), binds imports (112 host + 94 game-module; 271 trapped), and runs the original code. Observed: both module initializers return 0, the eboot entry point executes, and the game proceeds through system/user/pad/VideoOut/AudioOut setup until the first Gnm call (`sceGnmDrawInitDefaultHardwareState200`), where the loader stops by design. No frame, audio, input or gameplay yet. Not yet run on Windows: the Windows host layer is not written. See `docs/IMPORT_STATUS.md`, `runtime/README.md`, `evidence/execution/`.
+- Runtime OS abstraction (`runtime/jstars_os.*`) and a Win32 build (`make jstars-boot.exe`): VirtualAlloc/VirtualProtect, file-mapping backed direct memory, vectored exception handler, `sysv_abi` guest ABI. Under Wine 9 the Windows build reaches the same stop (module initializers return 0, entry point runs, first Gnm call traps). Evidence: `evidence/execution/boot-CUSA01593-01.02-win32-build-under-wine.log`. Host symbol lookup is now by NID computed in the runtime (no dependency on the optional name table). **Also run on Windows 11 hardware** (Ryzen 7 9800X3D, RX 9070 XT): same result natively, plus the 7 native suites (symlink fixtures skipped, error 1314), DX12 clear smoke, XAudio2/XInput init, resize and crash-reporter runs. D3D12 debug-layer run not possible (Graphics Tools feature missing). Evidence in `evidence/windows-hardware/`.
+- `supported-versions.tsv`: first entry from observed data (CUSA01593 01.02, `untested`).
+
+## 0.2.1 audit checkpoint — 2026-10-31
+
+Independent audit (PROJECT_AUDIT.md). Rebuilt with a second compiler (GCC 13 MinGW-w64) and ran all native suites under Wine 9.0. Fixed: case-sensitive `Xinput.h` include that blocked cross builds; four misleading-indentation warnings; libstdc++ trailing-separator assumption in two test fixtures; a symlink test that treated an unmaterialized link as real. Confirmed that the symlink-rejection paths have never run against a real link on any host.
+
+Added a portable SHA-256, a strict bounds-checked PARAM.SFO parser, an (empty) supported-build manifest and `JStarsSetup.exe --validate-game` for read-only checks of an already-decrypted dump. Tests use synthetic fixtures with 50,000-input mutation fuzzing under ASan/UBSan (`tools/portable_tests.sh`). Added a crash reporter (JSON with an unwound module+RVA stack plus a minidump; terminates with the original code; logged on next launch) and `--crash-test access|terminate`. No decryption, no game-content execution and no playability claims. The packaged .exe files are still the 0.2 binaries; rebuild to include 0.2.1 code.
+
+## 0.2 native setup — 2026-10-31
+
+Added the native Windows setup menu, PKG source selection/metadata registration, cancellable folder inventory and transaction-based foundation installation with SHA-256 checks. Added new tests and native UI execution evidence. This version does not unpack/decrypt PKG payloads or produce a playable game. Preserved the existing diagnostic runtime and 0.1 archive.
+
+## 0.1 foundation — 2026-10-31
+
+Created a native Windows C++20/CMake project; DX12 device/swapchain/resize/present; XInput normalization and four-slot polling; XAudio2 initialization and procedural tone; bounded fixed-step clock; validated atomic settings; synchronized JSONL diagnostics. Added regression tests and a read-only bounded asset inventory tool. Recorded feasibility, input blockers and an observable-reference protocol.
+
+Fixed during review: missing explicit COM header; startup borderless resize event discarded before renderer update; unchanged resize spuriously marking settings dirty; default VSync config representation; desktop-capped 1440p/4K client dimensions; Windows inventory false file-change rejection from deprecated ctime values.
+
+This checkpoint implements the native foundation only. No original-game functionality, import conversion, mod execution, or dedicated server has been marked complete. Test details and residual limitations are in docs/TEST_REPORT.md. Exact checkpoint files are in checkpoint-manifest.json.

@@ -1,0 +1,12 @@
+{"time":"2026-11-01T00:33:53.418Z","level":"info","event":"data_dir","message":"explicit: E:\\JStarsWork\\results\\rt-data-d"}
+{"time":"2026-11-01T00:33:53.419Z","level":"info","event":"startup","message":"Native Windows x64 foundation. No original game data or gameplay is implemented."}
+{"time":"2026-11-01T00:33:53.419Z","level":"info","event":"settings_default","message":"settings file is absent; defaults loaded"}
+{"time":"2026-11-01T00:33:53.546Z","level":"info","event":"graphics_ready","message":"AMD Radeon RX 9070 XT"}
+{"time":"2026-11-01T00:33:53.546Z","level":"info","event":"graphics_dimensions","message":"1280x720"}
+{"time":"2026-11-01T00:33:53.546Z","level":"info","event":"audio_disabled","message":"Requested by command line"}
+{"time":"2026-11-01T00:33:53.583Z","level":"info","event":"controller","message":"XInput slot 0 connected"}
+{"time":"2026-11-01T00:33:53.686Z","level":"info","event":"resize","message":"800x600"}
+{"time":"2026-11-01T00:33:53.779Z","level":"info","event":"resize","message":"1920x1080"}
+{"time":"2026-11-01T00:33:53.888Z","level":"info","event":"resize","message":"1280x720"}
+{"time":"2026-11-01T00:33:54.595Z","level":"info","event":"frame_summary","message":"clear-only,frames=120,samples=120,mean_ms=7.02086,p95_ms=15.2919,p99_ms=29.3597,scheduler_ticks=58"}
+{"time":"2026-11-01T00:33:54.595Z","level":"info","event":"shutdown","message":"Clean shutdown completed"}

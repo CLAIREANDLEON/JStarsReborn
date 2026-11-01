@@ -1,0 +1,181 @@
+[    0.099] selftest ok: mutex init
+[    0.160] selftest ok: mutex lock
+[    0.174] selftest ok: trylock on a held mutex fails
+[    0.184] selftest ok: mutex unlock
+[    0.193] selftest ok: trylock on a free mutex succeeds
+[    0.207] selftest ok: cond init
+[   22.685] selftest ok: cond timed wait times out with the SCE ETIMEDOUT code
+[   22.716] selftest ok: cond timed wait lasts about the requested 20 ms
+[   22.736] selftest ok: cond signal without waiters
+[   22.750] selftest ok: rwlock init
+[   22.761] selftest ok: rwlock read lock/unlock
+[   22.771] selftest ok: key create
+[   22.781] selftest ok: key set/get round trip
+[   22.791] selftest ok: once runs its function exactly once
+[   22.800] selftest ok: clock_gettime monotonic
+[   38.468] selftest ok: sceKernelUsleep sleeps at least the requested time
+[   38.501] selftest ok: process time is monotonic
+[   38.520] selftest ok: direct memory extent allocation
+[   38.526] selftest ok: direct memory release of the same extent
+[   38.533] selftest ok: errno cell reachable
+[   38.539] selftest ok: page size is the console's 16384
+[   38.562] selftest ok: rtc tick -> date
+[   38.566] selftest ok: rtc known tick converts to 2022-01-08
+[   38.572] selftest ok: 2022-01-08 is a Saturday
+[   38.576] selftest ok: thread attr init
+[   38.580] selftest ok: thread attr stack size
+[   38.584] selftest ok: thread attr joinable
+[   38.620] selftest ok: thread create
+[   38.684] thread 'st-a' started
+[   38.740] selftest ok: thread join returns the entry's value and ran the entry
+[   38.787] selftest ok: thread create (exit)
+[   38.822] thread 'st-b' started
+[   38.861] selftest ok: scePthreadExit value reaches join
+[   38.876] selftest ok: self/equal
+[   38.912] selftest ok: detached thread create
+[   38.917] selftest ok: thread attr destroy
+[   38.922] selftest ok: sched_yield
+[   38.926] selftest ok: mutex attr recursive
+[   38.932] selftest ok: recursive mutex locks twice
+[   38.937] selftest ok: mutex and attr destroy
+[   38.948] selftest ok: mutex still works after the guest wrote into its object
+[   38.953] thread 'st-c' started
+[   38.953] selftest ok: cond still works after the guest wrote into its object
+[   38.980] selftest ok: rwlock still works after the guest wrote into its object
+[   38.988] selftest ok: poked objects destroy cleanly
+[   39.053] thread 'st-wait' started
+[   69.100] selftest ok: cond broadcast wakes a waiting thread
+[   69.118] selftest ok: cond destroy
+[   69.125] selftest ok: rwlock write lock excludes readers
+[   69.132] selftest ok: rwlock trywrlock/destroy
+[   69.136] selftest ok: key delete
+[   69.140] selftest ok: clock_gettime realtime is after 2023
+[   69.145] selftest ok: sceKernelClockGettime monotonic
+[   69.149] selftest ok: gettimeofday
+[   69.153] selftest ok: sceKernelGettimeofday
+[   84.318] selftest ok: nanosleep returns
+[   84.337] selftest ok: nanosleep sleeps at least the requested time
+[   84.345] selftest ok: getpid is the fixed pid 1
+[   84.363] selftest ok: event flag create (multi)
+[   84.369] selftest ok: poll of an unmet pattern is EBUSY
+[  115.523] selftest ok: timed wait times out with ETIMEDOUT and zeroes the timeout
+[  115.542] selftest ok: wait on an already-set bit returns at once with the pattern
+[  115.550] selftest ok: wait with clear-pattern
+[  115.556] selftest ok: clear-pattern consumed the bit
+[  115.562] selftest ok: wait with an empty pattern is EINVAL
+[  115.678] thread 'st-evf' started
+[  176.506] selftest ok: an AND waiter is not woken by half of its pattern
+[  176.572] selftest ok: an AND waiter is woken when its whole pattern is set and sees the full pattern
+[  176.590] selftest ok: the clear-all wake-up emptied the flag
+[  176.597] selftest ok: clear ANDs the flag with its argument
+[  176.602] selftest ok: cancel with no waiters reports 0
+[  176.609] selftest ok: event flag delete
+[  176.613] selftest ok: operations on a null flag are ESRCH
+[  176.621] selftest ok: sigfillset fills the 16-byte set
+[  176.627] selftest ok: sigprocmask returns the previous mask
+[  177.074] selftest ok: time zone offset is plausible
+[  179.188] fs: /app0 -> E:\JStarsWork\results\20261101-070533-PC-58b01c\selftest-host.log.selftest/fs-selftest/game (read-only), writable mounts under E:\JStarsWork\results\20261101-070533-PC-58b01c\selftest-host.log.selftest/fs-selftest/user
+[  182.385] fs: open /app0/a.bin -> fd 3
+[  182.397] selftest ok: fs: open an existing /app0 file
+[  182.419] selftest ok: fs: read returns the file's bytes
+[  182.423] selftest ok: fs: lseek(cur) reports the position after a read
+[  182.431] selftest ok: fs: pread at an offset leaves the position alone and returns the bytes
+[  182.436] selftest ok: fs: pread did not move the position
+[  182.446] selftest ok: fs: lseek(end) then a short read at EOF
+[  182.452] selftest ok: fs: read at EOF returns 0
+[  182.469] selftest ok: fs: fstat reports size, regular file and read-only mode
+[  182.488] selftest ok: fs: close succeeds once, then EBADF
+[  182.554] fs: open /app0/missing (E:\JStarsWork\results\20261101-070533-PC-58b01c\selftest-host.log.selftest/fs-selftest/game/missing) -> errno 2
+[  182.560] selftest ok: fs: open of a missing file is ENOENT
+[  182.565] fs: open /app0/a.bin for writing refused: /app0 is read-only
+[  182.569] selftest ok: fs: opening /app0 for writing is refused
+[  182.574] fs: open /app0/../etc/passwd -> errno 13 (no such mount or path)
+[  182.578] selftest ok: fs: .. cannot leave the mount
+[  182.582] fs: open /nowhere/x -> errno 2 (no such mount or path)
+[  182.587] selftest ok: fs: unknown mount is ENOENT
+[  182.596] selftest ok: fs: stat of a directory
+[  182.648] fs: open /app0/sub -> fd 3 (directory)
+[  182.664] selftest ok: fs: getdirentries lists b.txt as a regular file
+[  182.668] selftest ok: fs: getdirentries returns 0 at the end
+[  182.793] fs: open /savedata0/slot.dat -> fd 3
+[  182.831] selftest ok: fs: write then read back in /savedata0
+[  182.889] selftest ok: fs: ftruncate shrinks the file
+[  183.143] selftest ok: fs: mkdir then EEXIST
+[  183.341] selftest ok: fs: rename between writable mounts
+[  183.485] selftest ok: fs: unlink and rmdir
+[  183.491] selftest ok: fs: unlink under /app0 is refused
+[  183.496] fs: open /dev/null -> fd 3
+[  183.500] selftest ok: fs: /dev/null accepts writes
+[  183.512] selftest ok: savedata: mount before initialize is NOT_INITIALIZED
+[  183.517] sceSaveDataInitialize: save folders under E:\JStarsWork\results\20261101-070533-PC-58b01c\selftest-host.log.selftest/fs-selftest/user/savedata
+[  183.541] selftest ok: savedata: mounting a missing save without CREATE is NOT_FOUND
+[  184.543] sceSaveDataMount: SLOT01 -> /savedata0 (read-write, created) host E:\JStarsWork\results\20261101-070533-PC-58b01c\selftest-host.log.selftest/fs-selftest/user/savedata/1/CUSA01593/SLOT01
+[  184.561] selftest ok: savedata: CREATE2 creates and reports CREATED
+[  184.565] selftest ok: savedata: mounting the same save twice is BUSY
+[  184.990] fs: open /savedata0/slot.dat -> fd 3
+[  185.062] selftest ok: savedata: a file written under the mount point lands in the save
+[  188.159] selftest ok: savedata: SetParam(ALL)
+[  191.384] selftest ok: savedata: umount once, then NOT_MOUNTED
+[  192.153] selftest ok: savedata: DirNameSearch finds the save with its parameters and capacity
+[  192.231] selftest ok: savedata: a non-matching pattern finds nothing
+[  192.246] sceSaveDataMount: SLOT01 -> /savedata0 (read-only) host E:\JStarsWork\results\20261101-070533-PC-58b01c\selftest-host.log.selftest/fs-selftest/user/savedata/1/CUSA01593/SLOT01
+[  192.256] selftest ok: savedata: remount read-only of an existing save
+[  192.262] selftest ok: savedata: SetParam on a read-only mount is BAD_MOUNTED
+[  192.269] fs: open /savedata0/slot.dat for writing refused: /app0 is read-only
+[  192.275] selftest ok: savedata: writing under a read-only mount is refused
+[  192.790] selftest ok: savedata: delete removes the save
+[  192.883] selftest ok: savedata: deleted save no longer listed
+[  192.914] sceAvPlayerInit(NULL): rejected
+[  192.921] selftest ok: avplayer: Init(NULL) is rejected
+[  192.928] sceAvPlayerInit(init data 00000082191f9190): NO DECODER - movies will not play. Raw init data follows (layout from public SDK headers, unverified):
+[  196.744] sceAvPlayerInit data +000: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+[  196.750] sceAvPlayerInit data +020: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+[  196.755] sceAvPlayerInit data +040: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+[  196.760] sceAvPlayerInit data +060: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+[  196.765] sceAvPlayerInit: allocate=0 deallocate=0 allocateTexture=0 deallocateTexture=0 | file replacement: open=0 close=0 readOffset=0 size=0 | event callback=0
+[  196.771] sceAvPlayerInit -> player handle 0x41560001 (opaque)
+[  196.776] selftest ok: avplayer: Init returns a handle
+[  196.780] selftest ok: avplayer: AddSource on an unknown handle is INVALID_PARAMS
+[  196.857] sceAvPlayerAddSource('/app0/does-not-exist.mp4'): file cannot be opened (open failed); a source is still accepted. NOT DECODED either way
+[  196.864] sceAvPlayerAddSource: the game gave no event callback; no READY event is delivered
+[  196.868] selftest ok: avplayer: AddSource accepts a source that cannot be opened (logged)
+[  196.873] selftest ok: avplayer: no streams are reported (no decoder)
+[  196.877] sceAvPlayerStart('/app0/does-not-exist.mp4'): nothing is played (no decoder)
+[  196.882] sceAvPlayerIsActive('/app0/does-not-exist.mp4'): false (no decoder: movie treated as finished)
+[  196.887] selftest ok: avplayer: after Start the player is not active (no decoder)
+[  196.891] sceAvPlayerGetVideoDataEx('/app0/does-not-exist.mp4'): no frame (no decoder)
+[  196.896] selftest ok: avplayer: GetVideoDataEx never returns a frame
+[  196.900] sceAvPlayerClose('/app0/does-not-exist.mp4'): 1 source(s) were added, 1 IsActive and 1 GetVideoDataEx polls
+[  196.905] selftest ok: avplayer: Close once, then the handle is invalid
+[  196.928] sceAudioOutOpen(type 0, 256 frames, 48000 Hz, format 4 = 2 ch float) -> 1 [null sink: samples discarded]
+[  196.933] selftest ok: AudioOut: a float-stereo port opens as handle 1
+[  197.069] audio port 1: first non-silent buffer after 0.00 s of silence; writing the submitted audio from there to E:\JStarsWork\results\20261101-070533-PC-58b01c\selftest-host.log.selftest/audio-dump.port1.wav (stereo S16 48000 Hz, first 420 s)
+[  223.482] selftest ok: AudioOut: Output returns the frame count
+[  223.812] selftest ok: AudioOut: close succeeds
+[  226.569] selftest ok: audio dump: the WAV header is well formed
+[  226.580] selftest ok: audio dump: four 256-frame buffers = 4096 bytes of 48 kHz stereo S16 and the header says so
+[  226.586] selftest ok: audio dump: samples are the submitted ones (right channel -0.25, left follows the sine)
+[  226.594] sceAudioOutOpen(type 0, 256 frames, 48000 Hz, format 5 = 8 ch float) -> 1 [null sink: samples discarded]
+[  226.757] audio port 1: first non-silent buffer after 0.00 s of silence; writing the submitted audio from there to E:\JStarsWork\results\20261101-070533-PC-58b01c\selftest-host.log.selftest/audio-limit.port1.wav (stereo S16 48000 Hz, first 420 s)
+[  242.915] selftest ok: audio limiter: a downmix sum of 1.024 is soft-limited to about 0.985 of full scale (a hard clip would give 32767)
+[  243.696] pad script E:\JStarsWork\results\20261101-070533-PC-58b01c\selftest-host.log.selftest/pad-script.txt:7: unrecognised line: bogus line
+
+[  243.754] pad: SCRIPTED TEST INPUT loaded from E:\JStarsWork\results\20261101-070533-PC-58b01c\selftest-host.log.selftest/pad-script.txt (5 events, 1 bad lines). This is automated test input, not a controller
+[  243.770] selftest ok: pad script: unrecognised lines are reported (load returns an error) but valid lines are kept
+[  243.783] pad: scePadOpen; source order: scripted test input, XInput controller, no keyboard
+[  243.797] pad: input source is now SCRIPTED TEST INPUT
+[  243.808] pad: SCRIPTED TEST INPUT buttons -> CROSS+L2+UP (t=0.00s)
+[  243.817] selftest ok: pad: open returns handle 1 and read succeeds
+[  244.763] selftest ok: pad script: CROSS+UP+L2 held, CIRCLE not yet (console button bits)
+[  244.768] selftest ok: pad script: left stick (0,255), right stick centred, L2 analog 255
+[  244.775] sceNpTrophyCreateContext(user 1, label 0) -> context 1 (trophy pack is encrypted: it will be registered with an EMPTY trophy set)
+[  244.781] selftest ok: trophy: context created (bookkeeping only)
+[  244.786] selftest ok: trophy: handle created
+[  244.791] selftest ok: trophy: unlock before RegisterContext reports NOT_REGISTERED
+[  244.796] sceNpTrophyRegisterContext(context 1): LIMITED SUPPORT - sce_sys/trophy/trophy00.trp is encrypted and is not decrypted by this port; registering an EMPTY trophy set so the game can continue. No trophy can unlock and nothing is recorded
+[  244.803] selftest ok: trophy: RegisterContext registers the EMPTY set (logged as limited support)
+[  244.808] sceNpTrophyUnlockTrophy(context 1, trophy id 1): LIMITED SUPPORT - the registered trophy set is EMPTY (encrypted trophy pack not decrypted by this port), so the trophy cannot be unlocked and nothing is recorded; answering INVALID_TROPHY_ID
+[  244.816] selftest ok: trophy: unlock answers INVALID_TROPHY_ID (empty set) and leaves platinumId untouched
+[  244.821] selftest ok: trophy: unlock with a NULL platinumId is an INVALID_ARGUMENT
+[  244.826] selftest ok: trophy: unlock with a bad context is INVALID_CONTEXT
+[  244.831] selftest-host: 134 checks, 0 failed

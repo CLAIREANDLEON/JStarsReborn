@@ -1,0 +1,6 @@
+[    0.008] jstars-boot: boot file E:\JStarsWork\work\CUSA01593_01.02_d43b7b5db10b\prepared\boot-linked.bin
+[    5.996] note: import-names.tsv not found; imports will be reported by NID only
+[    7.941] image mapped at 0000000200000000 (11028540 bytes, 6 segments, 26919 relocations, 477 imports)
+[    7.965] imports bound: 0 host, 94 game modules, 383 unimplemented (trapped)
+[    8.890] module 0 initializer at image+0x830000
+[    8.899] UNIMPLEMENTED IMPORT #407 959qrazPIrg#libkernel [(unnamed NID)] called from libc.prx+0x1f8fc (first arg 0x0) stage=module-init

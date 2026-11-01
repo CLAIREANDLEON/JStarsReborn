@@ -1,0 +1,25 @@
+[    0.008] jstars-boot: boot file E:\JStarsWork\work\CUSA01593_01.02_d43b7b5db10b\prepared\boot-linked.bin
+[    4.624] image mapped at 0000000200000000 (11028540 bytes, 6 segments, 26919 relocations, 477 imports)
+[    4.896] imports bound: 112 host, 94 game modules, 271 unimplemented (trapped)
+[    5.628] module 0 initializer at image+0x830000
+[    5.673] module 0 initializer returned 0
+[    5.675] module 1 initializer at image+0x910000
+[    5.679] module 1 initializer returned 0
+[    5.680] entering original x86-64 code at image+0x305780
+[   13.925] sceSysmoduleLoadModule(0xa9): API availability is decided per import by this runtime
+[   13.930] sceSysmoduleLoadModule(0xa5): API availability is decided per import by this runtime
+[   13.933] sceSysmoduleLoadModule(0xad): API availability is decided per import by this runtime
+[   13.935] sceSysmoduleLoadModule(0xa0): API availability is decided per import by this runtime
+[   13.938] sceSysmoduleLoadModule(0xac): API availability is decided per import by this runtime
+[   13.940] sceSysmoduleLoadModule(0x1c): API availability is decided per import by this runtime
+[   13.943] sceSysmoduleLoadModule(0xb5): API availability is decided per import by this runtime
+[   13.945] sceSysmoduleLoadModule(0xa4): API availability is decided per import by this runtime
+[   13.947] sceSysmoduleLoadModule(0x96): API availability is decided per import by this runtime
+[   13.950] sceSysmoduleLoadModule(0xb2): API availability is decided per import by this runtime
+[   13.952] sceSysmoduleLoadModule(0xa2): API availability is decided per import by this runtime
+[   13.955] sceSysmoduleLoadModule(0x1e): API availability is decided per import by this runtime
+[   13.957] sceSysmoduleLoadModule(0x2c): API availability is decided per import by this runtime
+[   13.960] sceSysmoduleLoadModule(0xa8): API availability is decided per import by this runtime
+[   13.962] sceSysmoduleLoadModule(0xd3): API availability is decided per import by this runtime
+[   30.180] sceVideoOutOpen(user 0xff) -> 1
+[   30.205] UNIMPLEMENTED IMPORT #307 0H2vBYbTLHI#libSceGnmDriver [sceGnmDrawInitDefaultHardwareState200] called from eboot.bin+0x45e3a9 (first arg 0x2a7bfbe3058) stage=entry

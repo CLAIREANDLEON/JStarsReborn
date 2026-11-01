@@ -1,0 +1,4 @@
+fuzz: 50000 mutated PARAM.SFO inputs, 7827 accepted, remainder rejected cleanly
+fuzz: 50000 mutated executable headers inspected without fault
+SKIP symbolic-link fixture unavailable on this host
+PASS: 540 game-validation checks, 1 environment skips

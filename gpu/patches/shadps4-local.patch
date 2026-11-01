@@ -1,0 +1,833 @@
+--- a/src/common/thread.cpp
++++ b/src/common/thread.cpp
+@@ -7,8 +7,6 @@
+ #include <string>
+ #include <thread>
+ 
+-#include "core/libraries/fiber/fiber.h"
+-#include "core/libraries/kernel/threads/pthread.h"
+ 
+ #include "common/error.h"
+ #include "common/logging/log.h"
+@@ -37,6 +35,25 @@
+ #define cpu_set_t cpuset_t
+ #endif
+ 
++
++#ifdef _WIN32
++// mingw-w64 11 headers do not declare the Windows 10 thread description API: resolve it at run time.
++namespace {
++using SetThreadDescriptionFn = HRESULT(WINAPI*)(HANDLE, PCWSTR);
++using GetThreadDescriptionFn = HRESULT(WINAPI*)(HANDLE, PWSTR*);
++HRESULT JSSetThreadDescription(HANDLE h, PCWSTR n) {
++    static auto fn = reinterpret_cast<SetThreadDescriptionFn>(
++        GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "SetThreadDescription"));
++    return fn ? fn(h, n) : E_NOTIMPL;
++}
++HRESULT JSGetThreadDescription(HANDLE h, PWSTR* n) {
++    static auto fn = reinterpret_cast<GetThreadDescriptionFn>(
++        GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "GetThreadDescription"));
++    return fn ? fn(h, n) : E_NOTIMPL;
++}
++} // namespace
++#endif
++
+ namespace Common {
+ 
+ #ifdef __APPLE__
+@@ -175,14 +192,11 @@
+ 
+ // Sets the debugger-visible name of the current thread.
+ void SetCurrentThreadName(const char* name) {
+-    if (Libraries::Kernel::g_curthread) {
+-        Libraries::Kernel::g_curthread->name = name;
+-    }
+-    SetThreadDescription(GetCurrentThread(), UTF8ToUTF16W(name).data());
++    JSSetThreadDescription(GetCurrentThread(), UTF8ToUTF16W(name).data());
+ }
+ 
+ void SetThreadName(void* thread, const char* name) {
+-    SetThreadDescription(thread, UTF8ToUTF16W(name).data());
++    JSSetThreadDescription(thread, UTF8ToUTF16W(name).data());
+ }
+ 
+ #else // !_WIN32, so must be POSIX threads
+@@ -190,9 +204,6 @@
+ // MinGW with the POSIX threading model does not support pthread_setname_np
+ #if !defined(_WIN32) || defined(_MSC_VER)
+ void SetCurrentThreadName(const char* name) {
+-    if (Libraries::Kernel::g_curthread) {
+-        Libraries::Kernel::g_curthread->name = name;
+-    }
+ #ifdef __APPLE__
+     pthread_setname_np(name);
+ #elif defined(__Bitrig__) || defined(__DragonFly__) || defined(__FreeBSD__) || defined(__OpenBSD__)
+@@ -219,9 +230,6 @@
+ 
+ #if defined(_WIN32)
+ void SetCurrentThreadName(const char* name) {
+-    if (Libraries::Kernel::g_curthread) {
+-        Libraries::Kernel::g_curthread->name = name;
+-    }
+     // Do Nothing on MinGW
+ }
+ 
+@@ -251,17 +259,9 @@
+ }
+ 
+ std::string GetCurrentThreadName() {
+-    using namespace Libraries::Kernel;
+-    if (g_curthread && !g_curthread->name.empty()) {
+-        if (g_curthread->tcb->tcb_fiber) {
+-            return fmt::format("{}@@{}", g_curthread->name,
+-                               g_curthread->tcb->tcb_fiber->current_fiber->name);
+-        }
+-        return g_curthread->name;
+-    }
+ #ifdef _WIN32
+     PWSTR name{};
+-    if (FAILED(GetThreadDescription(GetCurrentThread(), &name)) || name == nullptr) {
++    if (FAILED(JSGetThreadDescription(GetCurrentThread(), &name)) || name == nullptr) {
+         return "<unknown name>";
+     }
+     const auto result = Common::UTF16ToUTF8(name);
+--- a/src/shader_recompiler/backend/spirv/emit_spirv.cpp
++++ b/src/shader_recompiler/backend/spirv/emit_spirv.cpp
+@@ -1,6 +1,7 @@
+ // SPDX-FileCopyrightText: Copyright 2024 shadPS4 Emulator Project
+ // SPDX-License-Identifier: GPL-2.0-or-later
+ 
++#include <mutex>
+ #include <span>
+ #include <type_traits>
+ #include <utility>
+--- a/src/shader_recompiler/backend/spirv/spirv_emit_context.h
++++ b/src/shader_recompiler/backend/spirv/spirv_emit_context.h
+@@ -338,14 +338,18 @@
+         std::array<Id, u32(PointerSize::NumClass)> offsets;
+         std::array<BufferSpv, u32(PointerType::NumAlias)> aliases;
+ 
+-        template <class Self>
+-        auto& Alias(this Self& self, PointerType alias) {
+-            return self.aliases[u32(alias)];
++        // jstars: explicit-object ("deducing this") members replaced by const/non-const overloads (GCC 13).
++        auto& Alias(PointerType alias) {
++            return aliases[u32(alias)];
+         }
+-
+-        template <class Self>
+-        auto& Offset(this Self& self, PointerSize size) {
+-            return self.offsets[u32(size)];
++        const auto& Alias(PointerType alias) const {
++            return aliases[u32(alias)];
++        }
++        auto& Offset(PointerSize size) {
++            return offsets[u32(size)];
++        }
++        const auto& Offset(PointerSize size) const {
++            return offsets[u32(size)];
+         }
+     };
+ 
+--- a/src/video_core/amdgpu/liverpool.cpp
++++ b/src/video_core/amdgpu/liverpool.cpp
+@@ -1,6 +1,8 @@
+ // SPDX-FileCopyrightText: Copyright 2024-2026 shadPS4 Emulator Project
+ // SPDX-License-Identifier: GPL-2.0-or-later
+ 
++#include <atomic>
++#include <cstdio>
+ #include <boost/preprocessor/stringize.hpp>
+ 
+ #include "common/assert.h"
+@@ -17,6 +19,8 @@
+ #include "video_core/amdgpu/pm4_cmds.h"
+ #include "video_core/renderdoc.h"
+ #include "video_core/renderer_vulkan/vk_rasterizer.h"
++#include "jgpu.h"
++extern JgpuHost* jgpu_host_ptr(); // global scope: defined in jgpu.cpp
+ 
+ namespace AmdGpu {
+ 
+@@ -65,6 +69,106 @@
+     return span.subspan(offset);
+ }
+ 
++// --- JStarsReborn diagnostics: PM4 trace -------------------------------------------------------
++// Records the most recent packet headers of one command buffer and, when the processor reaches a
++// packet it cannot handle, logs them together with the raw dwords around the failure point so the
++// failing submission can be diagnosed from the log alone. Local patch: see gpu/patches.
++extern "C" const char* jgpu_data_dir(void);
++namespace {
++struct Pm4Ring {
++    static constexpr size_t N = 40;
++    const u32* base{};
++    size_t total{};
++    struct Entry {
++        u32 off, hdr;
++    } ring[N]{};
++    size_t count{};
++
++    explicit Pm4Ring(std::span<const u32> buf) : base{buf.data()}, total{buf.size()} {}
++    void Add(const u32* p) {
++        ring[count % N] = {static_cast<u32>(p - base), *p};
++        ++count;
++    }
++    void Dump(const char* why, const u32* at) const {
++        LOG_CRITICAL(Lib_GnmDriver,
++                     "PM4 TRACE: {} at dword offset {} of {} (buffer {:#x}); raw dwords around it:",
++                     why, static_cast<size_t>(at - base), total, reinterpret_cast<uintptr_t>(base));
++        const s64 first = std::max<s64>(0, static_cast<s64>(at - base) - 24);
++        const s64 last = std::min<s64>(static_cast<s64>(total), static_cast<s64>(at - base) + 16);
++        for (s64 i = first; i < last; i += 8) {
++            std::string line = fmt::format("  [{:6}]", i);
++            for (s64 j = i; j < std::min<s64>(i + 8, last); ++j) {
++                line += fmt::format(" {:08x}", base[j]);
++            }
++            LOG_CRITICAL(Lib_GnmDriver, "{}", line);
++        }
++        LOG_CRITICAL(Lib_GnmDriver, "PM4 TRACE: last {} packet headers, oldest first:",
++                     std::min(count, N));
++        for (size_t i = count > N ? count - N : 0; i < count; ++i) {
++            const auto& e = ring[i % N];
++            const u32 type = e.hdr >> 30;
++            if (type == 3) {
++                LOG_CRITICAL(Lib_GnmDriver,
++                             "  [{:6}] hdr {:08x} type3 opcode {:#04x} body-dwords {}", e.off,
++                             e.hdr, (e.hdr >> 8) & 0xff, ((e.hdr >> 16) & 0x3fff) + 1);
++            } else {
++                LOG_CRITICAL(Lib_GnmDriver, "  [{:6}] hdr {:08x} type{}", e.off, e.hdr, type);
++            }
++        }
++        // Raw copy of the whole buffer next to the log for offline analysis.
++        const std::string path = fmt::format("{}/pm4-failing-buffer-{:x}.bin", jgpu_data_dir(),
++                                             reinterpret_cast<uintptr_t>(base));
++        if (FILE* f = fopen(path.c_str(), "wb")) {
++            fwrite(base, 4, std::min<size_t>(total, 1u << 20), f);
++            fclose(f);
++            LOG_CRITICAL(Lib_GnmDriver, "PM4 TRACE: wrote {} dwords to {}", total, path);
++        }
++    }
++};
++} // namespace
++
++// JStarsReborn diagnostics: draw trace. JGPU_TRACE_DRAWS="first,count" logs a summary of draws number
++// [first, first+count) (counted from the start of the run) so a steady-state frame can be inspected.
++namespace {
++std::atomic<u64> g_draw_serial{0};
++u64 TraceFirst() {
++    static const u64 v = [] { const char* e = getenv("JGPU_TRACE_DRAWS"); return e ? strtoull(e, nullptr, 10) : ~0ull; }();
++    return v;
++}
++u64 TraceCount() {
++    static const u64 v = [] {
++        const char* e = getenv("JGPU_TRACE_DRAWS");
++        const char* c = e ? strchr(e, ',') : nullptr;
++        return c ? strtoull(c + 1, nullptr, 10) : 0ull;
++    }();
++    return v;
++}
++u64 HashBytes(const void* p, size_t n) {
++    u64 h = 1469598103934665603ull;
++    const auto* b = static_cast<const u8*>(p);
++    for (size_t i = 0; i < n; i++) h = (h ^ b[i]) * 1099511628211ull;
++    return h;
++}
++void TraceDraw(const AmdGpu::Regs& regs, const char* kind, u32 count) {
++    const u64 n = g_draw_serial++;
++    if (n < TraceFirst() || n >= TraceFirst() + TraceCount()) return;
++    const auto* ps = regs.ps_program.Address<const u8*>();
++    const auto* vs = regs.vs_program.Address<const u8*>();
++    u8 psb[128]{}, vsb[128]{};
++    const auto* host = ::jgpu_host_ptr();
++    const size_t pn = ps && host ? host->safe_read(psb, ps, sizeof psb) : 0;
++    const size_t vn = vs && host ? host->safe_read(vsb, vs, sizeof vsb) : 0;
++    const auto& cb = regs.color_buffers[0];
++    LOG_INFO(Lib_GnmDriver,
++             "DRAW #{} {} count={} prim={} vs={:#x}(h{:016x}) ps={:#x}(h{:016x}) rt0={:#x} fmt={} scissor=({},{})-({},{})",
++             n, kind, count, static_cast<u32>(regs.primitive_type),
++             reinterpret_cast<uintptr_t>(vs), HashBytes(vsb, vn), reinterpret_cast<uintptr_t>(ps),
++             HashBytes(psb, pn), static_cast<u64>(cb.Address()), static_cast<u32>(cb.info.format),
++             regs.screen_scissor.top_left_x, regs.screen_scissor.top_left_y,
++             regs.screen_scissor.bottom_right_x, regs.screen_scissor.bottom_right_y);
++}
++} // namespace
++
+ Liverpool::Liverpool() : guest_markers_enabled{EmulatorSettings.IsVkGuestMarkersEnabled()} {
+     num_counter_pairs = Libraries::Kernel::sceKernelIsNeoMode() ? 16 : 8;
+     process_thread = std::jthread{std::bind_front(&Liverpool::Process, this)};
+@@ -166,6 +270,10 @@
+         }
+ 
+         const PM4ItOpcode opcode = header->type3.opcode;
++        // Local patch: the packet length is read once, before any packet is processed. The guest may
++        // reuse the command buffer as soon as a packet signals completion (e.g. the flip NOP), and the
++        // hardware command processor does not re-read a packet after consuming it.
++        const u32 packet_dwords = header->type3.NumWords();
+         const auto* it_body = reinterpret_cast<const u32*>(header) + 1;
+         switch (opcode) {
+         case PM4ItOpcode::Nop: {
+@@ -212,7 +320,7 @@
+             UNREACHABLE_MSG("Unknown PM4 type 3 opcode {:#x} with count {}",
+                             static_cast<u32>(opcode), count);
+         }
+-        ccb = NextPacket(ccb, header->type3.NumWords() + 1);
++        ccb = NextPacket(ccb, packet_dwords + 1);
+     }
+ 
+     FIBER_EXIT;
+@@ -234,17 +342,21 @@
+     }
+ 
+     const auto base_addr = reinterpret_cast<uintptr_t>(dcb.data());
++    Pm4Ring pm4_ring{dcb};
+     while (!dcb.empty()) {
+         ProcessCommands();
+ 
+         const auto* header = reinterpret_cast<const PM4Header*>(dcb.data());
+         const u32 type = header->type;
++        pm4_ring.Add(reinterpret_cast<const u32*>(header));
+ 
+         switch (type) {
+         default:
++            pm4_ring.Dump("Wrong PM4 type", reinterpret_cast<const u32*>(header));
+             UNREACHABLE_MSG("Wrong PM4 type {}", type);
+             break;
+         case 0:
++            pm4_ring.Dump("PM4 type 0 packet", reinterpret_cast<const u32*>(header));
+             UNREACHABLE_MSG("Unimplemented PM4 type 0, base reg: {}, size: {}",
+                             header->type0.base.Value(), header->type0.NumWords());
+             break;
+@@ -425,6 +537,7 @@
+                 regs.index_base_address.base_addr_hi = draw_index->index_base_hi;
+                 regs.num_indices = draw_index->index_count;
+                 regs.draw_initiator = draw_index->draw_initiator;
++                TraceDraw(regs, "DrawIndex2", draw_index->index_count);
+                 if (DebugState.DumpingCurrentReg()) {
+                     DebugState.PushRegsDump(base_addr, reinterpret_cast<uintptr_t>(header), regs);
+                 }
+@@ -442,6 +555,7 @@
+                 regs.max_index_size = draw_index_off->max_size;
+                 regs.num_indices = draw_index_off->index_count;
+                 regs.draw_initiator = draw_index_off->draw_initiator;
++                TraceDraw(regs, "DrawIndexOffset2", draw_index_off->index_count);
+                 if (DebugState.DumpingCurrentReg()) {
+                     DebugState.PushRegsDump(base_addr, reinterpret_cast<uintptr_t>(header), regs);
+                 }
+@@ -458,6 +572,7 @@
+                 const auto* draw_index = reinterpret_cast<const PM4CmdDrawIndexAuto*>(header);
+                 regs.num_indices = draw_index->index_count;
+                 regs.draw_initiator = draw_index->draw_initiator;
++                TraceDraw(regs, "DrawIndexAuto", draw_index->index_count);
+                 if (DebugState.DumpingCurrentReg()) {
+                     DebugState.PushRegsDump(base_addr, reinterpret_cast<uintptr_t>(header), regs);
+                 }
+@@ -838,17 +953,18 @@
+                 }
+                 const auto skip = *cond_exec->Address() == false;
+                 if (skip) {
+-                    dcb = NextPacket(dcb,
+-                                     header->type3.NumWords() + 1 + cond_exec->exec_count.Value());
++                    dcb = NextPacket(dcb, count + 1 + cond_exec->exec_count.Value());
+                     continue;
+                 }
+                 break;
+             }
+             default:
++                pm4_ring.Dump("Unknown PM4 type 3 opcode", reinterpret_cast<const u32*>(header));
+                 UNREACHABLE_MSG("Unknown PM4 type 3 opcode {:#x} with count {}",
+                                 static_cast<u32>(opcode), count);
+             }
+-            dcb = NextPacket(dcb, header->type3.NumWords() + 1);
++            // `count` was read before the packet was processed (see the note in ProcessCeUpdate).
++            dcb = NextPacket(dcb, count + 1);
+             break;
+         }
+     }
+@@ -1165,6 +1281,25 @@
+ void Liverpool::SubmitGfx(std::span<const u32> dcb, std::span<const u32> ccb) {
+     auto& queue = mapped_queues[GfxQueueId];
+ 
++    {
++        // JStarsReborn diagnostics: every graphics submission is logged; the raw command buffers of
++        // the first few are saved next to the log (taken now, before the game reuses the memory).
++        static std::atomic<u64> serial{0};
++        const u64 n = serial++;
++        LOG_INFO(Lib_GnmDriver,
++                 "SubmitGfx #{}: dcb {:#x} ({} dwords), ccb {:#x} ({} dwords)", n,
++                 reinterpret_cast<uintptr_t>(dcb.data()), dcb.size(),
++                 reinterpret_cast<uintptr_t>(ccb.data()), ccb.size());
++        if (n < 6) {
++            const std::string path =
++                fmt::format("{}/pm4-submit-{:03}.bin", jgpu_data_dir(), static_cast<u64>(n));
++            if (FILE* f = fopen(path.c_str(), "wb")) {
++                fwrite(dcb.data(), 4, std::min<size_t>(dcb.size(), 1u << 20), f);
++                fclose(f);
++            }
++        }
++    }
++
+     if (EmulatorSettings.IsCopyGpuBuffers()) {
+         std::tie(dcb, ccb) = CopyCmdBuffers(dcb, ccb);
+     }
+--- a/src/video_core/page_manager.cpp
++++ b/src/video_core/page_manager.cpp
+@@ -3,6 +3,7 @@
+ 
+ #include <boost/container/small_vector.hpp>
+ #include "common/assert.h"
++#include "common/thread.h"
+ #include "common/debug.h"
+ #include "common/div_ceil.h"
+ #include "common/error.h"
+--- a/src/video_core/renderer_vulkan/vk_presenter.cpp
++++ b/src/video_core/renderer_vulkan/vk_presenter.cpp
+@@ -2,20 +2,11 @@
+ // SPDX-License-Identifier: GPL-2.0-or-later
+ 
+ #include "common/debug.h"
+-#include "common/elf_info.h"
+ #include "common/io_file.h"
+ #include "common/path_util.h"
+ #include "common/singleton.h"
+ #include "core/debug_state.h"
+-#include "core/devtools/layer.h"
+ #include "core/emulator_settings.h"
+-#include "core/libraries/system/systemservice.h"
+-#include "imgui/friends_layer.h"
+-#include "imgui/invitation_prompt_layer.h"
+-#include "imgui/notifications_layer.h"
+-#include "imgui/renderer/imgui_core.h"
+-#include "imgui/renderer/imgui_impl_vulkan.h"
+-#include "imgui/shadnet_notifications_layer.h"
+ #include "sdl_window.h"
+ #include "video_core/buffer_cache/buffer.h"
+ #include "video_core/renderdoc.h"
+@@ -41,11 +32,14 @@
+ #include <span>
+ #include <sstream>
+ #include <system_error>
++#include <thread>
+ #include <vector>
+-#include <imgui.h>
+ #include <stb_image_write.h>
+ #include <vk_mem_alloc.h>
+ 
++// jstars: patched for the JStarsReborn build (no ImGui/devtools; the game frame is blitted to the swapchain).
++extern "C" const char* jgpu_capture_dir(void);
++
+ namespace Vulkan {
+ 
+ bool CanBlitToSwapchain(const vk::PhysicalDevice physical_device, vk::Format format) {
+@@ -173,11 +167,10 @@
+         return paths;
+     }
+ 
+-    const auto& screenshots_dir = Common::FS::GetUserPath(Common::FS::PathType::ScreenshotsDir);
++    const std::filesystem::path screenshots_dir = jgpu_capture_dir();
+     std::filesystem::create_directories(screenshots_dir);
+ 
+-    const auto game_id =
+-        SanitizeFilenameComponent(std::string(Common::ElfInfo::Instance().GameSerial()));
++    const auto game_id = std::string("frame");
+     const auto now = std::chrono::system_clock::now();
+     const auto now_time = std::chrono::system_clock::to_time_t(now);
+     const auto ms =
+@@ -428,14 +421,6 @@
+ 
+     LOG_INFO(Render_Vulkan, "Saved screenshot: {}", primary_path.string());
+ 
+-    std::ifstream file(primary_path, std::ios::binary);
+-    std::vector<u8> imgdata;
+-    if (file) {
+-        imgdata =
+-            std::vector<u8>(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
+-    }
+-    shadNotifications::QueueNotification("Saved screenshot:\n" + primary_path.string(), 3.0f,
+-                                         shadNotifications::position::BottomRight, imgdata);
+ 
+     for (size_t i = 1; i < readback.paths.size(); ++i) {
+         const auto& path = readback.paths[i];
+@@ -451,14 +436,6 @@
+         }
+ 
+         LOG_INFO(Render_Vulkan, "Saved screenshot: {}", path.string());
+-        std::ifstream file(path, std::ios::binary);
+-        std::vector<u8> imgdata;
+-        if (file) {
+-            imgdata = std::vector<u8>(std::istreambuf_iterator<char>(file),
+-                                      std::istreambuf_iterator<char>());
+-        }
+-        shadNotifications::QueueNotification("Saved screenshot:\n" + path.string(), 3.0f,
+-                                             shadNotifications::position::BottomRight, imgdata);
+     }
+ }
+ 
+@@ -492,18 +469,9 @@
+     fsr_pass.Create(device, instance.GetAllocator(), num_images);
+     pp_pass.Create(device, swapchain.GetSurfaceFormat().format);
+ 
+-    ImGui::Layer::AddLayer(Common::Singleton<Core::Devtools::Layer>::Instance());
+-    ImGui::Friends::Register();
+-    ImGui::ShadNetNotify::Register();
+-    ImGui::InvitationPrompt::Register();
+ }
+ 
+ Presenter::~Presenter() {
+-    ImGui::InvitationPrompt::Unregister();
+-    ImGui::ShadNetNotify::Unregister();
+-    ImGui::Friends::Unregister();
+-    ImGui::Layer::RemoveLayer(Common::Singleton<Core::Devtools::Layer>::Instance());
+-
+     draw_scheduler.Finish();
+     present_scheduler.Finish();
+     flip_scheduler.Finish();
+@@ -525,9 +493,6 @@
+ 
+ void Presenter::RecreateFrame(Frame* frame, u32 width, u32 height) {
+     const vk::Device device = instance.GetDevice();
+-    if (frame->imgui_texture) {
+-        ImGui::Vulkan::RemoveTexture(frame->imgui_texture);
+-    }
+     if (frame->image_view) {
+         device.destroyImageView(frame->image_view);
+     }
+@@ -563,8 +528,8 @@
+     VkResult result = vmaCreateImage(instance.GetAllocator(), &unsafe_image_info, &alloc_info,
+                                      &unsafe_image, &frame->allocation, nullptr);
+     if (result != VK_SUCCESS) [[unlikely]] {
+-        LOG_CRITICAL(Render_Vulkan, "Failed allocating texture with error {}",
+-                     vk::to_string(vk::Result{result}));
++        LOG_CRITICAL(Render_Vulkan, "Failed allocating texture with error {} (frame image {}x{}, format {})",
++                     vk::to_string(vk::Result{result}), width, height, vk::to_string(format));
+         UNREACHABLE();
+     }
+     frame->image = vk::Image{unsafe_image};
+@@ -587,7 +552,6 @@
+     frame->width = width;
+     frame->height = height;
+ 
+-    frame->imgui_texture = ImGui::Vulkan::AddTexture(view, vk::ImageLayout::eShaderReadOnlyOptimal);
+     frame->is_hdr = swapchain.GetHDR();
+ }
+ 
+@@ -851,6 +815,22 @@
+         }
+     };
+ 
++    // jstars: a minimized/hidden window reports a 0x0 surface extent. Creating a swapchain or a frame image for it
++    // fails (observed: "Failed allocating texture with error ErrorInitializationFailed" -> GPU FATAL, run 093cfa), so
++    // drop the frame; the game keeps running and presentation resumes when the surface has a size again.
++    if (!swapchain.SurfaceUsable()) {
++        static u32 unusable_count = 0;
++        if (unusable_count++ % 300 == 0) {
++            LOG_WARNING(Render_Vulkan,
++                        "Presentation surface has no size (window minimized or hidden); dropping frames "
++                        "until it is restored ({} dropped so far)",
++                        unusable_count);
++        }
++        free_frame();
++        std::this_thread::sleep_for(std::chrono::milliseconds(8));
++        return;
++    }
++
+     // Recreate the swapchain if the window was resized.
+     if (window.GetWidth() != swapchain.GetWidth() || window.GetHeight() != swapchain.GetHeight()) {
+         swapchain.Recreate(window.GetWidth(), window.GetHeight());
+@@ -873,8 +853,6 @@
+     ASSERT_MSG(reset_result == vk::Result::eSuccess,
+                "Unexpected error resetting present done fence: {}", vk::to_string(reset_result));
+ 
+-    ImGuiID dockId = ImGui::Core::NewFrame(is_reusing_frame);
+-
+     const vk::Image swapchain_image = swapchain.Image();
+     const vk::ImageView swapchain_image_view = swapchain.ImageView();
+ 
+@@ -898,9 +876,9 @@
+         const std::array pre_barriers{
+             vk::ImageMemoryBarrier{
+                 .srcAccessMask = vk::AccessFlagBits::eNone,
+-                .dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite,
++                .dstAccessMask = vk::AccessFlagBits::eTransferWrite,
+                 .oldLayout = vk::ImageLayout::eUndefined,
+-                .newLayout = vk::ImageLayout::eColorAttachmentOptimal,
++                .newLayout = vk::ImageLayout::eTransferDstOptimal,
+                 .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                 .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                 .image = swapchain_image,
+@@ -914,9 +892,9 @@
+             },
+             vk::ImageMemoryBarrier{
+                 .srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite,
+-                .dstAccessMask = vk::AccessFlagBits::eColorAttachmentRead,
++                .dstAccessMask = vk::AccessFlagBits::eTransferRead,
+                 .oldLayout = vk::ImageLayout::eGeneral,
+-                .newLayout = vk::ImageLayout::eShaderReadOnlyOptimal,
++                .newLayout = vk::ImageLayout::eTransferSrcOptimal,
+                 .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                 .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                 .image = frame->image,
+@@ -932,63 +910,34 @@
+ 
+         bool swapchain_copied_for_screenshot = false;
+ 
+-        cmdbuf.pipelineBarrier(vk::PipelineStageFlagBits::eColorAttachmentOutput,
+-                               vk::PipelineStageFlagBits::eColorAttachmentOutput,
++        cmdbuf.pipelineBarrier(vk::PipelineStageFlagBits::eAllCommands,
++                               vk::PipelineStageFlagBits::eTransfer,
+                                vk::DependencyFlagBits::eByRegion, {}, {}, pre_barriers);
+ 
+-        { // Draw the game
+-            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{0.0f});
+-            ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+-            ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+-            ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 1.0f));
+-            ImGui::SetNextWindowDockID(dockId, ImGuiCond_Once);
+-            if (ImGui::Begin("Display##game_display", nullptr, ImGuiWindowFlags_NoNav)) {
+-                auto game_texture = frame->imgui_texture;
+-                auto game_width = frame->width;
+-                auto game_height = frame->height;
+-
+-                if (Libraries::SystemService::IsSplashVisible()) { // draw splash
+-                    if (!splash_img.has_value()) {
+-                        splash_img.emplace();
+-                        const auto& splash_data = Common::ElfInfo::Instance().GetSplashData();
+-                        if (!splash_data.empty()) {
+-                            splash_img = ImGui::RefCountedTexture::DecodePngTexture(splash_data);
+-                        }
+-                    }
+-                    if (auto& splash_image = this->splash_img.value()) {
+-                        auto [im_id, width, height] = splash_image.GetTexture();
+-                        game_texture = im_id;
+-                        game_width = width;
+-                        game_height = height;
+-                    }
+-                }
+-
+-                ImVec2 contentArea = ImGui::GetContentRegionAvail();
+-                SetExpectedGameSize((s32)contentArea.x, (s32)contentArea.y);
+-
+-                const auto imgRect =
+-                    FitImage(game_width, game_height, (s32)contentArea.x, (s32)contentArea.y);
+-                ImVec2 offset{
+-                    static_cast<float>(imgRect.offset.x),
+-                    static_cast<float>(imgRect.offset.y),
+-                };
+-                ImVec2 size{
+-                    static_cast<float>(imgRect.extent.width),
+-                    static_cast<float>(imgRect.extent.height),
+-                };
+-
+-                ImGui::SetCursorPos(ImGui::GetCursorStartPos() + offset);
+-                ImGui::Image(game_texture, size);
+-
+-                if (EmulatorSettings.IsNullGPU()) {
+-                    Core::Devtools::Layer::DrawNullGpuNotice();
+-                }
+-            }
+-            ImGui::End();
+-            ImGui::PopStyleVar(3);
+-            ImGui::PopStyleColor();
++        { // Draw the game: letterboxed, aspect-preserving blit of the rendered frame (jstars: replaces ImGui).
++            SetExpectedGameSize(static_cast<s32>(extent.width), static_cast<s32>(extent.height));
++            const vk::ClearColorValue black{std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}};
++            const vk::ImageSubresourceRange color_range{
++                .aspectMask = vk::ImageAspectFlagBits::eColor,
++                .baseMipLevel = 0,
++                .levelCount = 1,
++                .baseArrayLayer = 0,
++                .layerCount = 1,
++            };
++            cmdbuf.clearColorImage(swapchain_image, vk::ImageLayout::eTransferDstOptimal, black,
++                                   color_range);
++            const vk::MemoryBarrier clear_to_blit{
++                .srcAccessMask = vk::AccessFlagBits::eTransferWrite,
++                .dstAccessMask = vk::AccessFlagBits::eTransferWrite,
++            };
++            cmdbuf.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer,
++                                   vk::PipelineStageFlagBits::eTransfer, {}, clear_to_blit, {}, {});
++            const vk::ImageBlit region = MakeImageBlitFit(
++                static_cast<s32>(frame->width), static_cast<s32>(frame->height),
++                static_cast<s32>(extent.width), static_cast<s32>(extent.height));
++            cmdbuf.blitImage(frame->image, vk::ImageLayout::eTransferSrcOptimal, swapchain_image,
++                             vk::ImageLayout::eTransferDstOptimal, region, vk::Filter::eLinear);
+         }
+-        ImGui::Core::Render(cmdbuf, swapchain_image_view, swapchain.GetExtent());
+ 
+         if (capture_with_overlays_count > 0) {
+             auto& readback = pending_screenshot.emplace(
+@@ -1000,9 +949,9 @@
+                 swapchain.GetHDR());
+ 
+             const vk::ImageMemoryBarrier to_transfer{
+-                .srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite,
++                .srcAccessMask = vk::AccessFlagBits::eTransferWrite,
+                 .dstAccessMask = vk::AccessFlagBits::eTransferRead,
+-                .oldLayout = vk::ImageLayout::eColorAttachmentOptimal,
++                .oldLayout = vk::ImageLayout::eTransferDstOptimal,
+                 .newLayout = vk::ImageLayout::eTransferSrcOptimal,
+                 .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                 .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+@@ -1016,7 +965,7 @@
+                 },
+             };
+ 
+-            cmdbuf.pipelineBarrier(vk::PipelineStageFlagBits::eColorAttachmentOutput,
++            cmdbuf.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer,
+                                    vk::PipelineStageFlagBits::eTransfer,
+                                    vk::DependencyFlagBits::eByRegion, {}, {}, to_transfer);
+             CopyImageToReadback(cmdbuf, swapchain_image, vk::ImageLayout::eTransferSrcOptimal,
+@@ -1026,10 +975,10 @@
+ 
+         const vk::AccessFlags post_src_access_mask =
+             swapchain_copied_for_screenshot ? vk::AccessFlagBits::eTransferRead
+-                                            : vk::AccessFlagBits::eColorAttachmentWrite;
++                                            : vk::AccessFlagBits::eTransferWrite;
+         const vk::ImageLayout post_old_layout = swapchain_copied_for_screenshot
+                                                     ? vk::ImageLayout::eTransferSrcOptimal
+-                                                    : vk::ImageLayout::eColorAttachmentOptimal;
++                                                    : vk::ImageLayout::eTransferDstOptimal;
+         const vk::ImageMemoryBarrier post_barrier{
+             .srcAccessMask = post_src_access_mask,
+             .dstAccessMask = vk::AccessFlagBits::eNone,
+@@ -1126,6 +1075,9 @@
+ }
+ 
+ void Presenter::SetExpectedGameSize(s32 width, s32 height) {
++    if (width < 2 || height < 2) {
++        return; // jstars: keep the previous size for a degenerate (minimized) surface
++    }
+     const float ratio = (float)width / (float)height;
+ 
+     expected_frame_height = height;
+--- a/src/video_core/renderer_vulkan/vk_presenter.h
++++ b/src/video_core/renderer_vulkan/vk_presenter.h
+@@ -6,7 +6,6 @@
+ #include <condition_variable>
+ 
+ #include "core/libraries/videoout/buffer.h"
+-#include "imgui/imgui_texture.h"
+ #include "video_core/renderer_vulkan/host_passes/fsr_pass.h"
+ #include "video_core/renderer_vulkan/host_passes/pp_pass.h"
+ #include "video_core/renderer_vulkan/vk_instance.h"
+@@ -37,7 +36,6 @@
+     bool is_hdr{false};
+     u8 id{};
+ 
+-    ImTextureID imgui_texture;
+ };
+ 
+ enum SchedulerType {
+@@ -134,7 +132,6 @@
+     std::mutex free_mutex;
+     std::condition_variable free_cv;
+     std::condition_variable_any frame_cv;
+-    std::optional<ImGui::RefCountedTexture> splash_img;
+     std::vector<VAddr> vo_buffers_addr;
+ };
+ 
+--- a/src/video_core/renderer_vulkan/vk_swapchain.cpp
++++ b/src/video_core/renderer_vulkan/vk_swapchain.cpp
+@@ -220,6 +220,18 @@
+     }
+ }
+ 
++bool Swapchain::SurfaceUsable() const {
++    const auto [capabilities_result, capabilities] =
++        instance.GetPhysicalDevice().getSurfaceCapabilitiesKHR(surface);
++    if (capabilities_result != vk::Result::eSuccess) {
++        return false;
++    }
++    if (capabilities.currentExtent.width == std::numeric_limits<u32>::max()) {
++        return true; // the surface takes its size from the swapchain
++    }
++    return capabilities.currentExtent.width != 0 && capabilities.currentExtent.height != 0;
++}
++
+ void Swapchain::SetSurfaceProperties() {
+     const auto [capabilities_result, capabilities] =
+         instance.GetPhysicalDevice().getSurfaceCapabilitiesKHR(surface);
+--- a/src/video_core/renderer_vulkan/vk_swapchain.h
++++ b/src/video_core/renderer_vulkan/vk_swapchain.h
+@@ -74,6 +74,10 @@
+         return extent;
+     }
+ 
++    /// jstars: false while the surface reports a 0x0 extent (window minimized or hidden). No swapchain image or
++    /// frame image can be created for such a surface, so the presenter drops frames instead of failing.
++    bool SurfaceUsable() const;
++
+     [[nodiscard]] vk::Semaphore GetImageAcquiredSemaphore() const {
+         return image_acquired[frame_index];
+     }
+--- a/src/video_core/texture_cache/image.cpp
++++ b/src/video_core/texture_cache/image.cpp
+@@ -8,6 +8,8 @@
+ #include "video_core/renderer_vulkan/vk_runtime.h"
+ #include "video_core/renderer_vulkan/vk_scheduler.h"
+ #include "video_core/texture_cache/blit_helper.h"
++#include <mutex>
++#include <set>
+ #include "video_core/texture_cache/image.h"
+ 
+ #include <vk_mem_alloc.h>
+@@ -153,15 +155,42 @@
+ 
+     constexpr auto tiling = vk::ImageTiling::eOptimal;
+     const auto supported_format = instance.GetSupportedFormat(info.pixel_format, format_features);
+-    const vk::PhysicalDeviceImageFormatInfo2 format_info{
++    vk::PhysicalDeviceImageFormatInfo2 format_info{
+         .format = supported_format,
+         .type = ConvertImageType(info.type),
+         .tiling = tiling,
+         .usage = usage_flags,
+         .flags = flags,
+     };
+-    const auto image_format_properties =
++    auto image_format_properties =
+         instance.GetPhysicalDevice().getImageFormatProperties2(format_info);
++    // JStarsReborn: storage usage is requested for block-compressed images so that uncompressed views can be written,
++    // but a device may not support it for every block format even with BlockTexelViewCompatible + ExtendedUsage
++    // (AMD RX 9070 XT, driver 26.10.1: BC5 and BC6H report it unsupported, BC1-4/BC7 support it; tools/vkprobe).
++    // Creating the image with that usage anyway is outside what the device reported. When the format is supported
++    // without storage, create it without storage; a later storage view of such an image is reported in image_view.cpp.
++    if (image_format_properties.result == vk::Result::eErrorFormatNotSupported && info.props.is_block &&
++        (usage_flags & vk::ImageUsageFlagBits::eStorage)) {
++        auto no_storage_info = format_info;
++        no_storage_info.usage &= ~vk::ImageUsageFlagBits::eStorage;
++        auto retry = instance.GetPhysicalDevice().getImageFormatProperties2(no_storage_info);
++        if (retry.result == vk::Result::eSuccess) {
++            static std::mutex logged_mutex;
++            static std::set<vk::Format> logged;
++            {
++                std::scoped_lock lk{logged_mutex};
++                if (logged.insert(supported_format).second) {
++                    LOG_INFO(Render_Vulkan,
++                             "{} images are created without storage usage: the device does not support storage "
++                             "through block-texel views for this format",
++                             vk::to_string(supported_format));
++                }
++            }
++            usage_flags &= ~vk::ImageUsageFlagBits::eStorage;
++            format_info = no_storage_info;
++            image_format_properties = retry;
++        }
++    }
+     if (image_format_properties.result == vk::Result::eErrorFormatNotSupported) {
+         LOG_ERROR(Render_Vulkan, "image format {} type {} is not supported (flags {}, usage {})",
+                   vk::to_string(supported_format), vk::to_string(format_info.type),
+--- a/src/video_core/texture_cache/image_view.cpp
++++ b/src/video_core/texture_cache/image_view.cpp
+@@ -95,6 +95,12 @@
+     vk::ImageViewUsageCreateInfo usage_ci{.usage = image.usage_flags};
+     if (!info.is_storage) {
+         usage_ci.usage &= ~vk::ImageUsageFlagBits::eStorage;
++    } else if (image.info.props.is_block && !(image.usage_flags & vk::ImageUsageFlagBits::eStorage)) {
++        // JStarsReborn: the image was created without storage usage because the device does not support it for this
++        // block format (see image.cpp). A shader write through this view cannot be honoured; say so loudly.
++        LOG_ERROR(Render_Vulkan, "storage view requested for a {} image that was created without storage usage "
++                                 "(unsupported by this device for that format); the write is not supported",
++                  vk::to_string(image.info.pixel_format));
+     }
+     vk::ImageViewMinLodCreateInfoEXT min_lod_ci{};
+     if (info.min_lod != 0 && instance.IsImageViewMinLodSupported()) {

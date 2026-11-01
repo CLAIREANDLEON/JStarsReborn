@@ -1,0 +1,1005 @@
+{
+  "schema_version": 1,
+  "started_at": "2026-10-31T22:09:24.688356+00:00",
+  "executable": "C:\\Users\\<user>\\Documents\\Codex\\2026-10-31\\ok-x20-2\\work\\build\\JStarsReborn.exe",
+  "platform": "Windows-11-10.0.26300-SP0",
+  "machine": "",
+  "processor": "",
+  "logical_cpu_count": 16,
+  "python": "3.12.14",
+  "scope": "Native foundation clear-only presentation and lifecycle smoke tests; no gameplay benchmark.",
+  "limitations": [
+    "No original assets, combat, animation, multiplayer, or gameplay performance is exercised.",
+    "No physical controller, audible output, HDR, GPU-hang recovery, or visual correctness is verified.",
+    "audio_unavailable is a recorded graceful-degradation outcome, not verified audio initialization.",
+    "Each timing sample measures the clear/present call section with default vsync, not total game frame time."
+  ],
+  "cases": [
+    {
+      "name": "hardware_720p_audio",
+      "command": [
+        "C:\\Users\\<user>\\Documents\\Codex\\2026-10-31\\ok-x20-2\\work\\build\\JStarsReborn.exe",
+        "--no-dialogs",
+        "--smoke-frames",
+        "60",
+        "--data-dir",
+        "C:\\Users\\<user>\\Documents\\Codex\\2026-10-31\\ok-x20-2\\work\\smoke-final-003\\hardware_720p_audio",
+        "--width",
+        "1280",
+        "--height",
+        "720"
+      ],
+      "data_dir": "C:\\Users\\<user>\\Documents\\Codex\\2026-10-31\\ok-x20-2\\work\\smoke-final-003\\hardware_720p_audio",
+      "started_at": "2026-10-31T22:09:25.265156+00:00",
+      "expected_exit_code": 0,
+      "requested_resolution": [
+        1280,
+        720
+      ],
+      "prior_log_lines": 0,
+      "timeout_seconds": 30,
+      "errors": [],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "",
+      "wall_seconds": 0.938,
+      "finished_at": "2026-10-31T22:09:26.199479+00:00",
+      "total_log_lines": 7,
+      "session_events": [
+        {
+          "time": "2026-10-31T22:09:25.290Z",
+          "level": "info",
+          "event": "startup",
+          "message": "Native Windows x64 foundation. No original game data or gameplay is implemented."
+        },
+        {
+          "time": "2026-10-31T22:09:25.291Z",
+          "level": "info",
+          "event": "settings_default",
+          "message": "settings file is absent; defaults loaded"
+        },
+        {
+          "time": "2026-10-31T22:09:25.393Z",
+          "level": "info",
+          "event": "graphics_ready",
+          "message": "AMD Radeon RX 9070 XT"
+        },
+        {
+          "time": "2026-10-31T22:09:25.393Z",
+          "level": "info",
+          "event": "graphics_dimensions",
+          "message": "1280x720"
+        },
+        {
+          "time": "2026-10-31T22:09:25.427Z",
+          "level": "info",
+          "event": "audio_ready",
+          "message": "XAudio2 mastering and source voices initialized; F1 plays a procedural diagnostic tone"
+        },
+        {
+          "time": "2026-10-31T22:09:26.187Z",
+          "level": "info",
+          "event": "frame_summary",
+          "message": "clear-only,frames=60,samples=60,mean_ms=11.9334,p95_ms=16.5052,p99_ms=30.5613,scheduler_ticks=43"
+        },
+        {
+          "time": "2026-10-31T22:09:26.187Z",
+          "level": "info",
+          "event": "shutdown",
+          "message": "Clean shutdown completed"
+        }
+      ],
+      "adapter": [
+        "AMD Radeon RX 9070 XT"
+      ],
+      "audio": [
+        {
+          "time": "2026-10-31T22:09:25.427Z",
+          "level": "info",
+          "event": "audio_ready",
+          "message": "XAudio2 mastering and source voices initialized; F1 plays a procedural diagnostic tone"
+        }
+      ],
+      "resize_events": [],
+      "reported_initial_dimensions": [
+        "1280x720"
+      ],
+      "frame_metrics": {
+        "workload": "clear-only",
+        "frames": 60,
+        "samples": 60,
+        "scheduler_ticks": 43,
+        "mean_ms": 11.9334,
+        "p95_ms": 16.5052,
+        "p99_ms": 30.5613
+      },
+      "persisted_settings": {
+        "width": "1280",
+        "height": "720",
+        "vsync": "1",
+        "fixed_hz": "60",
+        "master_volume": "0.5"
+      },
+      "passed": true
+    },
+    {
+      "name": "hardware_720p_repeat",
+      "command": [
+        "C:\\Users\\<user>\\Documents\\Codex\\2026-10-31\\ok-x20-2\\work\\build\\JStarsReborn.exe",
+        "--no-dialogs",
+        "--smoke-frames",
+        "60",
+        "--data-dir",
+        "C:\\Users\\<user>\\Documents\\Codex\\2026-10-31\\ok-x20-2\\work\\smoke-final-003\\hardware_720p_audio"
+      ],
+      "data_dir": "C:\\Users\\<user>\\Documents\\Codex\\2026-10-31\\ok-x20-2\\work\\smoke-final-003\\hardware_720p_audio",
+      "started_at": "2026-10-31T22:09:26.200856+00:00",
+      "expected_exit_code": 0,
+      "requested_resolution": [
+        1280,
+        720
+      ],
+      "prior_log_lines": 7,
+      "timeout_seconds": 30,
+      "errors": [],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "",
+      "wall_seconds": 0.734,
+      "finished_at": "2026-10-31T22:09:26.942274+00:00",
+      "total_log_lines": 14,
+      "session_events": [
+        {
+          "time": "2026-10-31T22:09:26.216Z",
+          "level": "info",
+          "event": "startup",
+          "message": "Native Windows x64 foundation. No original game data or gameplay is implemented."
+        },
+        {
+          "time": "2026-10-31T22:09:26.217Z",
+          "level": "info",
+          "event": "settings_loaded",
+          "message": "settings validated"
+        },
+        {
+          "time": "2026-10-31T22:09:26.327Z",
+          "level": "info",
+          "event": "graphics_ready",
+          "message": "AMD Radeon RX 9070 XT"
+        },
+        {
+          "time": "2026-10-31T22:09:26.327Z",
+          "level": "info",
+          "event": "graphics_dimensions",
+          "message": "1280x720"
+        },
+        {
+          "time": "2026-10-31T22:09:26.359Z",
+          "level": "info",
+          "event": "audio_ready",
+          "message": "XAudio2 mastering and source voices initialized; F1 plays a procedural diagnostic tone"
+        },
+        {
+          "time": "2026-10-31T22:09:26.931Z",
+          "level": "info",
+          "event": "frame_summary",
+          "message": "clear-only,frames=60,samples=60,mean_ms=8.83252,p95_ms=15.7075,p99_ms=29.9804,scheduler_ticks=32"
+        },
+        {
+          "time": "2026-10-31T22:09:26.931Z",
+          "level": "info",
+          "event": "shutdown",
+          "message": "Clean shutdown completed"
+        }
+      ],
+      "adapter": [
+        "AMD Radeon RX 9070 XT"
+      ],
+      "audio": [
+        {
+          "time": "2026-10-31T22:09:26.359Z",
+          "level": "info",
+          "event": "audio_ready",
+          "message": "XAudio2 mastering and source voices initialized; F1 plays a procedural diagnostic tone"
+        }
+      ],
+      "resize_events": [],
+      "reported_initial_dimensions": [
+        "1280x720"
+      ],
+      "frame_metrics": {
+        "workload": "clear-only",
+        "frames": 60,
+        "samples": 60,
+        "scheduler_ticks": 32,
+        "mean_ms": 8.83252,
+        "p95_ms": 15.7075,
+        "p99_ms": 29.9804
+      },
+      "persisted_settings": {
+        "width": "1280",
+        "height": "720",
+        "vsync": "1",
+        "fixed_hz": "60",
+        "master_volume": "0.5"
+      },
+      "passed": true
+    },
+    {
+      "name": "hardware_1080p",
+      "command": [
+        "C:\\Users\\<user>\\Documents\\Codex\\2026-10-31\\ok-x20-2\\work\\build\\JStarsReborn.exe",
+        "--no-dialogs",
+        "--smoke-frames",
+        "60",
+        "--data-dir",
+        "C:\\Users\\<user>\\Documents\\Codex\\2026-10-31\\ok-x20-2\\work\\smoke-final-003\\hardware_1080p",
+        "--width",
+        "1920",
+        "--height",
+        "1080",
+        "--no-audio"
+      ],
+      "data_dir": "C:\\Users\\<user>\\Documents\\Codex\\2026-10-31\\ok-x20-2\\work\\smoke-final-003\\hardware_1080p",
+      "started_at": "2026-10-31T22:09:26.944810+00:00",
+      "expected_exit_code": 0,
+      "requested_resolution": [
+        1920,
+        1080
+      ],
+      "prior_log_lines": 0,
+      "timeout_seconds": 30,
+      "errors": [],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "",
+      "wall_seconds": 0.766,
+      "finished_at": "2026-10-31T22:09:27.703552+00:00",
+      "total_log_lines": 7,
+      "session_events": [
+        {
+          "time": "2026-10-31T22:09:26.961Z",
+          "level": "info",
+          "event": "startup",
+          "message": "Native Windows x64 foundation. No original game data or gameplay is implemented."
+        },
+        {
+          "time": "2026-10-31T22:09:26.961Z",
+          "level": "info",
+          "event": "settings_default",
+          "message": "settings file is absent; defaults loaded"
+        },
+        {
+          "time": "2026-10-31T22:09:27.065Z",
+          "level": "info",
+          "event": "graphics_ready",
+          "message": "AMD Radeon RX 9070 XT"
+        },
+        {
+          "time": "2026-10-31T22:09:27.065Z",
+          "level": "info",
+          "event": "graphics_dimensions",
+          "message": "1920x1080"
+        },
+        {
+          "time": "2026-10-31T22:09:27.065Z",
+          "level": "info",
+          "event": "audio_disabled",
+          "message": "Requested by command line"
+        },
+        {
+          "time": "2026-10-31T22:09:27.695Z",
+          "level": "info",
+          "event": "frame_summary",
+          "message": "clear-only,frames=60,samples=60,mean_ms=9.74217,p95_ms=15.7678,p99_ms=31.8968,scheduler_ticks=34"
+        },
+        {
+          "time": "2026-10-31T22:09:27.695Z",
+          "level": "info",
+          "event": "shutdown",
+          "message": "Clean shutdown completed"
+        }
+      ],
+      "adapter": [
+        "AMD Radeon RX 9070 XT"
+      ],
+      "audio": [
+        {
+          "time": "2026-10-31T22:09:27.065Z",
+          "level": "info",
+          "event": "audio_disabled",
+          "message": "Requested by command line"
+        }
+      ],
+      "resize_events": [],
+      "reported_initial_dimensions": [
+        "1920x1080"
+      ],
+      "frame_metrics": {
+        "workload": "clear-only",
+        "frames": 60,
+        "samples": 60,
+        "scheduler_ticks": 34,
+        "mean_ms": 9.74217,
+        "p95_ms": 15.7678,
+        "p99_ms": 31.8968
+      },
+      "persisted_settings": {
+        "width": "1920",
+        "height": "1080",
+        "vsync": "1",
+        "fixed_hz": "60",
+        "master_volume": "0.5"
+      },
+      "passed": true
+    },
+    {
+      "name": "hardware_1440p",
+      "command": [
+        "C:\\Users\\<user>\\Documents\\Codex\\2026-10-31\\ok-x20-2\\work\\build\\JStarsReborn.exe",
+        "--no-dialogs",
+        "--smoke-frames",
+        "60",
+        "--data-dir",
+        "C:\\Users\\<user>\\Documents\\Codex\\2026-10-31\\ok-x20-2\\work\\smoke-final-003\\hardware_1440p",
+        "--width",
+        "2560",
+        "--height",
+        "1440",
+        "--no-audio"
+      ],
+      "data_dir": "C:\\Users\\<user>\\Documents\\Codex\\2026-10-31\\ok-x20-2\\work\\smoke-final-003\\hardware_1440p",
+      "started_at": "2026-10-31T22:09:27.705778+00:00",
+      "expected_exit_code": 0,
+      "requested_resolution": [
+        2560,
+        1440
+      ],
+      "prior_log_lines": 0,
+      "timeout_seconds": 30,
+      "errors": [],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "",
+      "wall_seconds": 0.718,
+      "finished_at": "2026-10-31T22:09:28.421242+00:00",
+      "total_log_lines": 7,
+      "session_events": [
+        {
+          "time": "2026-10-31T22:09:27.723Z",
+          "level": "info",
+          "event": "startup",
+          "message": "Native Windows x64 foundation. No original game data or gameplay is implemented."
+        },
+        {
+          "time": "2026-10-31T22:09:27.723Z",
+          "level": "info",
+          "event": "settings_default",
+          "message": "settings file is absent; defaults loaded"
+        },
+        {
+          "time": "2026-10-31T22:09:27.854Z",
+          "level": "info",
+          "event": "graphics_ready",
+          "message": "AMD Radeon RX 9070 XT"
+        },
+        {
+          "time": "2026-10-31T22:09:27.854Z",
+          "level": "info",
+          "event": "graphics_dimensions",
+          "message": "2560x1440"
+        },
+        {
+          "time": "2026-10-31T22:09:27.854Z",
+          "level": "info",
+          "event": "audio_disabled",
+          "message": "Requested by command line"
+        },
+        {
+          "time": "2026-10-31T22:09:28.395Z",
+          "level": "info",
+          "event": "frame_summary",
+          "message": "clear-only,frames=60,samples=60,mean_ms=8.24127,p95_ms=15.8417,p99_ms=16.1675,scheduler_ticks=29"
+        },
+        {
+          "time": "2026-10-31T22:09:28.395Z",
+          "level": "info",
+          "event": "shutdown",
+          "message": "Clean shutdown completed"
+        }
+      ],
+      "adapter": [
+        "AMD Radeon RX 9070 XT"
+      ],
+      "audio": [
+        {
+          "time": "2026-10-31T22:09:27.854Z",
+          "level": "info",
+          "event": "audio_disabled",
+          "message": "Requested by command line"
+        }
+      ],
+      "resize_events": [],
+      "reported_initial_dimensions": [
+        "2560x1440"
+      ],
+      "frame_metrics": {
+        "workload": "clear-only",
+        "frames": 60,
+        "samples": 60,
+        "scheduler_ticks": 29,
+        "mean_ms": 8.24127,
+        "p95_ms": 15.8417,
+        "p99_ms": 16.1675
+      },
+      "persisted_settings": {
+        "width": "2560",
+        "height": "1440",
+        "vsync": "1",
+        "fixed_hz": "60",
+        "master_volume": "0.5"
+      },
+      "passed": true
+    },
+    {
+      "name": "hardware_4k",
+      "command": [
+        "C:\\Users\\<user>\\Documents\\Codex\\2026-10-31\\ok-x20-2\\work\\build\\JStarsReborn.exe",
+        "--no-dialogs",
+        "--smoke-frames",
+        "60",
+        "--data-dir",
+        "C:\\Users\\<user>\\Documents\\Codex\\2026-10-31\\ok-x20-2\\work\\smoke-final-003\\hardware_4k",
+        "--width",
+        "3840",
+        "--height",
+        "2160",
+        "--no-audio"
+      ],
+      "data_dir": "C:\\Users\\<user>\\Documents\\Codex\\2026-10-31\\ok-x20-2\\work\\smoke-final-003\\hardware_4k",
+      "started_at": "2026-10-31T22:09:28.422434+00:00",
+      "expected_exit_code": 0,
+      "requested_resolution": [
+        3840,
+        2160
+      ],
+      "prior_log_lines": 0,
+      "timeout_seconds": 30,
+      "errors": [],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "",
+      "wall_seconds": 0.719,
+      "finished_at": "2026-10-31T22:09:29.138090+00:00",
+      "total_log_lines": 7,
+      "session_events": [
+        {
+          "time": "2026-10-31T22:09:28.438Z",
+          "level": "info",
+          "event": "startup",
+          "message": "Native Windows x64 foundation. No original game data or gameplay is implemented."
+        },
+        {
+          "time": "2026-10-31T22:09:28.438Z",
+          "level": "info",
+          "event": "settings_default",
+          "message": "settings file is absent; defaults loaded"
+        },
+        {
+          "time": "2026-10-31T22:09:28.547Z",
+          "level": "info",
+          "event": "graphics_ready",
+          "message": "AMD Radeon RX 9070 XT"
+        },
+        {
+          "time": "2026-10-31T22:09:28.547Z",
+          "level": "info",
+          "event": "graphics_dimensions",
+          "message": "3840x2160"
+        },
+        {
+          "time": "2026-10-31T22:09:28.547Z",
+          "level": "info",
+          "event": "audio_disabled",
+          "message": "Requested by command line"
+        },
+        {
+          "time": "2026-10-31T22:09:29.129Z",
+          "level": "info",
+          "event": "frame_summary",
+          "message": "clear-only,frames=60,samples=60,mean_ms=9.09504,p95_ms=15.6078,p99_ms=31.0555,scheduler_ticks=33"
+        },
+        {
+          "time": "2026-10-31T22:09:29.129Z",
+          "level": "info",
+          "event": "shutdown",
+          "message": "Clean shutdown completed"
+        }
+      ],
+      "adapter": [
+        "AMD Radeon RX 9070 XT"
+      ],
+      "audio": [
+        {
+          "time": "2026-10-31T22:09:28.547Z",
+          "level": "info",
+          "event": "audio_disabled",
+          "message": "Requested by command line"
+        }
+      ],
+      "resize_events": [],
+      "reported_initial_dimensions": [
+        "3840x2160"
+      ],
+      "frame_metrics": {
+        "workload": "clear-only",
+        "frames": 60,
+        "samples": 60,
+        "scheduler_ticks": 33,
+        "mean_ms": 9.09504,
+        "p95_ms": 15.6078,
+        "p99_ms": 31.0555
+      },
+      "persisted_settings": {
+        "width": "3840",
+        "height": "2160",
+        "vsync": "1",
+        "fixed_hz": "60",
+        "master_volume": "0.5"
+      },
+      "passed": true
+    },
+    {
+      "name": "hardware_resize",
+      "command": [
+        "C:\\Users\\<user>\\Documents\\Codex\\2026-10-31\\ok-x20-2\\work\\build\\JStarsReborn.exe",
+        "--no-dialogs",
+        "--smoke-frames",
+        "60",
+        "--data-dir",
+        "C:\\Users\\<user>\\Documents\\Codex\\2026-10-31\\ok-x20-2\\work\\smoke-final-003\\hardware_resize",
+        "--width",
+        "1280",
+        "--height",
+        "720",
+        "--no-audio",
+        "--resize-smoke"
+      ],
+      "data_dir": "C:\\Users\\<user>\\Documents\\Codex\\2026-10-31\\ok-x20-2\\work\\smoke-final-003\\hardware_resize",
+      "started_at": "2026-10-31T22:09:29.140156+00:00",
+      "expected_exit_code": 0,
+      "requested_resolution": [
+        1280,
+        720
+      ],
+      "prior_log_lines": 0,
+      "timeout_seconds": 30,
+      "errors": [],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "",
+      "wall_seconds": 0.844,
+      "finished_at": "2026-10-31T22:09:29.983462+00:00",
+      "total_log_lines": 10,
+      "session_events": [
+        {
+          "time": "2026-10-31T22:09:29.156Z",
+          "level": "info",
+          "event": "startup",
+          "message": "Native Windows x64 foundation. No original game data or gameplay is implemented."
+        },
+        {
+          "time": "2026-10-31T22:09:29.156Z",
+          "level": "info",
+          "event": "settings_default",
+          "message": "settings file is absent; defaults loaded"
+        },
+        {
+          "time": "2026-10-31T22:09:29.270Z",
+          "level": "info",
+          "event": "graphics_ready",
+          "message": "AMD Radeon RX 9070 XT"
+        },
+        {
+          "time": "2026-10-31T22:09:29.270Z",
+          "level": "info",
+          "event": "graphics_dimensions",
+          "message": "1280x720"
+        },
+        {
+          "time": "2026-10-31T22:09:29.270Z",
+          "level": "info",
+          "event": "audio_disabled",
+          "message": "Requested by command line"
+        },
+        {
+          "time": "2026-10-31T22:09:29.463Z",
+          "level": "info",
+          "event": "resize",
+          "message": "800x600"
+        },
+        {
+          "time": "2026-10-31T22:09:29.567Z",
+          "level": "info",
+          "event": "resize",
+          "message": "1920x1080"
+        },
+        {
+          "time": "2026-10-31T22:09:29.706Z",
+          "level": "info",
+          "event": "resize",
+          "message": "1280x720"
+        },
+        {
+          "time": "2026-10-31T22:09:29.974Z",
+          "level": "info",
+          "event": "frame_summary",
+          "message": "clear-only,frames=60,samples=60,mean_ms=10.2773,p95_ms=31.1794,p99_ms=34.032,scheduler_ticks=39"
+        },
+        {
+          "time": "2026-10-31T22:09:29.974Z",
+          "level": "info",
+          "event": "shutdown",
+          "message": "Clean shutdown completed"
+        }
+      ],
+      "adapter": [
+        "AMD Radeon RX 9070 XT"
+      ],
+      "audio": [
+        {
+          "time": "2026-10-31T22:09:29.270Z",
+          "level": "info",
+          "event": "audio_disabled",
+          "message": "Requested by command line"
+        }
+      ],
+      "resize_events": [
+        "800x600",
+        "1920x1080",
+        "1280x720"
+      ],
+      "reported_initial_dimensions": [
+        "1280x720"
+      ],
+      "frame_metrics": {
+        "workload": "clear-only",
+        "frames": 60,
+        "samples": 60,
+        "scheduler_ticks": 39,
+        "mean_ms": 10.2773,
+        "p95_ms": 31.1794,
+        "p99_ms": 34.032
+      },
+      "persisted_settings": {
+        "width": "1280",
+        "height": "720",
+        "vsync": "1",
+        "fixed_hz": "60",
+        "master_volume": "0.5"
+      },
+      "passed": true
+    },
+    {
+      "name": "hardware_borderless",
+      "command": [
+        "C:\\Users\\<user>\\Documents\\Codex\\2026-10-31\\ok-x20-2\\work\\build\\JStarsReborn.exe",
+        "--no-dialogs",
+        "--smoke-frames",
+        "60",
+        "--data-dir",
+        "C:\\Users\\<user>\\Documents\\Codex\\2026-10-31\\ok-x20-2\\work\\smoke-final-003\\hardware_borderless",
+        "--width",
+        "1280",
+        "--height",
+        "720",
+        "--no-audio",
+        "--borderless"
+      ],
+      "data_dir": "C:\\Users\\<user>\\Documents\\Codex\\2026-10-31\\ok-x20-2\\work\\smoke-final-003\\hardware_borderless",
+      "started_at": "2026-10-31T22:09:29.983966+00:00",
+      "expected_exit_code": 0,
+      "requested_resolution": [
+        1280,
+        720
+      ],
+      "prior_log_lines": 0,
+      "timeout_seconds": 30,
+      "errors": [],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "",
+      "wall_seconds": 0.906,
+      "finished_at": "2026-10-31T22:09:30.901399+00:00",
+      "total_log_lines": 10,
+      "session_events": [
+        {
+          "time": "2026-10-31T22:09:30.000Z",
+          "level": "info",
+          "event": "startup",
+          "message": "Native Windows x64 foundation. No original game data or gameplay is implemented."
+        },
+        {
+          "time": "2026-10-31T22:09:30.000Z",
+          "level": "info",
+          "event": "settings_default",
+          "message": "settings file is absent; defaults loaded"
+        },
+        {
+          "time": "2026-10-31T22:09:30.106Z",
+          "level": "info",
+          "event": "graphics_ready",
+          "message": "AMD Radeon RX 9070 XT"
+        },
+        {
+          "time": "2026-10-31T22:09:30.106Z",
+          "level": "info",
+          "event": "graphics_dimensions",
+          "message": "1280x720"
+        },
+        {
+          "time": "2026-10-31T22:09:30.106Z",
+          "level": "info",
+          "event": "audio_disabled",
+          "message": "Requested by command line"
+        },
+        {
+          "time": "2026-10-31T22:09:30.114Z",
+          "level": "info",
+          "event": "display_mode",
+          "message": "borderless"
+        },
+        {
+          "time": "2026-10-31T22:09:30.121Z",
+          "level": "info",
+          "event": "resize",
+          "message": "3440x1440"
+        },
+        {
+          "time": "2026-10-31T22:09:30.270Z",
+          "level": "warning",
+          "event": "simulation_backlog_dropped",
+          "message": "0.016667"
+        },
+        {
+          "time": "2026-10-31T22:09:30.891Z",
+          "level": "info",
+          "event": "frame_summary",
+          "message": "clear-only,frames=60,samples=60,mean_ms=12.2181,p95_ms=15.9861,p99_ms=16.0685,scheduler_ticks=43"
+        },
+        {
+          "time": "2026-10-31T22:09:30.891Z",
+          "level": "info",
+          "event": "shutdown",
+          "message": "Clean shutdown completed"
+        }
+      ],
+      "adapter": [
+        "AMD Radeon RX 9070 XT"
+      ],
+      "audio": [
+        {
+          "time": "2026-10-31T22:09:30.106Z",
+          "level": "info",
+          "event": "audio_disabled",
+          "message": "Requested by command line"
+        }
+      ],
+      "resize_events": [
+        "3440x1440"
+      ],
+      "reported_initial_dimensions": [
+        "1280x720"
+      ],
+      "frame_metrics": {
+        "workload": "clear-only",
+        "frames": 60,
+        "samples": 60,
+        "scheduler_ticks": 43,
+        "mean_ms": 12.2181,
+        "p95_ms": 15.9861,
+        "p99_ms": 16.0685
+      },
+      "persisted_settings": {
+        "width": "1280",
+        "height": "720",
+        "vsync": "1",
+        "fixed_hz": "60",
+        "master_volume": "0.5"
+      },
+      "passed": true
+    },
+    {
+      "name": "warp_720p",
+      "command": [
+        "C:\\Users\\<user>\\Documents\\Codex\\2026-10-31\\ok-x20-2\\work\\build\\JStarsReborn.exe",
+        "--no-dialogs",
+        "--smoke-frames",
+        "60",
+        "--data-dir",
+        "C:\\Users\\<user>\\Documents\\Codex\\2026-10-31\\ok-x20-2\\work\\smoke-final-003\\warp_720p",
+        "--width",
+        "1280",
+        "--height",
+        "720",
+        "--no-audio",
+        "--warp"
+      ],
+      "data_dir": "C:\\Users\\<user>\\Documents\\Codex\\2026-10-31\\ok-x20-2\\work\\smoke-final-003\\warp_720p",
+      "started_at": "2026-10-31T22:09:30.902443+00:00",
+      "expected_exit_code": 0,
+      "requested_resolution": [
+        1280,
+        720
+      ],
+      "prior_log_lines": 0,
+      "timeout_seconds": 30,
+      "errors": [],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "",
+      "wall_seconds": 0.609,
+      "finished_at": "2026-10-31T22:09:31.498898+00:00",
+      "total_log_lines": 7,
+      "session_events": [
+        {
+          "time": "2026-10-31T22:09:30.919Z",
+          "level": "info",
+          "event": "startup",
+          "message": "Native Windows x64 foundation. No original game data or gameplay is implemented."
+        },
+        {
+          "time": "2026-10-31T22:09:30.920Z",
+          "level": "info",
+          "event": "settings_default",
+          "message": "settings file is absent; defaults loaded"
+        },
+        {
+          "time": "2026-10-31T22:09:30.957Z",
+          "level": "info",
+          "event": "graphics_ready",
+          "message": "Microsoft Basic Render Driver (WARP software diagnostics)"
+        },
+        {
+          "time": "2026-10-31T22:09:30.957Z",
+          "level": "info",
+          "event": "graphics_dimensions",
+          "message": "1280x720"
+        },
+        {
+          "time": "2026-10-31T22:09:30.957Z",
+          "level": "info",
+          "event": "audio_disabled",
+          "message": "Requested by command line"
+        },
+        {
+          "time": "2026-10-31T22:09:31.489Z",
+          "level": "info",
+          "event": "frame_summary",
+          "message": "clear-only,frames=60,samples=60,mean_ms=7.66808,p95_ms=15.7323,p99_ms=16.0762,scheduler_ticks=28"
+        },
+        {
+          "time": "2026-10-31T22:09:31.489Z",
+          "level": "info",
+          "event": "shutdown",
+          "message": "Clean shutdown completed"
+        }
+      ],
+      "adapter": [
+        "Microsoft Basic Render Driver (WARP software diagnostics)"
+      ],
+      "audio": [
+        {
+          "time": "2026-10-31T22:09:30.957Z",
+          "level": "info",
+          "event": "audio_disabled",
+          "message": "Requested by command line"
+        }
+      ],
+      "resize_events": [],
+      "reported_initial_dimensions": [
+        "1280x720"
+      ],
+      "frame_metrics": {
+        "workload": "clear-only",
+        "frames": 60,
+        "samples": 60,
+        "scheduler_ticks": 28,
+        "mean_ms": 7.66808,
+        "p95_ms": 15.7323,
+        "p99_ms": 16.0762
+      },
+      "persisted_settings": {
+        "width": "1280",
+        "height": "720",
+        "vsync": "1",
+        "fixed_hz": "60",
+        "master_volume": "0.5"
+      },
+      "passed": true
+    },
+    {
+      "name": "injected_initialization_failure",
+      "command": [
+        "C:\\Users\\<user>\\Documents\\Codex\\2026-10-31\\ok-x20-2\\work\\build\\JStarsReborn.exe",
+        "--no-dialogs",
+        "--smoke-frames",
+        "60",
+        "--data-dir",
+        "C:\\Users\\<user>\\Documents\\Codex\\2026-10-31\\ok-x20-2\\work\\smoke-final-003\\injected_initialization_failure",
+        "--fail-init",
+        "--no-audio"
+      ],
+      "data_dir": "C:\\Users\\<user>\\Documents\\Codex\\2026-10-31\\ok-x20-2\\work\\smoke-final-003\\injected_initialization_failure",
+      "started_at": "2026-10-31T22:09:31.500987+00:00",
+      "expected_exit_code": 1,
+      "requested_resolution": null,
+      "prior_log_lines": 0,
+      "timeout_seconds": 30,
+      "errors": [],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "",
+      "wall_seconds": 0.016,
+      "finished_at": "2026-10-31T22:09:31.519539+00:00",
+      "total_log_lines": 2,
+      "session_events": [
+        {
+          "time": "2026-10-31T22:09:31.516Z",
+          "level": "info",
+          "event": "startup",
+          "message": "Native Windows x64 foundation. No original game data or gameplay is implemented."
+        },
+        {
+          "time": "2026-10-31T22:09:31.516Z",
+          "level": "error",
+          "event": "fatal",
+          "message": "Requested initialization failure for regression testing"
+        }
+      ],
+      "adapter": [],
+      "audio": [],
+      "resize_events": [],
+      "reported_initial_dimensions": [],
+      "passed": true
+    },
+    {
+      "name": "invalid_width",
+      "command": [
+        "C:\\Users\\<user>\\Documents\\Codex\\2026-10-31\\ok-x20-2\\work\\build\\JStarsReborn.exe",
+        "--no-dialogs",
+        "--smoke-frames",
+        "60",
+        "--data-dir",
+        "C:\\Users\\<user>\\Documents\\Codex\\2026-10-31\\ok-x20-2\\work\\smoke-final-003\\invalid_width",
+        "--width",
+        "0",
+        "--no-audio"
+      ],
+      "data_dir": "C:\\Users\\<user>\\Documents\\Codex\\2026-10-31\\ok-x20-2\\work\\smoke-final-003\\invalid_width",
+      "started_at": "2026-10-31T22:09:31.521954+00:00",
+      "expected_exit_code": 1,
+      "requested_resolution": null,
+      "prior_log_lines": 0,
+      "timeout_seconds": 30,
+      "errors": [],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "",
+      "wall_seconds": 0.016,
+      "finished_at": "2026-10-31T22:09:31.537106+00:00",
+      "total_log_lines": 0,
+      "session_events": [],
+      "adapter": [],
+      "audio": [],
+      "resize_events": [],
+      "reported_initial_dimensions": [],
+      "expected_logging_behavior": "No runtime log: argument parsing fails before logger construction.",
+      "passed": true
+    }
+  ],
+  "finished_at": "2026-10-31T22:09:31.537106+00:00",
+  "passed": true,
+  "passed_cases": 10,
+  "total_cases": 10
+}

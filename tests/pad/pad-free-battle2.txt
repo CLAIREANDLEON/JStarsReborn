@@ -1,0 +1,18 @@
+# Automated test input (NOT a controller; every transition is logged as "SCRIPTED TEST INPUT"). Seconds count from the
+# first scePadOpen. Opening as pad-free-battle.txt (observed in the 0.3.0-r captures): title -> save prompt -> Yes -> OK ->
+# main menu -> Free Battle -> 1 Player -> Character Select. There CROSS picks the highlighted slot (P1 = Naruto; the other
+# slots are "Random Select"), and the footer's OPTIONS = "Finish" starts with random picks for what is left. After that
+# CROSS every 6 s accepts whatever the game offers (stage, rules, confirmations) towards a battle.
+at 40 press CROSS for 200
+at 48 press LEFT for 200
+at 50 press CROSS for 200
+at 62 press CROSS for 200
+at 72 press DOWN for 200
+at 75 press DOWN for 200
+at 78 press DOWN for 200
+at 83 press CROSS for 200
+at 90 press CROSS for 200
+at 102 press CROSS for 200
+at 108 press CROSS for 200
+at 114 press OPTIONS for 200
+every 6000 from 121 to 330 press CROSS for 200
