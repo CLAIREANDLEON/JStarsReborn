@@ -55,21 +55,10 @@ static int GUEST_ABI http_term(int id) { (void)id; return 0; }
 
 // ---- NP manager: the local user is signed out ------------------------------------------------------------------
 enum { NP_SIGNED_OUT = 0x80550006, NP_USER_NOT_FOUND = 0x80550007, NP_INVALID_ARG = 0x80550003 };
-static int g_np_cb_registered;
-static int GUEST_ABI np_set_title_id(const void* id, const void* secret) { (void)id; (void)secret; return 0; }
-static int GUEST_ABI np_set_restriction(const void* r) { (void)r; return 0; }
-static int GUEST_ABI np_register_state_cb(void* cb, void* user) { (void)cb; (void)user; g_np_cb_registered = 1; return 0; } // never invoked: the state never changes
-static int GUEST_ABI np_check_callback(void) { return 0; }
-// OrbisNpState: 0 not signed up, 1 signed out, 2 signed in. The default is signed out; the online-probe experiment
-// reports signed in so one run can record what the game tries next. That answer is a probe, not an implementation.
-static int GUEST_ABI np_get_state(int user, int* state) {
-    if (!state) return NP_INVALID_ARG;
-    if (user != 1) return NP_USER_NOT_FOUND;
-    *state = rt_experiment("online-probe") ? 2 : 1;
-    return 0;
-}
+enum { NP_STATE_NOT_SIGNED_UP = 0, NP_STATE_SIGNED_OUT = 1, NP_STATE_SIGNED_IN = 2 };
+static int np_current_state(void);
 
-// Local identity for the probe: the same name the console user service reports (JSTARS_USER_NAME, default "Player").
+// Local identity: the same name the console user service reports (JSTARS_USER_NAME, default "Player").
 // SceNpOnlineId is 16 characters + terminator + 3 unused bytes; SceNpId adds opt[8] and reserved[8] (36 bytes).
 static void local_online_id(char out[20]) {
     const char* n = getenv("JSTARS_USER_NAME");
@@ -80,18 +69,80 @@ static void local_online_id(char out[20]) {
 static int GUEST_ABI np_get_online_id(int user, void* online_id) {
     if (!online_id) return NP_INVALID_ARG;
     if (user != 1) return NP_USER_NOT_FOUND;
-    if (!rt_experiment("online-probe")) return NP_SIGNED_OUT;
+    if (np_current_state() != NP_STATE_SIGNED_IN) return NP_SIGNED_OUT;
     local_online_id((char*)online_id);
     return 0;
 }
 static int GUEST_ABI np_get_np_id(int user, void* np_id) {
     if (!np_id) return NP_INVALID_ARG;
     if (user != 1) return NP_USER_NOT_FOUND;
-    if (!rt_experiment("online-probe")) return NP_SIGNED_OUT;
+    if (np_current_state() != NP_STATE_SIGNED_IN) return NP_SIGNED_OUT;
     memset(np_id, 0, 36);
     local_online_id((char*)np_id);
     return 0;
 }
+
+// The console delivers NP state changes from inside sceNpCheckCallback, on whichever game thread calls it, so the
+// callback runs on a guest thread with the guest ABI and the runtime never invents a thread for it. The game
+// registers its callback at eboot.bin+0x2bde4f, inside the routine that starts the online services.
+typedef void (GUEST_ABI* NpStateCb)(int user_id, uint32_t state, void* np_id, void* userdata);
+enum { NP_ERR_CALLBACK_ALREADY_REGISTERED = (int)0x80550008, NP_ERR_CALLBACK_NOT_REGISTERED = (int)0x80550009 };
+static NpStateCb g_np_state_cb;
+static void* g_np_state_userdata;
+static int g_np_state_pending = -1;   // state queued for the next sceNpCheckCallback, -1 = nothing queued
+static int g_np_state_delivered = -1;
+static int g_np_cb_registered;
+
+static int GUEST_ABI np_set_title_id(const void* id, const void* secret) {
+    (void)secret;   // the title secret is never logged
+    if (id) rt_logf("sceNpSetNpTitleId('%.12s')", (const char*)id);
+    return 0;
+}
+static int GUEST_ABI np_set_restriction(const void* r) { (void)r; return 0; }
+
+static int np_current_state(void) { return (rt_experiment("online-probe") || rt_net_online()) ? NP_STATE_SIGNED_IN : NP_STATE_SIGNED_OUT; }
+
+static int GUEST_ABI np_register_state_cb(void* cb, void* user) {
+    if (!cb) return NP_INVALID_ARG;
+    if (g_np_state_cb) return NP_ERR_CALLBACK_ALREADY_REGISTERED;
+    g_np_state_cb = (NpStateCb)cb;
+    g_np_state_userdata = user;
+    g_np_cb_registered = 1;
+    g_np_state_pending = np_current_state();   // the console reports the current state shortly after registration
+    rt_logf("sceNpRegisterStateCallback(callback %p, userdata %p): the state %s will be delivered from the game's next sceNpCheckCallback",
+            cb, user, g_np_state_pending == NP_STATE_SIGNED_IN ? "SIGNED_IN" : "SIGNED_OUT");
+    return 0;
+}
+static int GUEST_ABI np_unregister_state_cb(void) {
+    if (!g_np_state_cb) return NP_ERR_CALLBACK_NOT_REGISTERED;
+    g_np_state_cb = NULL;
+    g_np_state_userdata = NULL;
+    return 0;
+}
+// Called by the game on its own thread to let the console deliver queued notifications.
+static int GUEST_ABI np_check_callback(void) {
+    const int want = g_np_state_pending;
+    if (want < 0 || !g_np_state_cb) return 0;
+    g_np_state_pending = -1;
+    if (want == g_np_state_delivered) return 0;
+    g_np_state_delivered = want;
+    uint8_t np_id[36];
+    memset(np_id, 0, sizeof np_id);
+    local_online_id((char*)np_id);
+    rt_logf("sceNpCheckCallback: delivering NP state %s to the game's callback %p", want == NP_STATE_SIGNED_IN ? "SIGNED_IN" : "SIGNED_OUT", (void*)g_np_state_cb);
+    g_np_state_cb(1, (uint32_t)want, np_id, g_np_state_userdata);
+    rt_logf("sceNpCheckCallback: the game's NP state callback returned");
+    return 0;
+}
+// OrbisNpState: 0 not signed up, 1 signed out, 2 signed in. The default is signed out; the online-probe experiment
+// reports signed in so one run can record what the game tries next. That answer is a probe, not an implementation.
+static int GUEST_ABI np_get_state(int user, int* state) {
+    if (!state) return NP_INVALID_ARG;
+    if (user != 1) return NP_USER_NOT_FOUND;
+    *state = np_current_state();
+    return 0;
+}
+
 
 
 // ---- libSceSharePlay: this machine never has a Share Play session, so the connection is permanently DORMANT -------------
@@ -285,6 +336,7 @@ const HostSymbol platform_symbols[] = {
     {"sceNpSetNpTitleId", "libSceNpManager", (void*)np_set_title_id, 0},
     {"sceNpSetContentRestriction", "libSceNpManager", (void*)np_set_restriction, 0},
     {"sceNpRegisterStateCallback", "libSceNpManager", (void*)np_register_state_cb, 0},
+    {"sceNpUnregisterStateCallback", "libSceNpManager", (void*)np_unregister_state_cb, 0},
     {"sceNpCheckCallback", "libSceNpManager", (void*)np_check_callback, 0},
     {"sceNpGetState", "libSceNpManager", (void*)np_get_state, 0},
     {"sceNpGetNpId", "libSceNpManager", (void*)np_get_np_id, 0},

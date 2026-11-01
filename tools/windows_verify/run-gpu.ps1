@@ -19,7 +19,8 @@ param(
     [string]$UserDir = '',          # persistent save/user folder for the scripted step (default: a fresh folder inside the run)
     [string]$HeapGuardExe = '',     # optional heap-guard diagnostic build (bin\<name>): one extra short game step where every host heap overflow / use-after-free / bad free is trapped at the offending instruction
     [int]$HeapGuardSeconds = 60,
-    [string]$ExeName = ''     # default: the newest bin\jstars-boot-gpu*.exe (recorded in binaries-sha256.txt)
+    [string]$ExeName = '',    # default: the newest bin\jstars-boot-gpu*.exe (recorded in binaries-sha256.txt)
+    [string]$ExtraArgs = ''   # appended to the scripted game step, e.g. '--online --trace-net --experiment online-probe'
 )
 $ErrorActionPreference = 'Continue'
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -91,6 +92,7 @@ try {
     if ($NoAudio) { $padArg += ' --no-audio' }
     $adir = Join-Path $run 'audio'; New-Item -ItemType Directory -Force $adir | Out-Null
     $padArg += " --dump-audio `"$adir\game`""   # <prefix>.portN.wav: stereo S16 downmix of what the game submitted (first 100 s per port)
+    if ($ExtraArgs) { $padArg += " $ExtraArgs" }
     $cnt = if ($NoCount) { '' } else { '--count-imports --trace-draws 3000,60' }
     $udir = if ($UserDir) { $UserDir } else { "$run\user" }
     $c = Step 'game-gpu' "--boot `"$boot`" --game-root `"$Game`" --user-dir `"$udir`" --log `"$run\game-gpu.log`" --gpu-dir `"$gdir`" --capture-dir `"$run\captures`" --capture-flips $CaptureFlips --capture-interval $CaptureInterval --capture-max $CaptureMax $padArg --sample-threads $SampleEvery $cnt --max-seconds $GpuSeconds" ($GpuSeconds + 60)

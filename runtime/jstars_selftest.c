@@ -17,6 +17,11 @@ static int g_fail, g_checks;
 
 static int once_hits;
 static void GUEST_ABI once_fn(void) { ++once_hits; }
+static int np_cb_calls, np_cb_user_id, np_cb_state; static void* np_cb_userdata; static char np_cb_name[20];
+static void GUEST_ABI np_state_cb(int user_id, uint32_t state, void* np_id, void* userdata) {
+    ++np_cb_calls; np_cb_user_id = user_id; np_cb_state = (int)state; np_cb_userdata = userdata;
+    if (np_id) memcpy(np_cb_name, np_id, sizeof np_cb_name);
+}
 typedef struct { uint16_t year, month, day, hour, minute, second; uint32_t microsecond; } RtcDateTime;
 
 static void* g_cm; static void* g_cc; static volatile int g_flag, g_woken;
@@ -401,6 +406,39 @@ int rt_selftest_host(const char* scratch_dir) {
             F(int, "sceNetSocketClose", (int))(b1);
         }
         rt_net_configure(0, 0);
+    }
+
+    // ---- NP sign-in state callback -----------------------------------------------------------------------
+    // The console delivers the state from inside sceNpCheckCallback, on the game's own thread. These checks
+    // use a real guest-ABI callback, so they also cover the call across the boundary.
+    {
+        int marker = 0;
+        CHECK(F(int, "sceNpRegisterStateCallback", (void*, void*))(NULL, &marker) == (int)0x80550003,
+              "np: registering a NULL state callback is an INVALID_ARGUMENT");
+        rt_net_configure(1, 0);
+        CHECK(F(int, "sceNpRegisterStateCallback", (void*, void*))((void*)np_state_cb, &marker) == 0,
+              "np: a state callback is registered");
+        CHECK(F(int, "sceNpRegisterStateCallback", (void*, void*))((void*)np_state_cb, &marker) == (int)0x80550008,
+              "np: registering a second state callback reports ALREADY_REGISTERED");
+        np_cb_calls = 0;
+        CHECK(F(int, "sceNpCheckCallback", (void))() == 0 && np_cb_calls == 1,
+              "np: sceNpCheckCallback delivers the pending state once");
+        CHECK(np_cb_state == 2 && np_cb_user_id == 1 && np_cb_userdata == &marker,
+              "np: the callback receives SIGNED_IN, the local user id and its own userdata");
+        CHECK(np_cb_name[0] != 0, "np: the callback receives an NP id carrying the local online id");
+        CHECK(F(int, "sceNpCheckCallback", (void))() == 0 && np_cb_calls == 1,
+              "np: a second sceNpCheckCallback does not repeat an unchanged state");
+        int st2 = -1;
+        CHECK(F(int, "sceNpGetState", (int, int*))(1, &st2) == 0 && st2 == 2, "np: online, sceNpGetState reports SIGNED_IN");
+        char online_id[20];
+        memset(online_id, 0, sizeof online_id);
+        CHECK(F(int, "sceNpGetOnlineId", (int, void*))(1, online_id) == 0 && online_id[0] != 0 && online_id[16] == 0,
+              "np: the online id is returned, 16 characters and terminated");
+        CHECK(F(int, "sceNpGetOnlineId", (int, void*))(7, online_id) == (int)0x80550007, "np: an unknown user reports USER_NOT_FOUND");
+        CHECK(F(int, "sceNpUnregisterStateCallback", (void))() == 0, "np: the state callback is unregistered");
+        rt_net_configure(0, 0);
+        CHECK(F(int, "sceNpGetState", (int, int*))(1, &st2) == 0 && st2 == 1, "np: offline, sceNpGetState reports SIGNED_OUT");
+        CHECK(F(int, "sceNpGetOnlineId", (int, void*))(1, online_id) == (int)0x80550006, "np: offline, the online id reports SIGNED_OUT");
     }
 
     (void)fsbad;

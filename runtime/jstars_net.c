@@ -23,7 +23,6 @@
 #ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#include <iphlpapi.h>
 typedef int socklen_t;
 #define NET_LAST_ERROR() WSAGetLastError()
 #define NET_WOULDBLOCK WSAEWOULDBLOCK
