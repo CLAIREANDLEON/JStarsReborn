@@ -41,23 +41,12 @@ static int GUEST_ABI ime_init(void* param, void* ext) { (void)param; (void)ext; 
 static int GUEST_ABI ime_status(void) { return g_dlg[D_IME]; }
 static int GUEST_ABI ime_term(void) { g_dlg[D_IME] = DLG_NONE; return 0; }
 
-// ---- network: no interface is up -------------------------------------------------------------------------------
-static __thread int t_neterrno;
-static int* GUEST_ABI net_errno_loc(void) { return &t_neterrno; }
-static int g_net_pool;
-static int GUEST_ABI net_init(void) { return 0; }
-static int GUEST_ABI net_term(void) { return 0; }
-static int GUEST_ABI net_pool_create(const char* name, int size, int flags) { (void)size; (void)flags; rt_logf("sceNetPoolCreate('%s') -> pool %d (bookkeeping only)", name ? name : "", g_net_pool + 1); return ++g_net_pool; }
-static int GUEST_ABI net_pool_destroy(int id) { (void)id; return 0; }
-static uint16_t GUEST_ABI net_htons(uint16_t v) { return (uint16_t)((v << 8) | (v >> 8)); }
-static int GUEST_ABI net_inet_pton(int af, const char* src, void* dst) { return af == 2 ? inet_pton(AF_INET, src, dst) : 0; }
-static int GUEST_ABI net_socket_fail(void) { t_neterrno = 50; return -1; }    // ENETDOWN: no interface
-static int GUEST_ABI net_badf(void) { t_neterrno = 9; return -1; }            // no socket can exist, so any socket operation is on a bad descriptor
+// ---- network ---------------------------------------------------------------------------------------------------
+// Sockets and the network status library moved to jstars_net.c (real host UDP sockets behind --online; the default
+// is still the offline answer this runtime has always given).
 
-static int GUEST_ABI netctl_init(void) { return 0; }
-static void GUEST_ABI netctl_term(void) {}
-static int GUEST_ABI netctl_get_state(int* state) { if (!state) return (int)0x80412107; *state = 0; return 0; } // DISCONNECTED
-static int GUEST_ABI netctl_not_connected(void) { return (int)0x80412108; }
+// ---- libSceSsl / libSceHttp: library handles only. Nothing here opens a TLS or HTTP connection; the game's online
+// path does not need them for a match, and anything that would contact a service stays unimplemented.
 static int g_ssl, g_http;
 static int GUEST_ABI ssl_init(size_t pool) { (void)pool; return ++g_ssl; }
 static int GUEST_ABI ssl_term(int id) { (void)id; return 0; }
@@ -71,8 +60,38 @@ static int GUEST_ABI np_set_title_id(const void* id, const void* secret) { (void
 static int GUEST_ABI np_set_restriction(const void* r) { (void)r; return 0; }
 static int GUEST_ABI np_register_state_cb(void* cb, void* user) { (void)cb; (void)user; g_np_cb_registered = 1; return 0; } // never invoked: the state never changes
 static int GUEST_ABI np_check_callback(void) { return 0; }
-static int GUEST_ABI np_get_state(int user, int* state) { if (!state) return NP_INVALID_ARG; if (user != 1) return NP_USER_NOT_FOUND; *state = 1; return 0; } // SIGNED_OUT
-static int GUEST_ABI np_signed_out(void) { return NP_SIGNED_OUT; }
+// OrbisNpState: 0 not signed up, 1 signed out, 2 signed in. The default is signed out; the online-probe experiment
+// reports signed in so one run can record what the game tries next. That answer is a probe, not an implementation.
+static int GUEST_ABI np_get_state(int user, int* state) {
+    if (!state) return NP_INVALID_ARG;
+    if (user != 1) return NP_USER_NOT_FOUND;
+    *state = rt_experiment("online-probe") ? 2 : 1;
+    return 0;
+}
+
+// Local identity for the probe: the same name the console user service reports (JSTARS_USER_NAME, default "Player").
+// SceNpOnlineId is 16 characters + terminator + 3 unused bytes; SceNpId adds opt[8] and reserved[8] (36 bytes).
+static void local_online_id(char out[20]) {
+    const char* n = getenv("JSTARS_USER_NAME");
+    if (!n || !*n) n = "Player";
+    memset(out, 0, 20);
+    for (int i = 0; i < 16 && n[i]; ++i) out[i] = n[i];
+}
+static int GUEST_ABI np_get_online_id(int user, void* online_id) {
+    if (!online_id) return NP_INVALID_ARG;
+    if (user != 1) return NP_USER_NOT_FOUND;
+    if (!rt_experiment("online-probe")) return NP_SIGNED_OUT;
+    local_online_id((char*)online_id);
+    return 0;
+}
+static int GUEST_ABI np_get_np_id(int user, void* np_id) {
+    if (!np_id) return NP_INVALID_ARG;
+    if (user != 1) return NP_USER_NOT_FOUND;
+    if (!rt_experiment("online-probe")) return NP_SIGNED_OUT;
+    memset(np_id, 0, 36);
+    local_online_id((char*)np_id);
+    return 0;
+}
 
 
 // ---- libSceSharePlay: this machine never has a Share Play session, so the connection is permanently DORMANT -------------
@@ -259,26 +278,6 @@ const HostSymbol platform_symbols[] = {
     {"sceNpProfileDialogInitialize", "libSceNpProfileDialog", (void*)profile_init, 0},
     {"sceNpProfileDialogTerminate", "libSceNpProfileDialog", (void*)profile_term, 0},
     {"sceNpProfileDialogUpdateStatus", "libSceNpProfileDialog", (void*)profile_status, 0},
-    {"sceNetInit", "libSceNet", (void*)net_init, 0},
-    {"sceNetTerm", "libSceNet", (void*)net_term, 0},
-    {"sceNetPoolCreate", "libSceNet", (void*)net_pool_create, 0},
-    {"sceNetPoolDestroy", "libSceNet", (void*)net_pool_destroy, 0},
-    {"sceNetErrnoLoc", "libSceNet", (void*)net_errno_loc, 0},
-    {"sceNetHtons", "libSceNet", (void*)net_htons, 0},
-    {"sceNetInetPton", "libSceNet", (void*)net_inet_pton, 0},
-    {"sceNetSocket", "libSceNet", (void*)net_socket_fail, 0},
-    {"sceNetSetsockopt", "libSceNet", (void*)net_badf, 0},
-    {"sceNetBind", "libSceNet", (void*)net_badf, 0},
-    {"sceNetRecvfrom", "libSceNet", (void*)net_badf, 0},
-    {"sceNetSendto", "libSceNet", (void*)net_badf, 0},
-    {"sceNetShutdown", "libSceNet", (void*)net_badf, 0},
-    {"sceNetSocketClose", "libSceNet", (void*)net_badf, 0},
-    {"sceNetSocketAbort", "libSceNet", (void*)net_badf, 0},
-    {"sceNetCtlInit", "libSceNetCtl", (void*)netctl_init, 0},
-    {"sceNetCtlTerm", "libSceNetCtl", (void*)netctl_term, 0},
-    {"sceNetCtlGetState", "libSceNetCtl", (void*)netctl_get_state, 0},
-    {"sceNetCtlGetInfo", "libSceNetCtl", (void*)netctl_not_connected, 0},
-    {"sceNetCtlGetNatInfo", "libSceNetCtl", (void*)netctl_not_connected, 0},
     {"sceSslInit", "libSceSsl", (void*)ssl_init, 0},
     {"sceSslTerm", "libSceSsl", (void*)ssl_term, 0},
     {"sceHttpInit", "libSceHttp", (void*)http_init, 0},
@@ -288,7 +287,7 @@ const HostSymbol platform_symbols[] = {
     {"sceNpRegisterStateCallback", "libSceNpManager", (void*)np_register_state_cb, 0},
     {"sceNpCheckCallback", "libSceNpManager", (void*)np_check_callback, 0},
     {"sceNpGetState", "libSceNpManager", (void*)np_get_state, 0},
-    {"sceNpGetNpId", "libSceNpManager", (void*)np_signed_out, 0},
-    {"sceNpGetOnlineId", "libSceNpManager", (void*)np_signed_out, 0},
+    {"sceNpGetNpId", "libSceNpManager", (void*)np_get_np_id, 0},
+    {"sceNpGetOnlineId", "libSceNpManager", (void*)np_get_online_id, 0},
 };
 const size_t platform_symbol_count = sizeof platform_symbols / sizeof *platform_symbols;

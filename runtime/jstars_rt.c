@@ -19,6 +19,7 @@ extern const HostSymbol av_symbols[]; extern const size_t av_symbol_count;
 extern const HostSymbol fs_symbols[]; extern const size_t fs_symbol_count;
 extern const HostSymbol evf_symbols[]; extern const size_t evf_symbol_count;
 extern const HostSymbol platform_symbols[]; extern const size_t platform_symbol_count;
+extern const HostSymbol net_symbols[]; extern const size_t net_symbol_count;
 extern const HostSymbol avplayer_symbols[]; extern const size_t avplayer_symbol_count;
 extern const HostSymbol savedata_symbols[]; extern const size_t savedata_symbol_count;
 
@@ -89,7 +90,7 @@ static size_t g_entry_count;
 static void build_index(void) {
     const SymbolSet sets[] = {{kernel_symbols, &kernel_symbol_count}, {memory_symbols, &memory_symbol_count}, {system_symbols, &system_symbol_count},
                               {input_symbols, &input_symbol_count}, {av_symbols, &av_symbol_count},
-                              {fs_symbols, &fs_symbol_count}, {evf_symbols, &evf_symbol_count}, {platform_symbols, &platform_symbol_count}, {avplayer_symbols, &avplayer_symbol_count},
+                              {fs_symbols, &fs_symbol_count}, {evf_symbols, &evf_symbol_count}, {platform_symbols, &platform_symbol_count}, {net_symbols, &net_symbol_count}, {avplayer_symbols, &avplayer_symbol_count},
                               {savedata_symbols, &savedata_symbol_count}};
     size_t total = 0;
     for (size_t k = 0; k < sizeof sets / sizeof *sets; ++k) total += *sets[k].count;

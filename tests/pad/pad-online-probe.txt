@@ -1,0 +1,18 @@
+# Automated test input (NOT a controller; every transition is logged as "SCRIPTED TEST INPUT"). Seconds count from the
+# first scePadOpen. Same opening as pad-free-battle.txt (title -> save prompt -> Yes -> OK -> main menu), then FOUR
+# DOWN presses to reach ONLINE BATTLE (menu order seen in the 0.3.0-q captures and the 0.4.0 launcher session:
+# J-Adventure, Victory Road, Arcade, Free Battle, Online Battle, J-Customize, J-Point Shop, Gallery, Options) and
+# CROSS to open it. After that a slow CROSS cadence accepts whatever the game offers, and a CIRCLE at the end backs
+# out, so a run records the whole online entry path. Intended for --experiment online-probe.
+at 40 press CROSS for 200
+at 48 press LEFT for 200
+at 50 press CROSS for 200
+at 62 press CROSS for 200
+at 72 press DOWN for 200
+at 75 press DOWN for 200
+at 78 press DOWN for 200
+at 81 press DOWN for 200
+at 86 press CROSS for 200
+every 8000 from 94 to 150 press CROSS for 200
+at 160 press CIRCLE for 200
+at 170 press CIRCLE for 200

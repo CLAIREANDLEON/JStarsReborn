@@ -274,6 +274,86 @@ int rt_selftest_host(const char* scratch_dir) {
         CHECK(F(int, "sceNpTrophyUnlockTrophy", (int, int, int, int*))(99, th, 1, &plat) == (int)0x80551609, "trophy: unlock with a bad context is INVALID_CONTEXT");
         F(int, "sceNpTrophyDestroyHandle", (int))(th); F(int, "sceNpTrophyDestroyContext", (int))(ctx);
     }
+    // ---- network (jstars_net.c) ----------------------------------------------------------------------------
+    // The default is offline, so the first group checks the offline answers; then the layer is switched on and the
+    // sockets are exercised against the loopback interface. Nothing contacts any outside host.
+    {
+        typedef struct { uint8_t len, family; uint16_t port, pad_hi; uint16_t vport; char zero[6]; } SelfAddrProbe;
+        (void)sizeof(SelfAddrProbe);
+        struct GuestAddr { uint8_t len, family; uint16_t port; uint32_t addr; uint16_t vport; char zero[6]; } a, from;
+        int* err = F(int*, "sceNetErrnoLoc", (void))();
+        CHECK(err != NULL, "net: sceNetErrnoLoc returns a per-thread errno cell");
+        CHECK(F(uint16_t, "sceNetHtons", (uint16_t))(0x1234) == 0x3412, "net: htons swaps byte order");
+        CHECK(F(int, "sceNetInit", (void))() == 0, "net: library initializes");
+
+        rt_net_configure(0, 0);
+        CHECK(F(int, "sceNetSocket", (const char*, int, int, int))("off", 2, 2, 17) == -1 && *err == 50,
+              "net: offline (no --online) socket creation reports ENETDOWN");
+        int st = -1;
+        CHECK(F(int, "sceNetCtlGetState", (int*))(&st) == 0 && st == 0, "net: offline NetCtl reports DISCONNECTED");
+
+        rt_net_configure(1, 0);
+        int s = F(int, "sceNetSocket", (const char*, int, int, int))("selftest", 2, 2, 17);
+        CHECK(s >= 1, "net: online datagram socket is created");
+        CHECK(F(int, "sceNetSocket", (const char*, int, int, int))("bad-family", 28, 2, 17) == -1 && *err == 47,
+              "net: an unsupported address family reports EAFNOSUPPORT");
+        CHECK(F(int, "sceNetSocket", (const char*, int, int, int))("stream", 2, 1, 6) == -1 && *err == 43,
+              "net: a stream socket reports EPROTONOSUPPORT (only datagram sockets exist)");
+        CHECK(F(int, "sceNetBind", (int, const void*, int))(9999, &a, sizeof a) == -1 && *err == 9,
+              "net: an operation on an unknown socket reports EBADF");
+
+        memset(&a, 0, sizeof a);
+        a.len = sizeof a; a.family = 2; a.port = 0; a.addr = F(uint32_t, "sceNetHtonl", (uint32_t))(0x7f000001); // 127.0.0.1
+        CHECK(F(int, "sceNetBind", (int, const void*, int))(s, &a, sizeof a) == 0, "net: socket binds to the loopback address");
+        int nbio = 1;
+        CHECK(F(int, "sceNetSetsockopt", (int, int, int, const void*, int))(s, 0xFFFF, 0x1200, &nbio, sizeof nbio) == 0,
+              "net: SO_NBIO is accepted");
+        char buf[64];
+        CHECK(F(int, "sceNetRecvfrom", (int, void*, size_t, int, void*, int*))(s, buf, sizeof buf, 0, NULL, NULL) == -1 && *err == 35,
+              "net: a non-blocking receive with nothing queued reports EAGAIN (the console's value 35)");
+
+        // Send to this socket's own address and read the datagram back, which also checks address translation.
+        int alen = sizeof a;
+        struct GuestAddr self_addr;
+        memset(&self_addr, 0, sizeof self_addr);
+        {
+            // sceNetBind with port 0 leaves the real port to the host, so ask a second socket to talk to this one by
+            // re-binding a known port instead: port 0 cannot be addressed.
+            int s2 = F(int, "sceNetSocket", (const char*, int, int, int))("selftest-peer", 2, 2, 17);
+            CHECK(s2 >= 1, "net: a second socket is created");
+            struct GuestAddr fixed;
+            memset(&fixed, 0, sizeof fixed);
+            fixed.len = sizeof fixed; fixed.family = 2;
+            fixed.port = F(uint16_t, "sceNetHtons", (uint16_t))(48731);
+            fixed.addr = F(uint32_t, "sceNetHtonl", (uint32_t))(0x7f000001);
+            int bound = F(int, "sceNetBind", (int, const void*, int))(s2, &fixed, sizeof fixed);
+            if (bound == 0) {
+                const char msg[] = "jstars-selftest";
+                int sent = F(int, "sceNetSendto", (int, const void*, size_t, int, const void*, int))(s, msg, sizeof msg, 0, &fixed, sizeof fixed);
+                CHECK(sent == (int)sizeof msg, "net: a datagram is sent to the peer socket");
+                int got = -1;
+                for (int tries = 0; tries < 200 && got < 0; ++tries) {
+                    int fl = sizeof from;
+                    got = F(int, "sceNetRecvfrom", (int, void*, size_t, int, void*, int*))(s2, buf, sizeof buf, 0x80, &from, &fl);
+                    if (got < 0) rt_sleep_ms_for_selftest(1);
+                }
+                CHECK(got == (int)sizeof msg && !memcmp(buf, msg, sizeof msg), "net: the peer socket receives the same datagram");
+                CHECK(from.family == 2 && from.addr == fixed.addr, "net: the sender address is translated back into the console layout");
+            } else {
+                rt_logf("selftest: UDP port 48731 could not be bound on this host; the loopback datagram check was skipped");
+            }
+            F(int, "sceNetSocketClose", (int))(s2);
+        }
+        (void)alen; (void)self_addr;
+        CHECK(F(int, "sceNetSocketAbort", (int, int))(s, 0) == 0, "net: socketAbort is accepted for an open socket");
+        CHECK(F(int, "sceNetSocketClose", (int))(s) == 0, "net: socket closes");
+        CHECK(F(int, "sceNetSocketClose", (int))(s) == -1 && *err == 9, "net: closing the same socket twice reports EBADF");
+        st = -1;
+        CHECK(F(int, "sceNetCtlGetState", (int*))(&st) == 0 && (st == 3 || st == 0),
+              "net: online NetCtl reports IP obtained (or disconnected when this host has no address)");
+        rt_net_configure(0, 0);
+    }
+
     (void)fsbad;
     rt_logf("selftest-host: %d checks, %d failed", g_checks, g_fail);
     return g_fail ? 1 : 0;

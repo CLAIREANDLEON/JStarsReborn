@@ -104,9 +104,33 @@ const char* rt_locate(uintptr_t a, char* out, size_t n) {
 }
 
 // ---- unresolved import traps -----------------------------------------------------------------
-[[noreturn]] static void GUEST_ABI unresolved(uint32_t index, uintptr_t arg0) {
+// The trap is reached by a tail jump, so returning from here returns to the game's caller with this value in rax.
+// By default nothing returns: an unimplemented import stops the run (exit 3) at its exact call site. The
+// `online-probe` experiment is the one exception, for mapping the online path in a single run (docs/EXPERIMENTS.md).
+static const char* import_library(uint32_t index) {
+    const char* p = strchr(import_names[index], '#');
+    return p ? p + 1 : import_names[index];
+}
+static int is_online_library(const char* lib) {
+    return !strncmp(lib, "libSceNp", 8) || !strncmp(lib, "libSceNet", 9) || !strcmp(lib, "libSceSsl") ||
+           !strcmp(lib, "libSceHttp") || !strcmp(lib, "libSceRudp");
+}
+static uint8_t* g_probe_seen;   // one byte per import: how many times this import was already reported
+static int64_t GUEST_ABI unresolved(uint32_t index, uintptr_t arg0) {
     char where[96];
     uintptr_t ret = (uintptr_t)__builtin_return_address(0);
+    const char* lib = import_library(index);
+    if (g_probe_seen && is_online_library(lib)) {
+        // Diagnosis only: report the console's "signed out" error instead of stopping, so one run records the whole
+        // sequence the game tries. The answer is NOT a claim that this import behaves correctly.
+        if (g_probe_seen[index] < 3) {
+            g_probe_seen[index]++;
+            rt_logf("ONLINE PROBE (experiment, not an implementation) %s [%s] called from %s (first arg 0x%" PRIxPTR ") -> 0x80550006%s",
+                    import_names[index], rt_import_name(index), locate(ret, where, sizeof where), arg0,
+                    g_probe_seen[index] == 3 ? " (further calls are not logged)" : "");
+        }
+        return (int64_t)(int32_t)0x80550006; // SCE_NP_ERROR_SIGNED_OUT
+    }
     rt_logf("UNIMPLEMENTED IMPORT #%u %s [%s] called from %s (first arg 0x%" PRIxPTR ") stage=%s", index,
             import_names[index], rt_import_name(index), locate(ret, where, sizeof where), arg0,
             g_stage == 1 ? "module-init" : g_stage == 2 ? "entry" : "load");
@@ -256,6 +280,7 @@ int main(int argc, char** argv) {
     }
 #endif
     const char *boot = NULL, *logpath = "jstars-boot.log", *gpu_dir = NULL, *capture_dir = NULL, *game_root = NULL, *user_dir = NULL, *pad_script = NULL, *experiments = NULL;
+    int online = 0, trace_net = 0;
     int check_only = 0, selftest = 0, audit_dump = 0, stop_at_gnm = 0, win_w = 1280, win_h = 720;
     for (int i = 1; i < argc; ++i) {
         if (!strcmp(argv[i], "--version")) { printf("JStarsReborn runtime %s\n", JSTARS_RUNTIME_VERSION); return 0; }
@@ -282,13 +307,15 @@ int main(int argc, char** argv) {
         else if (!strcmp(argv[i], "--pad-none")) rt_input_set_none(1);
         else if (!strcmp(argv[i], "--count-imports")) rt_thunk_set_counting(1);
         else if (!strcmp(argv[i], "--experiment") && i + 1 < argc) experiments = argv[++i];
+        else if (!strcmp(argv[i], "--online")) online = 1;
+        else if (!strcmp(argv[i], "--trace-net")) trace_net = 1;
         else if (!strcmp(argv[i], "--trace-draws") && i + 1 < argc) { ++i; os_setenv("JGPU_TRACE_DRAWS", argv[i]); }
         else if (!strcmp(argv[i], "--capture-flips") && i + 1 < argc) g_capture_flips = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--capture-interval") && i + 1 < argc) g_capture_interval = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--capture-max") && i + 1 < argc) g_capture_max = atoi(argv[++i]);
         else { fprintf(stderr, "usage: %s --boot boot-linked.bin [--log file] [--check-imports] [--stop-at-first-gnm] [--selftest-host] [--audit-dump]\n"
                                "       [--game-root dir] [--user-dir dir] [--gpu-dir dir] [--capture-dir dir] [--window WxH] [--max-seconds n] [--capture-flips n]\n"
-                               "       [--capture-interval flips] [--capture-max n] [--pad-script file] [--no-keyboard] [--no-audio] [--volume 0-100] [--dump-audio prefix] [--pad-none] [--sample-threads seconds] [--count-imports] [--trace-draws first,count] [--experiment names]\n", argv[0]); return 1; }
+                               "       [--capture-interval flips] [--capture-max n] [--pad-script file] [--no-keyboard] [--no-audio] [--volume 0-100] [--dump-audio prefix] [--pad-none] [--sample-threads seconds] [--count-imports] [--trace-draws first,count] [--experiment names] [--online] [--trace-net]\n", argv[0]); return 1; }
     }
     if (audit_dump) { extern void rt_audit_dump(void*); rt_audit_dump(stdout); return 0; }
     if (selftest) { rt_log_open(logpath); extern int rt_selftest_host(const char*); char sd[4096]; snprintf(sd, sizeof sd, "%s.selftest", logpath); return rt_selftest_host(sd); }
@@ -297,6 +324,9 @@ int main(int argc, char** argv) {
     rt_logf("JStarsReborn runtime %s", JSTARS_RUNTIME_VERSION);
     if (pad_script) rt_input_load_script(pad_script);
     if (experiments) rt_set_experiments(experiments);
+    rt_net_configure(online, trace_net);
+    if (online) rt_logf("--online: the network layer is active. The game gets real UDP sockets on this host; "
+                        "no PlayStation Network service is contacted and no account is used.");
     {
         char udir[4096];
         if (!user_dir) { snprintf(udir, sizeof udir, "%s.user", logpath); user_dir = udir; }
@@ -401,6 +431,7 @@ int main(int argc, char** argv) {
     rt_logf("image mapped at %p (%" PRIu64 " bytes, %" PRIu64 " segments, %" PRIu64 " relocations, %" PRIu64 " imports)",
             (void*)image, size, ns, nr, import_count);
 
+    if (rt_experiment("online-probe")) g_probe_seen = calloc(import_count ? import_count : 1, 1);
     for (uint64_t i = 0; i < import_count; ++i) {
         uint8_t* t = traps + i * 32;
         uintptr_t h = (uintptr_t)unresolved;

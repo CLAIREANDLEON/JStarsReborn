@@ -2,7 +2,7 @@
 # The Windows host layer is a separate port of jstars_loader.c's OS calls (see docs/ADR-005).
 CC ?= gcc
 CFLAGS ?= -std=gnu2x -O2 -g -Wall -Wextra
-SRC = jstars_loader.c jstars_rt.c jstars_kernel.c jstars_memory.c jstars_system.c jstars_input.c jstars_av.c jstars_os.c jstars_gpu_host.c jstars_thunk.c jstars_audit.c jstars_selftest.c jstars_fs.c jstars_evf.c jstars_platform.c jstars_savedata.c jstars_avplayer.c jstars_audiohost.c
+SRC = jstars_loader.c jstars_net.c jstars_rt.c jstars_kernel.c jstars_memory.c jstars_system.c jstars_input.c jstars_av.c jstars_os.c jstars_gpu_host.c jstars_thunk.c jstars_audit.c jstars_selftest.c jstars_fs.c jstars_evf.c jstars_platform.c jstars_savedata.c jstars_avplayer.c jstars_audiohost.c
 jstars-boot: $(SRC) jstars_rt.h
 	$(CC) $(CFLAGS) -o $@ $(SRC) -lpthread -lm
 clean:

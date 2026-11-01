@@ -82,5 +82,10 @@ void rt_audio_set_device_enabled(int on);    // --no-audio clears it: AudioOut t
 void rt_audio_flush_dump(void);              // before process exit: finalize the --dump-audio WAV headers
 void rt_audio_set_volume(int percent);       // --volume 0..100: output gain applied after the meter and the WAV dump (default 100)
 void rt_audio_set_dump(const char* prefix);  // --dump-audio: per-port stereo S16 WAV of what the game submitted
+// Network layer (jstars_net.c). Off by default: without --online the game gets the offline answers.
+void rt_net_configure(int online, int trace);
+int rt_net_online(void);
+void rt_net_report(void);
+void rt_sleep_ms_for_selftest(int ms);
 void rt_set_experiments(const char* list);   // --experiment a,b: diagnosis-only platform answers (logged loudly)
 int rt_experiment(const char* name);
