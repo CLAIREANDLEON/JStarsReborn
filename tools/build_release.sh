@@ -43,7 +43,7 @@ sed -n '/^This software is available under 2 licenses/,$p' "$v/stb/stb_image_wri
 sed -n '1,25p' "$v/renderdoc/renderdoc_app.h" > "$rel/LICENSES/third-party/renderdoc_app-LICENSE.txt" || true
 
 echo "== source"
-tar -C "$here/.." --exclude='JStarsReborn/build' --exclude='JStarsReborn/runtime/*.exe' --exclude='JStarsReborn/runtime/jstars-boot' \
+tar -C "$here/.." --exclude-vcs --exclude='JStarsReborn/.git*' --exclude='JStarsReborn/build' --exclude='JStarsReborn/runtime/*.exe' --exclude='JStarsReborn/runtime/jstars-boot' \
     --exclude='JStarsReborn/runtime/jstars-boot-gpu' --exclude='JStarsReborn/runtime/*.log' --exclude='JStarsReborn/runtime/*.selftest' \
     --exclude='JStarsReborn/runtime/obj*' --exclude='JStarsReborn/JStarsReborn.exe' --exclude='JStarsReborn/JStarsSetup.exe' \
     --exclude='JStarsReborn/tools/vkprobe/vkprobe.exe' --exclude='JStarsReborn/evidence' --exclude='*/__pycache__' \
