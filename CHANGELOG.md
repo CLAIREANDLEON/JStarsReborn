@@ -1,6 +1,6 @@
 # Change log
 
-## 0.4.0 launcher release candidate (unpublished) — 2026-11-01
+## 0.4.0 — 2026-11-01
 
 **New launcher `JStarsReborn.exe`** around the verified runtime of checkpoint 0.3.0 (build w), which is kept unchanged as the
 baseline (`/mnt/user-data/outputs/jstars-0.3.0-package/`, `evidence/windows-gpu-0.3.0/`). The 0.2.2 `JStarsReborn.exe`

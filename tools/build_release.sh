@@ -2,7 +2,7 @@
 # Builds the JStarsReborn release folder and ZIP (Windows x64, cross-compiled on Linux with mingw-w64).
 #   tools/build_release.sh <gpu-lib.a> [out-dir]
 # <gpu-lib.a>: libjstars_gpu.a built from gpu/ for Windows (see docs/BUILD_RELEASE.md).
-# Output: <out-dir>/JStarsReborn-<version>/ and <out-dir>/JStarsReborn-<version>-win64.zip. Nothing is published.
+# Output: <out-dir>/JStarsReborn-<version>/ and <out-dir>/JStarsReborn-<version>-win64.zip. The script only builds; it uploads nothing.
 set -euo pipefail
 here=$(cd "$(dirname "$0")/.." && pwd)
 gpu_lib=$(realpath "${1:?path to the Windows libjstars_gpu.a}")
@@ -60,7 +60,7 @@ echo "== version and checksums"
     tmpd=$(mktemp -d); tar -xzf "$rel/source/JStarsReborn-$version-source.tar.gz" -C "$tmpd"
     echo "source tree digest: $(cd "$tmpd/JStarsReborn" && find . -type f | LC_ALL=C sort | xargs -d '\n' sha256sum | sha256sum | cut -c1-16) (sha256 of the sorted per-file sha256 list of the source archive)"
     rm -rf "$tmpd"
-    echo "unpublished build: not a release; nothing has been published"
+    echo "contains no game files, keys or firmware; needs your own decrypted CUSA01593 01.02 dump"
 } > "$rel/VERSION.txt"
 (cd "$rel" && find . -type f ! -name SHA256SUMS.txt | LC_ALL=C sort | sed 's#^\./##' | xargs -d '\n' sha256sum > SHA256SUMS.txt)
 (cd "$out" && python3 - "$version" <<'PY'

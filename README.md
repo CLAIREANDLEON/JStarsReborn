@@ -7,7 +7,7 @@ checks and prepares the dump and starts the game.
 
 No game files, keys, firmware or decryption tools are included or downloaded. The game folder is only ever read.
 
-**State (0.4.0, unpublished):** on the owner's Windows 11 PC the game boots, shows the title, creates and loads its own
+**State (0.4.0):** on the owner's Windows 11 PC the game boots, shows the title, creates and loads its own
 save data, and runs the menus and Free Battle matches, driven by scripted test input and by a live controller. Movies are
 skipped (no decoder), trophies are an empty set, and online features are not available. Whether it plays well and sounds
 right has **not** been confirmed by a human tester yet. See [CHANGELOG.md](CHANGELOG.md) for the full list of known issues.
