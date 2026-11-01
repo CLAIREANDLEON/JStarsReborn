@@ -281,6 +281,7 @@ int rt_selftest_host(const char* scratch_dir) {
         typedef struct { uint8_t len, family; uint16_t port, pad_hi; uint16_t vport; char zero[6]; } SelfAddrProbe;
         (void)sizeof(SelfAddrProbe);
         struct GuestAddr { uint8_t len, family; uint16_t port; uint32_t addr; uint16_t vport; char zero[6]; } a, from;
+        _Static_assert(sizeof(struct GuestAddr) == 16, "SceNetSockaddrIn is 16 bytes");
         int* err = F(int*, "sceNetErrnoLoc", (void))();
         CHECK(err != NULL, "net: sceNetErrnoLoc returns a per-thread errno cell");
         CHECK(F(uint16_t, "sceNetHtons", (uint16_t))(0x1234) == 0x3412, "net: htons swaps byte order");
@@ -351,6 +352,54 @@ int rt_selftest_host(const char* scratch_dir) {
         st = -1;
         CHECK(F(int, "sceNetCtlGetState", (int*))(&st) == 0 && (st == 3 || st == 0),
               "net: online NetCtl reports IP obtained (or disconnected when this host has no address)");
+
+        // P2P (virtual port) sockets: this game asks for socket type 6, where several logical channels share one
+        // real UDP port and are told apart by a virtual port. Two channels are opened on the same port here and
+        // each must receive only what was addressed to it.
+        {
+            const uint16_t REAL_PORT = 48737;
+            int a1 = F(int, "sceNetSocket", (const char*, int, int, int))("p2p-a", 2, 6, 0);
+            int b1 = F(int, "sceNetSocket", (const char*, int, int, int))("p2p-b", 2, 6, 0);
+            CHECK(a1 >= 1 && b1 >= 1 && a1 != b1, "net: two P2P sockets are created");
+            struct GuestAddr pa, pb;
+            memset(&pa, 0, sizeof pa); memset(&pb, 0, sizeof pb);
+            pa.len = pb.len = sizeof pa; pa.family = pb.family = 2;
+            pa.port = pb.port = F(uint16_t, "sceNetHtons", (uint16_t))(REAL_PORT);
+            pa.addr = pb.addr = F(uint32_t, "sceNetHtonl", (uint32_t))(0x7f000001);
+            pa.vport = F(uint16_t, "sceNetHtons", (uint16_t))(100);
+            pb.vport = F(uint16_t, "sceNetHtons", (uint16_t))(200);
+            int ba = F(int, "sceNetBind", (int, const void*, int))(a1, &pa, sizeof pa);
+            int bb = F(int, "sceNetBind", (int, const void*, int))(b1, &pb, sizeof pb);
+            if (ba == 0 && bb == 0) {
+                CHECK(1, "net: two P2P sockets share one real UDP port with different virtual ports");
+                struct GuestAddr dup;
+                memcpy(&dup, &pa, sizeof dup);
+                int c1 = F(int, "sceNetSocket", (const char*, int, int, int))("p2p-dup", 2, 6, 0);
+                CHECK(F(int, "sceNetBind", (int, const void*, int))(c1, &dup, sizeof dup) == -1 && *err == 48,
+                      "net: binding a virtual port that is already in use reports EADDRINUSE");
+                F(int, "sceNetSocketClose", (int))(c1);
+
+                const char to_b[] = "for-virtual-port-200";
+                CHECK(F(int, "sceNetSendto", (int, const void*, size_t, int, const void*, int))(a1, to_b, sizeof to_b, 0, &pb, sizeof pb) == (int)sizeof to_b,
+                      "net: a P2P datagram is sent to another virtual port on the same port");
+                char got[64];
+                struct GuestAddr src;
+                int n = -1;
+                for (int tries = 0; tries < 300 && n < 0; ++tries) {
+                    int sl = sizeof src;
+                    n = F(int, "sceNetRecvfrom", (int, void*, size_t, int, void*, int*))(b1, got, sizeof got, 0x80, &src, &sl);
+                    if (n < 0) rt_sleep_ms_for_selftest(1);
+                }
+                CHECK(n == (int)sizeof to_b && !memcmp(got, to_b, sizeof to_b), "net: the addressed virtual port receives the datagram");
+                CHECK(src.vport == pa.vport, "net: the sender's virtual port is reported back in the address");
+                CHECK(F(int, "sceNetRecvfrom", (int, void*, size_t, int, void*, int*))(a1, got, sizeof got, 0x80, NULL, NULL) == -1 && *err == 35,
+                      "net: the other virtual port on the same UDP port received nothing");
+            } else {
+                rt_logf("selftest: UDP port %u could not be bound on this host; the virtual-port checks were skipped", (unsigned)REAL_PORT);
+            }
+            F(int, "sceNetSocketClose", (int))(a1);
+            F(int, "sceNetSocketClose", (int))(b1);
+        }
         rt_net_configure(0, 0);
     }
 
