@@ -441,6 +441,52 @@ int rt_selftest_host(const char* scratch_dir) {
         CHECK(F(int, "sceNpGetOnlineId", (int, void*))(1, online_id) == (int)0x80550006, "np: offline, the online id reports SIGNED_OUT");
     }
 
+    // ---- NP requests: the gate the game hits when it opens Online Battle -----------------------------------
+    {
+        rt_net_configure(1, 0);
+        struct { uint64_t size; uint64_t affinity; int priority; int pad; } ap = {24, 0, 0, 0};
+        CHECK(F(int, "sceNpCreateAsyncRequest", (const void*))(NULL) == (int)0x80550003, "np: an async request with no parameter is INVALID_ARGUMENT");
+        ap.size = 8;
+        CHECK(F(int, "sceNpCreateAsyncRequest", (const void*))(&ap) == (int)0x80550004, "np: an async request with the wrong parameter size is INVALID_SIZE");
+        ap.size = 24;
+        int req = F(int, "sceNpCreateAsyncRequest", (const void*))(&ap);
+        CHECK(req > 0x20000000, "np: an async request is created with a console-shaped id");
+        int res = -1;
+        char oid[20];
+        memset(oid, 0, sizeof oid);
+        F(int, "sceNpGetOnlineId", (int, void*))(1, oid);
+        CHECK(F(int, "sceNpCheckNpAvailability", (int, const void*))(req, oid) == 0, "np: the availability check is accepted");
+        CHECK(F(int, "sceNpPollAsync", (int, int*))(req, &res) == 0 && res == 0, "np: polling reports the check finished, network available");
+        CHECK(F(int, "sceNpPollAsync", (int, int*))(req, NULL) == (int)0x80550003, "np: polling with no result pointer is INVALID_ARGUMENT");
+        CHECK(F(int, "sceNpPollAsync", (int, int*))(0x20000000 + 99, &res) == (int)0x8055000B, "np: polling an unknown request reports REQUEST_NOT_FOUND");
+        struct { uint64_t size; int user; int pad; uint64_t features; uint8_t reserved[32]; } pp;
+        memset(&pp, 0, sizeof pp);
+        pp.size = sizeof pp; pp.user = 1; pp.features = 1;
+        uint8_t plus_result[33];
+        memset(plus_result, 0xAA, sizeof plus_result);
+        CHECK(sizeof pp == 56, "np: the PS Plus parameter is the console's 56 bytes");
+        CHECK(F(int, "sceNpCheckPlus", (int, const void*, void*))(req, &pp, plus_result) == 0 && plus_result[0] == 1,
+              "np: the PS Plus check reports the local user as authorized");
+        pp.features = 9;
+        CHECK(F(int, "sceNpCheckPlus", (int, const void*, void*))(req, &pp, plus_result) == (int)0x80550003,
+              "np: an unknown PS Plus feature is INVALID_ARGUMENT");
+        CHECK(F(int, "sceNpAbortRequest", (int))(req) == 0, "np: a request can be aborted");
+        CHECK(F(int, "sceNpPollAsync", (int, int*))(req, &res) == 0 && res == (int)0x8055000C, "np: an aborted request reports ABORTED");
+        CHECK(F(int, "sceNpDeleteRequest", (int))(req) == 0, "np: a request is deleted");
+        CHECK(F(int, "sceNpDeleteRequest", (int))(req) == (int)0x8055000B, "np: deleting it twice reports REQUEST_NOT_FOUND");
+        char a_id[36], b_id[36];
+        memset(a_id, 0, sizeof a_id); memset(b_id, 0, sizeof b_id);
+        memcpy(a_id, "player-one", 10); memcpy(b_id, "player-one", 10);
+        CHECK(F(int, "sceNpCmpNpId", (const void*, const void*))(a_id, b_id) == 0, "np: two equal NP ids compare equal");
+        memcpy(b_id, "player-two", 10);
+        CHECK(F(int, "sceNpCmpNpId", (const void*, const void*))(a_id, b_id) != 0, "np: two different NP ids do not compare equal");
+        int country_lang = 0;
+        char country[4];
+        CHECK(F(int, "sceNpGetAccountCountry", (int, void*))(1, country) == 0 && country[0] && country[2] == 0, "np: an account country is reported");
+        CHECK(F(int, "sceNpGetAccountLanguage", (int, int*))(1, &country_lang) == 0, "np: an account language is reported");
+        rt_net_configure(0, 0);
+    }
+
     (void)fsbad;
     rt_logf("selftest-host: %d checks, %d failed", g_checks, g_fail);
     return g_fail ? 1 : 0;

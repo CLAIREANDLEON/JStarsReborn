@@ -12,6 +12,7 @@
 #else
 #include <arpa/inet.h>
 #endif
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -144,6 +145,135 @@ static int GUEST_ABI np_get_state(int user, int* state) {
 }
 
 
+
+// ---- libSceNpManager requests ------------------------------------------------------------------------------
+// The console hands out a request id, the game starts an operation on it and then polls. Evidence that this is
+// the gate for online play: in the Windows probe run 20261101-200324 the game entered Online Battle, called
+// sceNpGetOnlineId (eboot.bin+0x2beb7b) and then sceNpCreateAsyncRequest (eboot.bin+0x2c6bb8) three times, eight
+// seconds apart, retrying after each failure. The helper that owns the request is eboot.bin+0x2c6b70, which calls
+// CreateAsyncRequest, AbortRequest and PollAsync.
+//
+// There is no PlayStation Network here, so no request ever contacts a service: each one completes locally and
+// reports what is true of this machine. Anything that would need an account or a store stays unimplemented.
+#define NP_REQUEST_ID_OFFSET 0x20000000
+#define NP_MAX_REQUESTS 32
+enum { NP_ERR_INVALID_SIZE = (int)0x80550004, NP_ERR_REQUEST_MAX = (int)0x8055000A,
+       NP_ERR_REQUEST_NOT_FOUND = (int)0x8055000B, NP_ERR_INVALID_ID = (int)0x80550005,
+       NP_ERR_ABORTED = (int)0x8055000C };
+static struct { int used, async, aborted, result; } g_np_req[NP_MAX_REQUESTS];
+static pthread_mutex_t g_np_req_lock = PTHREAD_MUTEX_INITIALIZER;
+
+static int np_request_new(int async) {
+    pthread_mutex_lock(&g_np_req_lock);
+    for (int i = 0; i < NP_MAX_REQUESTS; ++i)
+        if (!g_np_req[i].used) {
+            g_np_req[i].used = 1;
+            g_np_req[i].async = async;
+            g_np_req[i].aborted = 0;
+            g_np_req[i].result = 0;
+            pthread_mutex_unlock(&g_np_req_lock);
+            return NP_REQUEST_ID_OFFSET + i + 1;
+        }
+    pthread_mutex_unlock(&g_np_req_lock);
+    return NP_ERR_REQUEST_MAX;
+}
+static int np_request_index(int id) {
+    const int i = id - NP_REQUEST_ID_OFFSET - 1;
+    return (i >= 0 && i < NP_MAX_REQUESTS && g_np_req[i].used) ? i : -1;
+}
+
+static int GUEST_ABI np_create_request(void) { return np_request_new(0); }
+static int GUEST_ABI np_create_async_request(const void* param) {
+    if (!param) return NP_INVALID_ARG;
+    const uint64_t size = *(const uint64_t*)param;   // { u64 size; u64 cpu_affinity; s32 priority; u8 pad[4]; }
+    if (size != 24) return NP_ERR_INVALID_SIZE;
+    const int id = np_request_new(1);
+    if (id > 0) rt_logf("sceNpCreateAsyncRequest -> request %#x (completed locally; no network service is contacted)", id);
+    return id;
+}
+static int GUEST_ABI np_delete_request(int id) {
+    const int i = np_request_index(id);
+    if (i < 0) return NP_ERR_REQUEST_NOT_FOUND;
+    pthread_mutex_lock(&g_np_req_lock);
+    g_np_req[i].used = 0;
+    pthread_mutex_unlock(&g_np_req_lock);
+    return 0;
+}
+static int GUEST_ABI np_abort_request(int id) {
+    const int i = np_request_index(id);
+    if (i < 0) return NP_ERR_REQUEST_NOT_FOUND;
+    g_np_req[i].aborted = 1;
+    g_np_req[i].result = NP_ERR_ABORTED;
+    return 0;
+}
+// Every request here finishes before it is polled, so this reports the stored result rather than "in progress".
+static int GUEST_ABI np_poll_async(int id, int* result) {
+    if (!result) return NP_INVALID_ARG;
+    const int i = np_request_index(id);
+    if (i < 0) return NP_ERR_REQUEST_NOT_FOUND;
+    if (!g_np_req[i].async) return NP_ERR_INVALID_ID;
+    *result = g_np_req[i].result;
+    return 0;
+}
+// "Can this user use the network?" The answer here is about this machine, not about any account.
+static int GUEST_ABI np_check_availability(int id, const void* online_id) {
+    if (!online_id) return NP_INVALID_ARG;
+    const int i = np_request_index(id);
+    if (i < 0) return NP_ERR_REQUEST_NOT_FOUND;
+    const int ok = np_current_state() == NP_STATE_SIGNED_IN;
+    g_np_req[i].result = ok ? 0 : NP_SIGNED_OUT;
+    rt_logf("sceNpCheckNpAvailability(request %#x) -> %s", id, ok ? "available" : "signed out");
+    return 0;
+}
+static int GUEST_ABI np_check_availability_a(int id, int user_id) {
+    const int i = np_request_index(id);
+    if (i < 0) return NP_ERR_REQUEST_NOT_FOUND;
+    if (user_id != 1) return NP_USER_NOT_FOUND;
+    g_np_req[i].result = np_current_state() == NP_STATE_SIGNED_IN ? 0 : NP_SIGNED_OUT;
+    return 0;
+}
+// PlayStation Plus gates online play on a console. There is no subscription service here and nothing to check,
+// so the local user is reported as authorized for the feature that was asked about, and the answer is logged.
+static int GUEST_ABI np_check_plus(int id, const void* param, void* result) {
+    if (!id || !param || !result) return NP_INVALID_ARG;
+    const uint64_t size = *(const uint64_t*)param;   // { u64 size; s32 user_id; u8 pad[4]; u64 features; u8 reserved[32]; }
+    if (size != 56) return NP_ERR_INVALID_SIZE;
+    const int user_id = *(const int*)((const uint8_t*)param + 8);
+    const uint64_t features = *(const uint64_t*)((const uint8_t*)param + 16);
+    if (user_id != 1) return NP_INVALID_ARG;
+    if (features < 1 || features > 3) return NP_INVALID_ARG;
+    const int i = np_request_index(id);
+    if (i < 0) return NP_ERR_REQUEST_NOT_FOUND;
+    memset(result, 0, 33);
+    *(uint8_t*)result = 1;   // authorized
+    g_np_req[i].result = 0;
+    rt_logf("sceNpCheckPlus(request %#x, features %llu) -> authorized (there is no subscription service here; "
+            "this is a local answer, not a PlayStation Plus entitlement)", id, (unsigned long long)features);
+    return 0;
+}
+static int GUEST_ABI np_notify_plus_feature(const void* param) { (void)param; return 0; }
+static int GUEST_ABI np_get_account_country(int user_id, void* country) {
+    if (!country) return NP_INVALID_ARG;
+    if (user_id != 1) return NP_USER_NOT_FOUND;
+    const char* c = getenv("JSTARS_COUNTRY");
+    memset(country, 0, 4);
+    memcpy(country, (c && strlen(c) == 2) ? c : "US", 2);
+    return 0;
+}
+static int GUEST_ABI np_get_account_language(int user_id, int* language) {
+    if (!language) return NP_INVALID_ARG;
+    if (user_id != 1) return NP_USER_NOT_FOUND;
+    const char* l = getenv("JSTARS_LANG");
+    *language = l && *l ? atoi(l) : 1;   // 1 = English (US), the same default the system service reports
+    return 0;
+}
+
+// ---- libSceNpCommon ------------------------------------------------------------------------------------------
+// SceNpId is the 20-byte online id followed by opt[8] and reserved[8]; only the online id identifies a player.
+static int GUEST_ABI np_cmp_np_id(const void* a, const void* b) {
+    if (!a || !b) return NP_INVALID_ARG;
+    return memcmp(a, b, 16) == 0 ? 0 : 1;
+}
 
 // ---- libSceSharePlay: this machine never has a Share Play session, so the connection is permanently DORMANT -------------
 // OrbisSharePlayConnectionInfo: status@0 (0 dormant / 1 ready / 2 connected), mode@4, host/visitor online ids (20 bytes each), user ids.
@@ -336,6 +466,18 @@ const HostSymbol platform_symbols[] = {
     {"sceNpSetNpTitleId", "libSceNpManager", (void*)np_set_title_id, 0},
     {"sceNpSetContentRestriction", "libSceNpManager", (void*)np_set_restriction, 0},
     {"sceNpRegisterStateCallback", "libSceNpManager", (void*)np_register_state_cb, 0},
+    {"sceNpCreateRequest", "libSceNpManager", (void*)np_create_request, 0},
+    {"sceNpCreateAsyncRequest", "libSceNpManager", (void*)np_create_async_request, 0},
+    {"sceNpDeleteRequest", "libSceNpManager", (void*)np_delete_request, 0},
+    {"sceNpAbortRequest", "libSceNpManager", (void*)np_abort_request, 0},
+    {"sceNpPollAsync", "libSceNpManager", (void*)np_poll_async, 0},
+    {"sceNpCheckNpAvailability", "libSceNpManager", (void*)np_check_availability, 0},
+    {"sceNpCheckNpAvailabilityA", "libSceNpManager", (void*)np_check_availability_a, 0},
+    {"sceNpCheckPlus", "libSceNpManager", (void*)np_check_plus, 0},
+    {"sceNpNotifyPlusFeature", "libSceNpManager", (void*)np_notify_plus_feature, 0},
+    {"sceNpGetAccountCountry", "libSceNpManager", (void*)np_get_account_country, 0},
+    {"sceNpGetAccountLanguage", "libSceNpManager", (void*)np_get_account_language, 0},
+    {"sceNpCmpNpId", "libSceNpCommon", (void*)np_cmp_np_id, 0},
     {"sceNpUnregisterStateCallback", "libSceNpManager", (void*)np_unregister_state_cb, 0},
     {"sceNpCheckCallback", "libSceNpManager", (void*)np_check_callback, 0},
     {"sceNpGetState", "libSceNpManager", (void*)np_get_state, 0},
