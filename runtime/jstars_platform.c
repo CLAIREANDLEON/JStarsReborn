@@ -276,21 +276,32 @@ static int GUEST_ABI np_check_plus(int id, const void* param, void* result) {
     return 0;
 }
 static int GUEST_ABI np_notify_plus_feature(const void* param) { np_trace("sceNpNotifyPlusFeature(param %p) -> 0", param); return 0; }
-static int GUEST_ABI np_get_account_country(int user_id, void* country) {
-    if (!country) return NP_INVALID_ARG;
-    if (user_id != 1) return NP_USER_NOT_FOUND;
+// These two take a REQUEST id and an online id, not a user id. Getting that wrong is what kept the game out of
+// Online Battle until now: it passed request 0x20000001 where a user id was expected, the runtime answered
+// USER_NOT_FOUND, and the game returned to the main menu (probe runs up to 20261101-203850).
+//   sceNpGetAccountCountry(const SceNpOnlineId*, SceNpCountryCode*)      country code is 2 characters + terminator
+//   sceNpGetAccountLanguage(s32 reqId, const SceNpOnlineId*, SceNpLanguageCode*)   language code is a string, e.g. "en"
+static int GUEST_ABI np_get_account_country(const void* online_id, void* country) {
+    if (!online_id || !country) return NP_INVALID_ARG;
+    if (np_current_state() != NP_STATE_SIGNED_IN) return NP_SIGNED_OUT;
     const char* c = getenv("JSTARS_COUNTRY");
     memset(country, 0, 4);
     memcpy(country, (c && strlen(c) == 2) ? c : "US", 2);
-    np_trace("sceNpGetAccountCountry(user %d) -> '%s'", user_id, (const char*)country);
+    np_trace("sceNpGetAccountCountry('%.16s') -> '%s'", (const char*)online_id, (const char*)country);
     return 0;
 }
-static int GUEST_ABI np_get_account_language(int user_id, int* language) {
-    if (!language) return NP_INVALID_ARG;
-    if (user_id != 1) return NP_USER_NOT_FOUND;
-    const char* l = getenv("JSTARS_LANG");
-    *language = l && *l ? atoi(l) : 1;   // 1 = English (US), the same default the system service reports
-    np_trace("sceNpGetAccountLanguage(user %d) -> %d", user_id, *language);
+// SceNpLanguageCode is a 6-byte string plus padding, not an integer.
+static int GUEST_ABI np_get_account_language(int req_id, const void* online_id, void* language) {
+    if (!online_id || !language) return NP_INVALID_ARG;
+    const int i = np_request_index(req_id);
+    if (i < 0) return NP_ERR_REQUEST_NOT_FOUND;
+    if (np_current_state() != NP_STATE_SIGNED_IN) { g_np_req[i].result = NP_SIGNED_OUT; return 0; }
+    const char* l = getenv("JSTARS_LANG_CODE");
+    memset(language, 0, 16);
+    const char* code = (l && *l) ? l : "en";
+    for (int k = 0; k < 5 && code[k]; ++k) ((char*)language)[k] = code[k];
+    g_np_req[i].result = 0;
+    np_trace("sceNpGetAccountLanguage(request %#x, '%.16s') -> '%s'", req_id, (const char*)online_id, (const char*)language);
     return 0;
 }
 

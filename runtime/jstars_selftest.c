@@ -480,10 +480,26 @@ int rt_selftest_host(const char* scratch_dir) {
         CHECK(F(int, "sceNpCmpNpId", (const void*, const void*))(a_id, b_id) == 0, "np: two equal NP ids compare equal");
         memcpy(b_id, "player-two", 10);
         CHECK(F(int, "sceNpCmpNpId", (const void*, const void*))(a_id, b_id) != 0, "np: two different NP ids do not compare equal");
-        int country_lang = 0;
+        // Both take an online id, and the language one also takes a request id. Passing a user id here was the
+        // mistake that kept the game out of Online Battle, so the shapes are pinned by these checks.
+        char self_id[20];
+        memset(self_id, 0, sizeof self_id);
+        F(int, "sceNpGetOnlineId", (int, void*))(1, self_id);
         char country[4];
-        CHECK(F(int, "sceNpGetAccountCountry", (int, void*))(1, country) == 0 && country[0] && country[2] == 0, "np: an account country is reported");
-        CHECK(F(int, "sceNpGetAccountLanguage", (int, int*))(1, &country_lang) == 0, "np: an account language is reported");
+        memset(country, 0xAA, sizeof country);
+        CHECK(F(int, "sceNpGetAccountCountry", (const void*, void*))(self_id, country) == 0 && country[0] && country[2] == 0,
+              "np: an account country is reported as a two-character code");
+        CHECK(F(int, "sceNpGetAccountCountry", (const void*, void*))(NULL, country) == (int)0x80550003, "np: a country query with no online id is INVALID_ARGUMENT");
+        char lang[16];
+        memset(lang, 0xAA, sizeof lang);
+        int lreq = F(int, "sceNpCreateAsyncRequest", (const void*))(&ap);
+        CHECK(F(int, "sceNpGetAccountLanguage", (int, const void*, void*))(lreq, self_id, lang) == 0 && lang[0] == 'e' && lang[1] == 'n' && lang[2] == 0,
+              "np: an account language is reported as a language-code string on a request");
+        int lres = -1;
+        CHECK(F(int, "sceNpPollAsync", (int, int*))(lreq, &lres) == 0 && lres == 0, "np: the language request finished successfully");
+        CHECK(F(int, "sceNpGetAccountLanguage", (int, const void*, void*))(0x20000000 + 98, self_id, lang) == (int)0x8055000B,
+              "np: a language query on an unknown request reports REQUEST_NOT_FOUND");
+        F(int, "sceNpDeleteRequest", (int))(lreq);
 
         // ---- WebApi: local contexts, and a send that honestly fails -------------------------------------
         {
