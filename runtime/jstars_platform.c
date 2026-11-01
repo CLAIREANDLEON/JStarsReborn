@@ -13,11 +13,31 @@
 #include <arpa/inet.h>
 #endif
 #include <pthread.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 typedef struct { const char* name; const char* lib; void* fn; int is_data; } HostSymbol;
+
+// ---- opt-in tracing of the console's network identity libraries (--trace-np) ---------------------------------
+// Off by default. When on, every call into libSceNpManager, libSceNpWebApi, libSceNpScore, libSceNpMatching2 and
+// libSceNpSignaling is recorded with its arguments and its answer, bounded so a long run cannot fill the disk.
+// First-call tracing already records that an import was reached once; this records what was asked and answered.
+static int g_np_trace;
+static uint64_t g_np_trace_lines;
+#define NP_TRACE_MAX 20000
+void rt_np_configure(int trace) { g_np_trace = trace; }
+static void np_trace(const char* fmt, ...) {
+    if (!g_np_trace || g_np_trace_lines >= NP_TRACE_MAX) return;
+    char line[400];
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(line, sizeof line, fmt, ap);
+    va_end(ap);
+    rt_logf("np: %s", line);
+    if (++g_np_trace_lines == NP_TRACE_MAX) rt_logf("np: trace limit of %d lines reached; further calls are not logged", NP_TRACE_MAX);
+}
 
 // ---- common dialogs: initialization and status only --------------------------------------------------------
 enum { DLG_NONE = 0, DLG_INITIALIZED = 1, DLG_RUNNING = 2, DLG_FINISHED = 3 };
@@ -70,8 +90,9 @@ static void local_online_id(char out[20]) {
 static int GUEST_ABI np_get_online_id(int user, void* online_id) {
     if (!online_id) return NP_INVALID_ARG;
     if (user != 1) return NP_USER_NOT_FOUND;
-    if (np_current_state() != NP_STATE_SIGNED_IN) return NP_SIGNED_OUT;
+    if (np_current_state() != NP_STATE_SIGNED_IN) { np_trace("sceNpGetOnlineId(user %d) -> SIGNED_OUT", user); return NP_SIGNED_OUT; }
     local_online_id((char*)online_id);
+    np_trace("sceNpGetOnlineId(user %d) -> '%.16s'", user, (const char*)online_id);
     return 0;
 }
 static int GUEST_ABI np_get_np_id(int user, void* np_id) {
@@ -124,6 +145,7 @@ static int GUEST_ABI np_unregister_state_cb(void) {
 static int GUEST_ABI np_check_callback(void) {
     const int want = g_np_state_pending;
     if (want < 0 || !g_np_state_cb) return 0;
+    np_trace("sceNpCheckCallback: a state change is pending");
     g_np_state_pending = -1;
     if (want == g_np_state_delivered) return 0;
     g_np_state_delivered = want;
@@ -141,6 +163,7 @@ static int GUEST_ABI np_get_state(int user, int* state) {
     if (!state) return NP_INVALID_ARG;
     if (user != 1) return NP_USER_NOT_FOUND;
     *state = np_current_state();
+    np_trace("sceNpGetState(user %d) -> state %d", user, *state);
     return 0;
 }
 
@@ -213,6 +236,7 @@ static int GUEST_ABI np_poll_async(int id, int* result) {
     if (i < 0) return NP_ERR_REQUEST_NOT_FOUND;
     if (!g_np_req[i].async) return NP_ERR_INVALID_ID;
     *result = g_np_req[i].result;
+    np_trace("sceNpPollAsync(request %#x) -> finished, result %#x", id, (unsigned)*result);
     return 0;
 }
 // "Can this user use the network?" The answer here is about this machine, not about any account.
@@ -251,13 +275,14 @@ static int GUEST_ABI np_check_plus(int id, const void* param, void* result) {
             "this is a local answer, not a PlayStation Plus entitlement)", id, (unsigned long long)features);
     return 0;
 }
-static int GUEST_ABI np_notify_plus_feature(const void* param) { (void)param; return 0; }
+static int GUEST_ABI np_notify_plus_feature(const void* param) { np_trace("sceNpNotifyPlusFeature(param %p) -> 0", param); return 0; }
 static int GUEST_ABI np_get_account_country(int user_id, void* country) {
     if (!country) return NP_INVALID_ARG;
     if (user_id != 1) return NP_USER_NOT_FOUND;
     const char* c = getenv("JSTARS_COUNTRY");
     memset(country, 0, 4);
     memcpy(country, (c && strlen(c) == 2) ? c : "US", 2);
+    np_trace("sceNpGetAccountCountry(user %d) -> '%s'", user_id, (const char*)country);
     return 0;
 }
 static int GUEST_ABI np_get_account_language(int user_id, int* language) {
@@ -265,6 +290,7 @@ static int GUEST_ABI np_get_account_language(int user_id, int* language) {
     if (user_id != 1) return NP_USER_NOT_FOUND;
     const char* l = getenv("JSTARS_LANG");
     *language = l && *l ? atoi(l) : 1;   // 1 = English (US), the same default the system service reports
+    np_trace("sceNpGetAccountLanguage(user %d) -> %d", user_id, *language);
     return 0;
 }
 
@@ -272,7 +298,9 @@ static int GUEST_ABI np_get_account_language(int user_id, int* language) {
 // SceNpId is the 20-byte online id followed by opt[8] and reserved[8]; only the online id identifies a player.
 static int GUEST_ABI np_cmp_np_id(const void* a, const void* b) {
     if (!a || !b) return NP_INVALID_ARG;
-    return memcmp(a, b, 16) == 0 ? 0 : 1;
+    const int r = memcmp(a, b, 16) == 0 ? 0 : 1;
+    np_trace("sceNpCmpNpId('%.16s', '%.16s') -> %d", (const char*)a, (const char*)b, r);
+    return r;
 }
 
 // ---- libSceSharePlay: this machine never has a Share Play session, so the connection is permanently DORMANT -------------
@@ -291,7 +319,7 @@ static int GUEST_ABI ss_overlay(const char* path, int32_t x, int32_t y) { rt_log
 
 // ---- libSceNpMatching2 / libSceNpSignaling: library lifetime only (no network, no sign-in => no contexts can be used) -----
 static int g_np_m2_init, g_np_sig_init;
-static int GUEST_ABI m2_initialize(const void* param) { (void)param; g_np_m2_init = 1; return 0; }
+static int GUEST_ABI m2_initialize(const void* param) { (void)param; g_np_m2_init = 1; np_trace("sceNpMatching2Initialize"); return 0; }
 static int GUEST_ABI m2_terminate(void) { g_np_m2_init = 0; return 0; }
 static int GUEST_ABI sig_initialize(const void* param) { (void)param; g_np_sig_init = 1; return 0; }
 static int GUEST_ABI sig_terminate(void) { g_np_sig_init = 0; return 0; }
@@ -381,6 +409,7 @@ static int GUEST_ABI webapi_create_context(int lib_ctx, const void* online_id) {
 }
 static int webapi_user_index(int ctx) { const int i = ctx - 1; return (i >= 0 && i < WEBAPI_MAX_USER_CTX && g_webapi_user[i].used) ? i : -1; }
 static int GUEST_ABI webapi_delete_context(int user_ctx) {
+    np_trace("sceNpWebApiDeleteContext(user context %d)", user_ctx);
     const int i = webapi_user_index(user_ctx);
     if (i < 0) return WEBAPI_ERR_USER_CONTEXT_NOT_FOUND;
     g_webapi_user[i].used = 0;
@@ -438,7 +467,7 @@ static int GUEST_ABI webapi_read_data(int64_t request_id, void* data, uint64_t s
     if (i < 0) return WEBAPI_ERR_REQUEST_NOT_FOUND;
     if (!data || !size) return WEBAPI_ERR_INVALID_ARGUMENT;
     const uint32_t left = g_webapi_req[i].body_len - g_webapi_req[i].body_read;
-    if (!left) return 0;
+    if (!left) { np_trace("sceNpWebApiReadData(request %lld) -> 0 (end of the body)", (long long)request_id); return 0; }
     const uint32_t n = size < left ? (uint32_t)size : left;
     memcpy(data, g_webapi_req[i].body + g_webapi_req[i].body_read, n);
     g_webapi_req[i].body_read += n;
@@ -463,6 +492,7 @@ static int GUEST_ABI webapi_get_http_status(int64_t request_id, int* status) {
     const int i = webapi_req_index(request_id);
     if (i < 0) return WEBAPI_ERR_REQUEST_NOT_FOUND;
     *status = g_webapi_req[i].http_status;   // 0 when no response arrived
+    np_trace("sceNpWebApiGetHttpStatusCode(request %lld) -> %d", (long long)request_id, *status);
     return 0;
 }
 // Pure text handling, so this one is exact: it reads {"onlineId":"name"} out of a JSON object into an SceNpId.
@@ -545,6 +575,7 @@ static int GUEST_ABI score_poll_async(int req, int* result) {
     const int i = score_req_index(req);
     if (i < 0) return SCORE_ERR_INVALID_ID;
     *result = g_score_req[i].result;
+    np_trace("sceNpScorePollAsync(request %d) -> result %#x", req, (unsigned)*result);
     return 0;
 }
 // A score is kept for this session only; nothing is uploaded and nothing is read back from any service.

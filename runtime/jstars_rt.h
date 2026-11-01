@@ -87,5 +87,6 @@ void rt_net_configure(int online, int trace);
 int rt_net_online(void);
 void rt_net_report(void);
 void rt_sleep_ms_for_selftest(int ms);
+void rt_np_configure(int trace);   // --trace-np: log every call into the NP libraries with its answer
 void rt_set_experiments(const char* list);   // --experiment a,b: diagnosis-only platform answers (logged loudly)
 int rt_experiment(const char* name);
