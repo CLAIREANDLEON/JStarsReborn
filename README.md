@@ -16,6 +16,11 @@ save data, and runs the menus and Free Battle matches, driven by scripted test i
 skipped (no decoder), trophies are an empty set, and online features are not available. Whether it plays well and sounds
 right has **not** been confirmed by a human tester yet. See [CHANGELOG.md](CHANGELOG.md) for the full list of known issues.
 
+**Development branch (`feature/online-np`, unreleased 0.5.0):** local NP compatibility, UDP transport and Matching2 world-list
+callbacks now let the online-j probe enter the game's Online Battle menus. Runtime host tests pass 278/0 on Linux and Windows
+at `711045b`. Room operations and peer connections are still pending; multiplayer is not demonstrated. These changes are not
+in the 0.4.0 release. See the [development handoff](docs/DEVELOPMENT_HANDOFF.md) for evidence and next steps.
+
 ## Using it (Windows)
 
 1. Build the release (below), or use a release ZIP, and unzip it anywhere (paths with spaces are fine).
@@ -53,6 +58,10 @@ tools/build_release.sh build-gpu-win/libjstars_gpu.a build/release
 
 Checks that run on Linux: `tools/prepare_native_check.sh` (native preparation is byte-identical to the Python tools),
 the launcher core tests, and the runtime host self-test (`runtime/jstars-boot --selftest-host`).
+
+A native Windows **host-service test build** is also available through [tools/windows_build](tools/windows_build/README.md).
+Its verified 266-check result is from `656e15c`; it is not the GPU game launcher. Linking the supplied GCC renderer with the
+installed llvm-mingw C++ libraries remains unresolved.
 
 ## History
 

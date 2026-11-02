@@ -8,7 +8,12 @@ Online play is **not** working yet; nothing here contacts PlayStation Network, a
   uses socket type 6, `libSceNetCtl` reporting this host's address. Off by default.
 - A local signed-in identity, NP state callback, request API, account country/language, WebApi (only the player's own block list is
   answered, locally) and a session-local Score board, so the game's Online Battle path runs instead of stopping.
-- Matching2 context lifetime and Signaling context lifetime (the game now reaches `sceNpMatching2GetWorldInfoList`).
+- Matching2 and Signaling context lifetime, plus Matching2 request IDs and asynchronous response callbacks.
+  `sceNpMatching2GetWorldInfoList` returns one local world with zero rooms; the online-j Windows probe reaches the game's
+  Online Battle menus. Host tests: 278/0 on Linux and Windows at `711045b`. The probe did not exercise a room request;
+  room operations, peer connections and multiplayer remain unverified.
+- Native Windows host-runtime build tool (`tools/windows_build/`), verified with llvm-mingw Clang 23.1.4 and 266/0 checks at
+  `656e15c`. Native GPU linking still requires a compatible renderer/toolchain; game runs use the existing Linux cross-build.
 - `--trace-net`, `--trace-np` (bounded tracing) and `--experiment online-probe` (diagnosis only).
 - Fix: closing a P2P socket released neither its queue nor the UDP port.
 - Every net/NP import has an audit row; the 0.4.0 socket rows were stale.
