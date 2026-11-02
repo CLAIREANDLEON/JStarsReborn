@@ -1,5 +1,18 @@
 # Change log
 
+## Unreleased (branch `feature/online-np`, 0.5.0 work in progress)
+
+Online play is **not** working yet; nothing here contacts PlayStation Network, and no multiplayer match has been played.
+
+- `--online`: real UDP sockets for `libSceNet` (console address layout, FreeBSD errno), virtual-port (P2P) multiplexing because the game
+  uses socket type 6, `libSceNetCtl` reporting this host's address. Off by default.
+- A local signed-in identity, NP state callback, request API, account country/language, WebApi (only the player's own block list is
+  answered, locally) and a session-local Score board, so the game's Online Battle path runs instead of stopping.
+- Matching2 context lifetime and Signaling context lifetime (the game now reaches `sceNpMatching2GetWorldInfoList`).
+- `--trace-net`, `--trace-np` (bounded tracing) and `--experiment online-probe` (diagnosis only).
+- Fix: closing a P2P socket released neither its queue nor the UDP port.
+- Every net/NP import has an audit row; the 0.4.0 socket rows were stale.
+
 ## 0.4.0 — 2026-11-01
 
 **New launcher `JStarsReborn.exe`** around the verified runtime of checkpoint 0.3.0 (build w), which is kept unchanged as the

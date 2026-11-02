@@ -11,3 +11,11 @@ default only after the evidence is understood and recorded in `docs/IMPORT_AUDIT
 
 Retired: `trophy-register-ok` (became the default as the explicit "empty trophy set": the trophy pack is encrypted and is not
 decrypted by this port, so there is no trophy data to register; no trophy can unlock and nothing is recorded).
+
+## Tracing switches (not experiments: they change no answer)
+
+| Switch | Effect |
+|---|---|
+| `--online` | Real host UDP sockets and the signed-in local identity. Off by default. Nothing contacts PlayStation Network. |
+| `--trace-net` | Every socket call and its result, bounded to 4,000 lines. |
+| `--trace-np` | Every NP / WebApi / Score / Matching2 / Signaling call and its answer, bounded to 20,000 lines. Found the wrong `sceNpGetAccountLanguage` signature (run 20261101-204539). |
