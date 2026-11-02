@@ -4,7 +4,7 @@ The exact state another session can continue from. Update this file at every sto
 
 ## Where the work is
 
-* Repository: `https://github.com/Dopam3an/JStarsReborn` (only `main` / tag `0.4.0` are pushed; this branch is not)
+* Repository: `https://github.com/Dopam3an/JStarsReborn` (`main` / tag `0.4.0` = the 0.4.0 release; this branch is pushed as `feature/online-np`)
 * Baseline: `main` at the 0.4.0 release (launcher + compatibility runtime, verified on Windows)
 * Current work: branch **`feature/online-np`** in the working tree; exports with hashes in `E:\JStarsWork\AI_HANDOFF\incoming`
 
