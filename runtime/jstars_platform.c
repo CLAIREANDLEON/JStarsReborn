@@ -348,7 +348,8 @@ enum {
 enum { M2_ERR_OUT_OF_MEMORY = (int)0x80550C01, M2_ERR_NOT_INITIALIZED = (int)0x80550C03,
        M2_ERR_CONTEXT_MAX = (int)0x80550C04, M2_ERR_CONTEXT_ALREADY_STARTED = (int)0x80550C07,
        M2_ERR_CONTEXT_NOT_STARTED = (int)0x80550C08, M2_ERR_INVALID_ARGUMENT = (int)0x80550C0A,
-       M2_ERR_INVALID_CONTEXT_ID = (int)0x80550C0B, M2_ERR_ABORTED = (int)0x80550C2A };
+       M2_ERR_INVALID_CONTEXT_ID = (int)0x80550C0B, M2_ERR_INVALID_SERVER_ID = (int)0x80550C0C,
+       M2_ERR_ABORTED = (int)0x80550C2A };
 
 typedef void (GUEST_ABI* M2ContextCb)(uint16_t ctx_id, uint16_t event, uint8_t cause, int error_code, void* userdata);
 typedef void (GUEST_ABI* M2RoomEventCb)(uint16_t ctx_id, uint64_t room_id, uint16_t event, const void* data, void* userdata);
@@ -369,6 +370,8 @@ static struct {
     uint32_t service_label;
     M2RoomEventCb room_cb;
     void* room_userdata;
+    void* request_cb;          // M2RequestCb from the last request that carried an option parameter with a callback
+    void* request_arg;
 } g_m2_ctx[M2_MAX_CTX];
 static uint32_t g_m2_generation;
 
@@ -527,6 +530,112 @@ static int GUEST_ABI m2_context_stop(uint16_t ctx_id) {
     if (cb) cb(ctx_id, M2_EVENT_CONTEXT_STOPPED, M2_CAUSE_CONTEXT_ACTION, 0, ud);
     return 0;
 }
+// ---- Matching2 requests ----------------------------------------------------------------------------------------
+// Every room operation is a request: the call returns a request id at once and the answer arrives later through a
+// request callback, which the game passes in SceNpMatching2RequestOptParam { callback; arg; uint32 timeout; uint16 appId }
+// (24 bytes). Verified on the game's own call to GetWorldInfoList (function 0x2c03e0): the option parameter is built on
+// the stack with the callback at +0 and a zero arg, the request id is written to a uint32. The game does not import
+// SetDefaultRequestOptParam, so, as in shadPS4, the last callback given is kept on the context for requests without one.
+typedef void (GUEST_ABI* M2RequestCb)(uint16_t ctx_id, uint32_t req_id, uint16_t event, int error_code, const void* data, void* arg);
+enum { M2_REQUEST_EVENT_GET_WORLD_INFO_LIST = 0x0002 };
+#define M2_LOCAL_WORLD_ID 1
+static uint32_t g_m2_next_request = 1;
+
+typedef struct {
+    uint16_t ctx_id;
+    uint32_t generation;
+    uint32_t req_id;
+    uint16_t event;
+    int error;
+    void* data;                // malloc'd answer, owned by the job, freed after the callback returns
+} M2Job;
+
+// Called with g_m2_lock held.
+static void m2_store_request_cb(int i, const void* opt) {
+    if (!opt) return;
+    void* cb;
+    void* arg;
+    memcpy(&cb, (const uint8_t*)opt + 0, sizeof cb);
+    memcpy(&arg, (const uint8_t*)opt + 8, sizeof arg);
+    if (!cb) return;
+    g_m2_ctx[i].request_cb = cb;
+    g_m2_ctx[i].request_arg = arg;
+}
+
+static void* GUEST_ABI m2_request_thread(void* p) {
+    M2Job* job = (M2Job*)p;
+    struct timespec ts = {0, M2_START_DELAY_MS * 1000 * 1000};
+    nanosleep(&ts, NULL);
+    pthread_mutex_lock(&g_m2_lock);
+    const int i = m2_ctx_index(job->ctx_id);
+    M2RequestCb cb = NULL;
+    void* arg = NULL;
+    if (i >= 0 && g_m2_ctx[i].generation == job->generation) { cb = (M2RequestCb)g_m2_ctx[i].request_cb; arg = g_m2_ctx[i].request_arg; }
+    pthread_mutex_unlock(&g_m2_lock);
+    if (i < 0 || !cb) {
+        rt_logf("Matching2 request %u (event 0x%04x): %s; nothing reported", job->req_id, job->event,
+                i < 0 ? "the context is gone" : "no request callback was ever given");
+    } else {
+        np_trace("Matching2 request %u: reporting event 0x%04x, error 0x%08x to callback %p", job->req_id, job->event, (unsigned)job->error, (void*)cb);
+        cb(job->ctx_id, job->req_id, job->event, job->error, job->data, arg);
+    }
+    free(job->data);
+    free(job);
+    return NULL;
+}
+
+// Hands the answer to a library thread; the caller has already validated the context (index i, lock held) and
+// filled `data`. Returns the request id, or 0 if no thread could be started (the data is freed).
+static uint32_t m2_post_request_locked(int i, uint16_t ctx_id, uint16_t event, int error, void* data) {
+    M2Job* job = (M2Job*)calloc(1, sizeof *job);
+    if (!job) { free(data); return 0; }
+    job->ctx_id = ctx_id;
+    job->generation = g_m2_ctx[i].generation;
+    job->req_id = g_m2_next_request++;
+    if (!g_m2_next_request) g_m2_next_request = 1;
+    job->event = event;
+    job->error = error;
+    job->data = data;
+    if (rt_spawn_guest_thread(m2_request_thread, job, "NpMatching2Req")) { free(job->data); free(job); return 0; }
+    return job->req_id;
+}
+
+// SceNpMatching2World as the game reads it: a contiguous array of 0x28-byte entries (the game's callback at 0x2c04c0
+// copies worldNum * 0x28 bytes). Layout as in shadPS4's np_types2.h: { World* next; uint32 worldId; uint32 lobbiesNum;
+// uint32 maxLobbyMembersNum; uint32 lobbyMembersNum; uint32 roomsNum; uint32 roomMembersNum; pad }.
+typedef struct {
+    void* next;
+    uint32_t world_id, lobbies, max_lobby_members, lobby_members, rooms, room_members;
+    uint8_t pad[8];
+} M2World;
+_Static_assert(sizeof(M2World) == 0x28, "SceNpMatching2World is 0x28 bytes");
+typedef struct { M2World* world; uint64_t world_num; M2World one; } M2WorldList;
+
+// The local matching service has one world. Its counts are the real counts of the local room directory, which does not
+// exist yet, so they are all zero: nobody is reported who is not there.
+static int GUEST_ABI m2_get_world_info_list(uint16_t ctx_id, const void* request, const void* opt, uint32_t* req_id) {
+    if (!g_np_m2_init) return M2_ERR_NOT_INITIALIZED;
+    if (!request || !req_id) return M2_ERR_INVALID_ARGUMENT;
+    uint16_t server_id;
+    memcpy(&server_id, request, 2);
+    pthread_mutex_lock(&g_m2_lock);
+    const int i = m2_ctx_index(ctx_id);
+    if (i < 0) { pthread_mutex_unlock(&g_m2_lock); return M2_ERR_INVALID_CONTEXT_ID; }
+    if (server_id != M2_SERVER_ID) { pthread_mutex_unlock(&g_m2_lock); return M2_ERR_INVALID_SERVER_ID; }
+    m2_store_request_cb(i, opt);
+    M2WorldList* list = (M2WorldList*)calloc(1, sizeof *list);
+    if (!list) { pthread_mutex_unlock(&g_m2_lock); return M2_ERR_OUT_OF_MEMORY; }
+    list->world = &list->one;
+    list->world_num = 1;
+    list->one.world_id = M2_LOCAL_WORLD_ID;
+    const uint32_t id = m2_post_request_locked(i, ctx_id, M2_REQUEST_EVENT_GET_WORLD_INFO_LIST, 0, list);
+    pthread_mutex_unlock(&g_m2_lock);
+    if (!id) return M2_ERR_OUT_OF_MEMORY;
+    *req_id = id;
+    rt_logf("sceNpMatching2GetWorldInfoList(context %u, server %u) -> request %u: one local world (id %u), 0 rooms", ctx_id, server_id, id, M2_LOCAL_WORLD_ID);
+    return 0;
+}
+
 // There is one matching service here, this machine, so it has one server id.
 static int GUEST_ABI m2_get_server_id(uint16_t ctx_id, uint16_t* server_id) {
     if (!g_np_m2_init) return M2_ERR_NOT_INITIALIZED;
@@ -1022,6 +1131,7 @@ const HostSymbol platform_symbols[] = {
     {"sceNpMatching2ContextStop", "libSceNpMatching2", (void*)m2_context_stop, 0},
     {"sceNpMatching2AbortContextStart", "libSceNpMatching2", (void*)m2_abort_context_start, 0},
     {"sceNpMatching2GetServerId", "libSceNpMatching2", (void*)m2_get_server_id, 0},
+    {"sceNpMatching2GetWorldInfoList", "libSceNpMatching2", (void*)m2_get_world_info_list, 0},
     {"sceNpSignalingInitialize", "libSceNpSignaling", (void*)sig_initialize, 0},
     {"sceNpSignalingTerminate", "libSceNpSignaling", (void*)sig_terminate, 0},
     {"sceNpSignalingCreateContext", "libSceNpSignaling", (void*)sig_create_context, 0},

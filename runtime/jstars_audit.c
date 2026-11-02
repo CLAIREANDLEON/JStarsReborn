@@ -267,6 +267,7 @@ static const AuditRow rows[] = {
     {"sceNpMatching2ContextStop", "verified", "CONTEXT_STOPPED reported (selftest-host)"},
     {"sceNpMatching2AbortContextStart", "verified", "a pending start reports CONTEXT_STOPPED with ABORTED (selftest-host)"},
     {"sceNpMatching2GetServerId", "partial", "one local server (id 1); no world or room exists behind it"},
+    {"sceNpMatching2GetWorldInfoList", "verified", "one local world whose counts are the local room directory's (all 0 until rooms exist); answer delivered to the request callback from a library thread; layouts checked against the game's caller 0x2c03e0 and callback 0x2c04c0; selftest-host"},
     // ---- libSceSaveData (jstars_savedata.c): save folders on the host; format is this port's own -------------------------
     {"sceSaveDataInitialize", "verified", "selftest: mount before initialize is NOT_INITIALIZED"},
     {"sceSaveDataTerminate", "partial", "clears initialized state"},

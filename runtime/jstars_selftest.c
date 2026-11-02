@@ -29,6 +29,19 @@ static void GUEST_ABI m2_context_cb(uint16_t ctx_id, uint16_t event, uint8_t cau
     m2_cb_ctx = ctx_id; m2_cb_event = event; m2_cb_cause = cause; m2_cb_error = error_code; m2_cb_userdata = userdata;
     __atomic_add_fetch(&m2_cb_calls, 1, __ATOMIC_SEQ_CST);
 }
+static volatile int m2_req_calls, m2_req_event, m2_req_error; static volatile uint32_t m2_req_id;
+static volatile uint64_t m2_req_world_num; static volatile uint32_t m2_req_world_id, m2_req_rooms, m2_req_first_dword_after_next;
+static void* volatile m2_req_arg;
+static void GUEST_ABI m2_request_cb(uint16_t ctx_id, uint32_t req_id, uint16_t event, int error, const void* data, void* arg) {
+    (void)ctx_id;
+    m2_req_id = req_id; m2_req_event = event; m2_req_error = error; m2_req_arg = arg;
+    if (data && event == 2) {
+        const uint8_t* const* world = (const uint8_t* const*)data;
+        m2_req_world_num = *(const uint64_t*)((const uint8_t*)data + 8);
+        if (*world) { memcpy((void*)&m2_req_world_id, *world + 8, 4); memcpy((void*)&m2_req_rooms, *world + 24, 4); }
+    }
+    __atomic_add_fetch(&m2_req_calls, 1, __ATOMIC_SEQ_CST);
+}
 static int m2_wait_calls(int n) {   // up to 2 s
     for (int i = 0; i < 200 && __atomic_load_n(&m2_cb_calls, __ATOMIC_SEQ_CST) < n; ++i) rt_sleep_ms_for_selftest(10);
     return __atomic_load_n(&m2_cb_calls, __ATOMIC_SEQ_CST);
@@ -534,6 +547,35 @@ int rt_selftest_host(const char* scratch_dir) {
         for (int i = 0; i < 4; ++i) { rc = create(param, &more[i]); if (rc == 0) ++made; else break; }
         CHECK(made == 3 && rc == (int)0x80550C04, "m2: the fifth context reports CONTEXT_MAX");
         for (int i = 0; i < made; ++i) destroy(more[i]);
+        // Requests: GetWorldInfoList, with the option parameter laid out as the game builds it (callback at +0, arg at +8).
+        {
+            int (GUEST_ABI * wil)(uint16_t, const void*, const void*, uint32_t*) =
+                (int (GUEST_ABI*)(uint16_t, const void*, const void*, uint32_t*))rt_find_host("sceNpMatching2GetWorldInfoList");
+            CHECK(wil != NULL, "m2: GetWorldInfoList is exported");
+            uint8_t opt[24]; memset(opt, 0, sizeof opt);
+            void* cbp = (void*)m2_request_cb; int rmark = 0; void* argp = &rmark;
+            memcpy(opt, &cbp, 8); memcpy(opt + 8, &argp, 8);
+            uint16_t req_server = 1, bad_server = 9; uint32_t rid = 0, rid2 = 0;
+            CHECK(wil(ctx, NULL, opt, &rid) == (int)0x80550C0A && wil(ctx, &req_server, opt, NULL) == (int)0x80550C0A,
+                  "m2: GetWorldInfoList without a request or id pointer reports INVALID_ARGUMENT");
+            CHECK(wil(ctx, &bad_server, opt, &rid) == (int)0x80550C0C, "m2: a server id other than the local one reports INVALID_SERVER_ID");
+            CHECK(wil(999, &req_server, opt, &rid) == (int)0x80550C0B, "m2: an unknown context reports INVALID_CONTEXT_ID");
+            m2_req_calls = 0;
+            CHECK(wil(ctx, &req_server, opt, &rid) == 0 && rid != 0, "m2: GetWorldInfoList returns a request id");
+            for (int k = 0; k < 200 && m2_req_calls < 1; ++k) rt_sleep_ms_for_selftest(10);
+            CHECK(m2_req_calls == 1 && m2_req_id == rid && m2_req_event == 2 && m2_req_error == 0 && m2_req_arg == &rmark,
+                  "m2: the answer reaches the request callback once: event GET_WORLD_INFO_LIST, no error, the request id and arg");
+            CHECK(m2_req_world_num == 1 && m2_req_world_id == 1 && m2_req_rooms == 0,
+                  "m2: one local world, and no rooms are reported because none exist");
+            CHECK(wil(ctx, &req_server, NULL, &rid2) == 0 && rid2 != rid, "m2: a request without options gets a new id");
+            for (int k = 0; k < 200 && m2_req_calls < 2; ++k) rt_sleep_ms_for_selftest(10);
+            CHECK(m2_req_calls == 2 && m2_req_id == rid2, "m2: without options the context's last request callback is used");
+            m2_req_calls = 0;
+            CHECK(wil(ctx, &req_server, opt, &rid) == 0 && destroy(ctx) == 0, "m2: a context can be destroyed with a request in flight");
+            rt_sleep_ms_for_selftest(150);
+            CHECK(m2_req_calls == 0, "m2: the answer to a destroyed context's request is not delivered");
+            CHECK(create(param, &ctx) == 0, "m2: a context is created again");
+        }
         CHECK(destroy(ctx) == 0, "m2: the first context is destroyed");
         CHECK(F(int, "sceNpMatching2Terminate", (void))() == 0 && server(ctx, &sid) == (int)0x80550C03,
               "m2: after Terminate the library reports NOT_INITIALIZED");
