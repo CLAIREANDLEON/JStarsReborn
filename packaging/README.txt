@@ -1,4 +1,4 @@
-JStarsReborn 0.4.0 - unofficial Windows PC port runtime for J-Stars Victory VS+ (PS4, CUSA01593 version 01.02)
+JStarsReborn 0.5.0 (playtest preview) - unofficial Windows PC port runtime for J-Stars Victory VS+ (PS4, CUSA01593 version 01.02)
 ====================================================================================================
 
 Legal (read DISCLAIMER.txt)
@@ -34,8 +34,18 @@ Problems
   Troubleshooting page: open the latest session logs or create a diagnostic report (a ZIP you save yourself;
   it is never uploaded and contains no game files, saves or prepared data).
 
+Online test (experimental, off by default)
+  Settings > "Online test features" turns on Friendly Match over your LOCAL NETWORK. Nothing contacts PlayStation
+  Network and no account is used; rooms are announced to other PCs on the same network (UDP port 47391).
+  Windows may ask whether to allow JStarsReborn on private networks: allow it, or rooms cannot be seen.
+  What works: Online Battle > Friendly Match > Create a Room (you host a room; other PCs running this version
+  see it under Search for a Room). What does NOT work yet: joining another PC's room, so a match between two
+  PCs cannot start; Rank Match and Quick Match. A function that is not finished makes the game show
+  "A communication error has occurred" and return to the menu. If the other PC's rooms do not appear, enter
+  its address (e.g. 192.168.1.20) in "Other PC's address" on both PCs.
+
 Not supported in this version
-  Movies are skipped. Trophies and online features are not available. Only the title screen, menus, Free Battle
+  Movies are skipped. Trophies are not available. Online play is the experimental test described above. Only the title screen, menus, Free Battle
   and the J-Adventure world map have been exercised; other modes are untested. Controller/keyboard play and the
   audio have not yet been confirmed by a human tester. See CHANGELOG.md for the full list of known issues.
 

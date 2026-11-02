@@ -54,7 +54,7 @@ enum Id {
     IdPlay = 200, IdStop, IdCancelPrep, IdOpenSessionLogs, IdPrepProgress, IdStatus, IdLastHead, IdLastDetail, IdPrepStep, IdPlayHint,
     IdFolderEdit = 300, IdBrowse, IdRecheck, IdFolderDetails, IdPrepState, IdPrepareNow, IdFolderNote, IdFolderLabel,
     IdWindowSize = 400, IdSound, IdVolume, IdVolumeLabel, IdKeyboard, IdConfirm, IdPlayerName, IdSettingsNote, IdLblWindow, IdLblVolume,
-    IdLblConfirm, IdLblName,
+    IdLblConfirm, IdLblName, IdOnline, IdLblPeers, IdLobbyPeers,
     IdControlsList = 500, IdControlsNote,
     IdOpenLatest = 600, IdOpenLogs, IdReport, IdDeletePrepared, IdOpenData, IdLicenses, IdHelpInfo, IdHelpText,
 };
@@ -270,7 +270,9 @@ void layout() {
         place(IdLblVolume, x0, sy + S(4), lw, S(24)); place(IdVolume, fx, sy, S(260), S(32)); place(IdVolumeLabel, fx + S(268), sy + S(4), S(60), S(24)); sy += S(48);
         place(IdKeyboard, x0, sy, cw, S(26)); sy += S(42);
         place(IdLblConfirm, x0, sy + S(4), lw, S(24)); place(IdConfirm, fx, sy, S(260), S(300)); sy += S(48);
-        place(IdLblName, x0, sy + S(4), lw, S(24)); place(IdPlayerName, fx, sy, S(260), S(28)); sy += S(52);
+        place(IdLblName, x0, sy + S(4), lw, S(24)); place(IdPlayerName, fx, sy, S(260), S(28)); sy += S(44);
+        place(IdOnline, x0, sy, cw, S(26)); sy += S(34);
+        place(IdLblPeers, x0, sy + S(4), lw, S(24)); place(IdLobbyPeers, fx, sy, S(260), S(28)); sy += S(44);
         place(IdSettingsNote, x0, sy, cw, S(72));
     }
     // Controls
@@ -542,7 +544,7 @@ std::string session_json(bool finished, DWORD code, const ExitInfo* info) {
       << "\", \"supported_build\": \"" << json_escape(g.game.build ? g.game.build->label : "") << "\"},\n"
       << "  \"settings\": {\"window\": \"" << g.settings.window_width << "x" << g.settings.window_height << "\", \"sound\": "
       << (g.settings.sound ? "true" : "false") << ", \"volume\": " << g.settings.volume << ", \"keyboard\": " << (g.settings.keyboard ? "true" : "false")
-      << ", \"confirm_button\": \"" << g.settings.confirm_button << "\"},\n"
+      << ", \"confirm_button\": \"" << g.settings.confirm_button << "\", \"online\": " << (g.settings.online ? "true" : "false") << "},\n"
       << "  \"mode\": \"normal play: live input (controller/keyboard), no scripted input, no time limit, no capture\",\n"
       << "  \"command_line\": \"" << json_escape(U(g.session_cmdline)) << "\",\n"
       << "  \"started_utc\": \"" << g.session_start << "\",\n";
@@ -619,6 +621,13 @@ void launch_game() {
     if (g.settings.sound) cmd += L" --volume " + std::to_wstring(g.settings.volume);
     else cmd += L" --no-audio";
     if (!g.settings.keyboard) cmd += L" --no-keyboard";
+    // Experimental online test: real sockets and the LAN room directory. The online probe makes a console online function that
+    // is not implemented yet answer "signed out" (the game shows its communication error) instead of stopping the game.
+    if (g.settings.online) {
+        cmd += L" --online --trace-np --experiment online-probe";
+        const std::string peers = sanitize_lobby_peers(g.settings.lobby_peers);
+        if (!peers.empty()) cmd += L" --lobby-peer " + W(peers);
+    }
     g.session_cmdline = cmd;
 
     SECURITY_ATTRIBUTES sa{sizeof sa, nullptr, TRUE};
@@ -1030,9 +1039,14 @@ void build_controls() {
     add(PageSettings, L"STATIC", L"Player name", SS_LEFT, IdLblName);
     add(PageSettings, L"EDIT", L"", ES_AUTOHSCROLL | WS_TABSTOP, IdPlayerName, WS_EX_CLIENTEDGE);
     SendMessageW(ctl(IdPlayerName), EM_SETLIMITTEXT, 16, 0);
+    add(PageSettings, L"BUTTON", L"Online test features (experimental): Friendly Match rooms on the local network", BS_AUTOCHECKBOX | WS_TABSTOP, IdOnline);
+    add(PageSettings, L"STATIC", L"Other PC's address", SS_LEFT, IdLblPeers);
+    add(PageSettings, L"EDIT", L"", ES_AUTOHSCROLL | WS_TABSTOP, IdLobbyPeers, WS_EX_CLIENTEDGE);
+    SendMessageW(ctl(IdLobbyPeers), EM_SETLIMITTEXT, 127, 0);
     add(PageSettings, L"STATIC",
         L"Settings are saved at once and apply the next time you press Play. The player name is what the game sees as your console user name. "
-        L"Graphics options beyond the window size are not offered because the runtime has none yet.", SS_LEFT | SS_NOPREFIX, IdSettingsNote);
+        L"Online test features: rooms are found on your local network only, nothing contacts PlayStation Network, and joining another PC's room "
+        L"is not finished yet. Other PC's address is optional (for networks that block broadcast), e.g. 192.168.1.20.", SS_LEFT | SS_NOPREFIX, IdSettingsNote);
     // Controls
     HWND lv = add(PageControls, WC_LISTVIEWW, L"", LVS_REPORT | LVS_NOSORTHEADER | LVS_SINGLESEL | WS_TABSTOP, IdControlsList, WS_EX_CLIENTEDGE);
     ListView_SetExtendedListViewStyle(lv, LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER);
@@ -1094,7 +1108,7 @@ void refresh_help_text() {
       << L"The diagnostic report is a ZIP file you save yourself; it is never uploaded. It contains the launcher log and the logs of the newest "
          L"three sessions, with your user and computer names replaced. It never contains game files, prepared data, saves or captures.\r\n\r\n"
       << L"Delete prepared data if the game fails to start after you changed the game folder; it is rebuilt on the next Play.\r\n\r\n"
-      << L"Known limits of this version: movies are skipped; trophies and online features are not available; only CUSA01593 version 01.02 "
+      << L"Known limits of this version: movies are skipped; trophies are not available; online is an experimental local-network test (Settings); only CUSA01593 version 01.02 "
          L"is supported; only the title screen, menus, Free Battle and the J-Adventure map have been exercised.\r\n\r\n"
       << L"Launcher " << W(launcher_version) << L"\r\nRuntime: " << W(g.runtime_version) << L"\r\nRuntime SHA-256: " << W(g.runtime_sha256)
       << L"\r\nData folder: " << g.data_root.wstring() << L"\r\nSaves: " << g.user_dir.wstring();
@@ -1114,6 +1128,9 @@ void load_settings_into_ui() {
     SendMessageW(ctl(IdKeyboard), BM_SETCHECK, g.settings.keyboard ? BST_CHECKED : BST_UNCHECKED, 0);
     SendMessageW(ctl(IdConfirm), CB_SETCURSEL, g.settings.confirm_button == "circle" ? 1 : 0, 0);
     set_text(IdPlayerName, W(g.settings.player_name));
+    SendMessageW(ctl(IdOnline), BM_SETCHECK, g.settings.online ? BST_CHECKED : BST_UNCHECKED, 0);
+    set_text(IdLobbyPeers, W(g.settings.lobby_peers));
+    enable(IdLobbyPeers, g.settings.online);
 }
 
 // ---- first run: data folder, backups of earlier data -----------------------------------------------------------------------------------
@@ -1230,6 +1247,18 @@ void on_command(int id, int code) {
     case IdKeyboard:
         g.settings.keyboard = SendMessageW(ctl(IdKeyboard), BM_GETCHECK, 0, 0) == BST_CHECKED;
         save_settings_now();
+        break;
+    case IdOnline:
+        g.settings.online = SendMessageW(ctl(IdOnline), BM_GETCHECK, 0, 0) == BST_CHECKED;
+        enable(IdLobbyPeers, g.settings.online);
+        save_settings_now();
+        break;
+    case IdLobbyPeers:
+        if (code == EN_KILLFOCUS) {
+            g.settings.lobby_peers = sanitize_lobby_peers(U(get_text(IdLobbyPeers)));
+            set_text(IdLobbyPeers, W(g.settings.lobby_peers));
+            save_settings_now();
+        }
         break;
     case IdConfirm:
         if (code == CBN_SELCHANGE) {

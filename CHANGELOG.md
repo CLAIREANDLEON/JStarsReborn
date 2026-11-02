@@ -1,15 +1,16 @@
 # Change log
 
-## Unreleased (branch `feature/online-np`, 0.5.0 work in progress)
+## 0.5.0 playtest preview (branch `feature/online-np`; pre-release)
 
-Online play is **not** working yet; nothing here contacts PlayStation Network, and no multiplayer match has been played.
+A match between two PCs is **not** possible yet (joining a room is missing); nothing here contacts PlayStation Network. Test results so far are
+from one PC.
 
 - `--online`: real UDP sockets for `libSceNet` (console address layout, FreeBSD errno), virtual-port (P2P) multiplexing because the game
   uses socket type 6, `libSceNetCtl` reporting this host's address. Off by default.
 - A local signed-in identity, NP state callback, request API, account country/language, WebApi (only the player's own block list is
   answered, locally) and a session-local Score board, so the game's Online Battle path runs instead of stopping.
 - Matching2 and Signaling context lifetime, plus Matching2 request IDs and asynchronous response callbacks.
-  `sceNpMatching2GetWorldInfoList` returns one local world with zero rooms; the online-j Windows probe reaches the game's
+  `sceNpMatching2GetWorldInfoList` returns one local world with the number of rooms heard on the network; the online-j Windows probe reaches the game's
   Online Battle menus. Host tests: 278/0 on Linux and Windows at `711045b`. The probe did not exercise a room request;
   room operations, peer connections and multiplayer remain unverified.
 - Native Windows host-runtime build tool (`tools/windows_build/`), verified with llvm-mingw Clang 23.1.4 and 266/0 checks at
@@ -17,6 +18,9 @@ Online play is **not** working yet; nothing here contacts PlayStation Network, a
 - `--trace-net`, `--trace-np` (bounded tracing) and `--experiment online-probe` (diagnosis only).
 - Fix: closing a P2P socket released neither its queue nor the UDP port.
 - Every net/NP import has an audit row; the 0.4.0 socket rows were stale.
+- LAN room directory and Friendly Match hosting: Create a Room works and is announced on the local network; Search for a Room lists
+  rooms other PCs announce. Joining a room, Rank Match and Quick Match are not implemented yet.
+- Launcher: Settings > "Online test features (experimental)" and an optional "Other PC's address". Off by default.
 
 ## 0.4.0 — 2026-11-01
 
