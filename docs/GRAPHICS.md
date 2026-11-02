@@ -44,12 +44,12 @@ below; the override is a diagnostic and is not a correct gameplay-speed unlock.
 
 Claude reports about 30 FPS baseline and 60 FPS with immediate flip-rate 0,
 but the faster run did not reach a usable battle-timer comparison. The E2 folder
-`20261102-152027-OBLITERATOR-8a7dec` exists and its game log ends with player close
+`20261102-152027-PC-8a7dec` exists and its game log ends with player close
 around 150 seconds, so it is not a completed 380-second experiment.
 
 ### Delayed-switch battle measurement, 2026-11-02
 
-Run `20261102-153445-OBLITERATOR-893a67` used `pad-free-battle6.txt`,
+Run `20261102-153445-PC-893a67` used `pad-free-battle6.txt`,
 `--frame-stats --flip-rate 0 --flip-rate-after 270 --ffx-probe`, with captures
 starting at flip 6300 every 150 flips. It reached a battle before the switch.
 At log time 274330.740 ms the guest submission applied rate 0 successfully.
@@ -74,7 +74,7 @@ This measurement proves the timer speed problem, not every subsystem's timing.
 Runtime `74b6700`, SHA256
 `e185b77c93b0ed5ed76d56c5cc3f306087b0eb7d5f146f76484a3c5811c1a181`,
 successfully queried the signed SDK 2.4.0 Vulkan loader on Windows on 2026-11-02.
-Run `20261102-153445-OBLITERATOR-893a67`, `game-gpu.log`, records:
+Run `20261102-153445-PC-893a67`, `game-gpu.log`, records:
 
 | Effect | Versions returned, in provider order |
 | --- | --- |
