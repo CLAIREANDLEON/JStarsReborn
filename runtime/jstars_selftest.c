@@ -629,6 +629,26 @@ int rt_selftest_host(const char* scratch_dir) {
             CHECK(max_slot == 4 && open_pub == 3 && room_id != 0 && rr_members_num == 1 && rr_me_is_owner && member_id == 1 && mflags == 0x80000000u && rr_member[16] != 0,
                   "m2 rooms: the new room has 4 slots, 3 open, and one member: this player, owner, member id 1");
             CHECK(req4(ctx, cj, opt, &rid) == (int)0x80550C24, "m2 rooms: a second CreateJoinRoom while in a room reports ALREADY_JOINED");
+            // Across the network: a query sent to the directory port is answered with this room's announcement, sent back to
+            // the asker's own address and port (what a player who typed a room code receives through their NAT).
+            {
+                struct QAddr { uint8_t len, family; uint16_t port; uint32_t addr; uint16_t vport; char zero[6]; } to, from;
+                int qs = F(int, "sceNetSocket", (const char*, int, int, int))("query", 2, 2, 0);
+                memset(&to, 0, sizeof to); to.len = 16; to.family = 2;
+                to.port = F(uint16_t, "sceNetHtons", (uint16_t))(47399); to.addr = F(uint32_t, "sceNetHtonl", (uint32_t))(0x7f000001);
+                uint8_t q[16]; rt_rooms_encode_query(0x9999ull, q, sizeof q);
+                CHECK(qs >= 1 && F(int, "sceNetSendto", (int, const void*, size_t, int, const void*, int))(qs, q, 16, 0, &to, 16) == 16, "rooms: a query is sent to the directory port");
+                uint8_t ans[1024]; int n = -1;
+                for (int tries = 0; tries < 300 && n < 0; ++tries) {
+                    int fl = 16;
+                    n = F(int, "sceNetRecvfrom", (int, void*, size_t, int, void*, int*))(qs, ans, sizeof ans, 0x80, &from, &fl);
+                    if (n < 0) rt_sleep_ms_for_selftest(10);
+                }
+                RoomInfo got; uint64_t gn = 0;
+                CHECK(n > 16 && rt_rooms_decode(ans, n, &got, &gn) == 0 && got.room_id == room_id && gn == rt_rooms_nonce(),
+                      "rooms: the answer is this instance's room, sent back to the asker");
+                F(int, "sceNetSocketClose", (int))(qs);
+            }
             uint8_t sd[56]; memset(sd, 0, sizeof sd); memcpy(sd, &room_id, 8);
             rr_calls = 0;
             CHECK(M2REQ("sceNpMatching2SetRoomDataExternal")(ctx, sd, opt, &rid) == 0 && rr_wait(1) == 1 && rr_event == 0x0004, "m2 rooms: SetRoomDataExternal on the room answers");
@@ -692,6 +712,10 @@ int rt_selftest_host(const char* scratch_dir) {
         for (int k = 0, n = rt_rooms_snapshot(seen, 8, t0 + 1000); k < n; ++k) listed |= seen[k].room_id == r.room_id && seen[k].owner_ip == 0x0100007f;
         CHECK(listed, "rooms: the table lists it with its sender's address");
         CHECK(rt_rooms_snapshot(seen, 8, t0 + 6000) == 0, "rooms: a room not heard for more than 5 s is dropped");
+        uint8_t q[32];
+        CHECK(rt_rooms_encode_query(0x4242ull, q, sizeof q) == 16 && rt_rooms_is_query(q, 16), "rooms: a query from another instance is recognised");
+        CHECK(rt_rooms_encode_query(rt_rooms_nonce(), q, sizeof q) == 16 && !rt_rooms_is_query(q, 16), "rooms: this instance's own query is ignored");
+        CHECK(rt_rooms_decode(q, 16, &back, NULL) == -1, "rooms: a query is not taken for an announcement");
     }
 
     // ---- NP Signaling contexts ------------------------------------------------------------------------------

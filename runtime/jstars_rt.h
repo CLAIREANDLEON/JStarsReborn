@@ -111,6 +111,8 @@ uint64_t rt_rooms_new_id(void);
 uint64_t rt_rooms_now_ms(void);
 int rt_rooms_encode(const RoomInfo* r, uint64_t nonce, uint8_t* buf, int cap);
 int rt_rooms_decode(const uint8_t* buf, int len, RoomInfo* r, uint64_t* nonce_out);
+int rt_rooms_encode_query(uint64_t nonce, uint8_t* buf, int cap);
+int rt_rooms_is_query(const uint8_t* buf, int len);
 int rt_rooms_ingest(const uint8_t* buf, int len, uint32_t ip, uint64_t at_ms);
 int rt_rooms_snapshot(RoomInfo* out, int max, uint64_t at_ms);
 int rt_rooms_publish(const RoomInfo* r);

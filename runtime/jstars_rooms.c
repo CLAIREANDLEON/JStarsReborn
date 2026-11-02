@@ -7,11 +7,16 @@
 //
 // Wire format, version 1 (all integers little-endian, every field size-checked on receipt):
 //   0  'J','S','R','M'      magic
-//   4  u8  version (1)      5  u8 type (1 = room announcement)    6  u16 payload length (bytes after this 16-byte header)
+//   4  u8  version (1)      5  u8 type (1 = room announcement, 2 = query)   6  u16 payload length (bytes after this 16-byte header)
 //   8  u64 instance nonce   (lets an instance ignore its own announcements)
 //   16 payload: u64 room id, u32 world id, u16 max slots, u16 current members, u32 flags, char owner[16],
 //      u16 owner P2P port, u8 int-attribute count (<= ROOM_MAX_INT), u8 bin-attribute count (<= ROOM_MAX_BIN),
 //      { u16 id, u32 value } per int attribute, { u16 id, u16 length (<= ROOM_MAX_BIN_LEN), bytes } per bin attribute.
+// A query (type 2, empty payload) asks the instance it is sent to for its rooms; the answer is that instance's room
+// announcements, sent back to the address the query came from. This is how a player who was given another player's
+// address (a room code, --lobby-peer ip:port) sees that player's rooms across the internet: the query leaves through the
+// asker's own NAT, so the answer can come back, and the host only needs its one directory port reachable (UPnP or a
+// forwarded port). The game's own traffic then goes directly between the two players; no server is involved.
 // This format is this project's own. It is not PlayStation Network's and no PS4 understands it.
 #include "jstars_rt.h"
 #ifdef _WIN32
@@ -50,10 +55,11 @@ static int g_local_used[ROOM_LOCAL];
 static uint64_t g_nonce;
 static uint16_t g_port = 47391;
 static uint32_t g_peers[ROOM_MAX_PEERS];   // network order
+static uint16_t g_peer_ports[ROOM_MAX_PEERS]; // host order
 static int g_npeers;
 static int g_started;
 static rsock_t g_sock = RSOCK_INVALID;
-static uint64_t g_sent, g_received, g_rejected;
+static uint64_t g_sent, g_received, g_rejected, g_queries;
 
 static uint64_t now_ms(void) {
     struct timespec ts;
@@ -76,8 +82,11 @@ void rt_rooms_configure(uint16_t port, const char* peers_csv) {
     buf[sizeof buf - 1] = 0;
     for (char* tok = strtok(buf, ","); tok && g_npeers < ROOM_MAX_PEERS; tok = strtok(NULL, ",")) {
         struct in_addr a;
-        if (inet_pton(AF_INET, tok, &a) == 1) g_peers[g_npeers++] = a.s_addr;
-        else rt_logf("rooms: --lobby-peer '%s' is not an IPv4 address; ignored", tok);
+        unsigned port = 0;
+        char* colon = strchr(tok, ':');
+        if (colon) { *colon = 0; port = (unsigned)atoi(colon + 1); }
+        if (inet_pton(AF_INET, tok, &a) == 1 && port < 65536) { g_peers[g_npeers] = a.s_addr; g_peer_ports[g_npeers] = (uint16_t)port; ++g_npeers; }
+        else rt_logf("rooms: --lobby-peer '%s' is not an IPv4 address[:port]; ignored", tok);
     }
 }
 uint64_t rt_rooms_nonce(void) {
@@ -115,6 +124,16 @@ int rt_rooms_encode(const RoomInfo* r, uint64_t nonce, uint8_t* buf, int cap) {
     for (int i = 0; i < r->n_int; ++i) { put16(buf + n, r->ints[i].id); put32(buf + n + 2, r->ints[i].value); n += 6; }
     for (int i = 0; i < r->n_bin; ++i) { put16(buf + n, r->bins[i].id); put16(buf + n + 2, r->bins[i].len); memcpy(buf + n + 4, r->bins[i].data, r->bins[i].len); n += 4 + r->bins[i].len; }
     return n;
+}
+
+int rt_rooms_encode_query(uint64_t nonce, uint8_t* buf, int cap) {
+    if (cap < ROOM_HEADER) return -1;
+    memcpy(buf, "JSRM", 4); buf[4] = 1; buf[5] = 2; put16(buf + 6, 0); put64(buf + 8, nonce);
+    return ROOM_HEADER;
+}
+// 1 when buf is a well-formed query from another instance.
+int rt_rooms_is_query(const uint8_t* buf, int len) {
+    return len == ROOM_HEADER && !memcmp(buf, "JSRM", 4) && buf[4] == 1 && buf[5] == 2 && get16(buf + 6) == 0 && get64(buf + 8) != rt_rooms_nonce();
 }
 
 // Parses an announcement. Returns 1 for a room from another instance, 0 for our own, -1 for anything malformed.
@@ -209,6 +228,33 @@ void rt_rooms_unpublish(uint64_t room_id) {
     pthread_mutex_unlock(&g_rooms_lock);
 }
 
+static void send_to(const uint8_t* buf, int len, uint32_t ip, uint16_t port) {
+    struct sockaddr_in to;
+    memset(&to, 0, sizeof to);
+    to.sin_family = AF_INET;
+    to.sin_port = htons(port ? port : g_port);
+    to.sin_addr.s_addr = ip;
+    if (sendto(g_sock, (const char*)buf, len, 0, (struct sockaddr*)&to, sizeof to) == len) ++g_sent;
+}
+// Our rooms, to one address (the answer to a query).
+static void announce_to(uint32_t ip, uint16_t port) {
+    RoomInfo local[ROOM_LOCAL];
+    int n = 0;
+    pthread_mutex_lock(&g_rooms_lock);
+    for (int i = 0; i < ROOM_LOCAL; ++i) if (g_local_used[i]) local[n++] = g_local[i];
+    pthread_mutex_unlock(&g_rooms_lock);
+    for (int i = 0; i < n; ++i) {
+        uint8_t buf[1024];
+        const int len = rt_rooms_encode(&local[i], rt_rooms_nonce(), buf, sizeof buf);
+        if (len > 0) send_to(buf, len, ip, port);
+    }
+}
+static void query_peers(void) {
+    uint8_t q[ROOM_HEADER];
+    rt_rooms_encode_query(rt_rooms_nonce(), q, sizeof q);
+    for (int p = 0; p < g_npeers; ++p) send_to(q, ROOM_HEADER, g_peers[p], g_peer_ports[p]);
+}
+
 static void announce_all(void) {
     RoomInfo local[ROOM_LOCAL];
     int n = 0;
@@ -225,10 +271,7 @@ static void announce_all(void) {
         to.sin_port = htons(g_port);
         to.sin_addr.s_addr = htonl(INADDR_BROADCAST);
         if (sendto(g_sock, (const char*)buf, len, 0, (struct sockaddr*)&to, sizeof to) == len) ++g_sent;
-        for (int p = 0; p < g_npeers; ++p) {
-            to.sin_addr.s_addr = g_peers[p];
-            if (sendto(g_sock, (const char*)buf, len, 0, (struct sockaddr*)&to, sizeof to) == len) ++g_sent;
-        }
+        for (int p = 0; p < g_npeers; ++p) send_to(buf, len, g_peers[p], g_peer_ports[p]);
     }
 }
 
@@ -237,12 +280,15 @@ static void* rooms_thread(void* arg) {
     uint64_t next = 0;
     for (;;) {
         const uint64_t t = now_ms();
-        if (t >= next) { announce_all(); next = t + ROOM_ANNOUNCE_MS; }
+        if (t >= next) { announce_all(); query_peers(); next = t + ROOM_ANNOUNCE_MS; }
         uint8_t buf[1500];
         struct sockaddr_in from;
         socklen_t fl = sizeof from;
         const int n = (int)recvfrom(g_sock, (char*)buf, sizeof buf, 0, (struct sockaddr*)&from, &fl);
-        if (n > 0) rt_rooms_ingest(buf, n, from.sin_addr.s_addr, now_ms());
+        if (n > 0) {
+            if (rt_rooms_is_query(buf, n)) { ++g_queries; announce_to(from.sin_addr.s_addr, ntohs(from.sin_port)); }
+            else rt_rooms_ingest(buf, n, from.sin_addr.s_addr, now_ms());
+        }
     }
     return NULL;
 }
@@ -287,5 +333,5 @@ int rt_rooms_start(void) {
     return 0;
 }
 void rt_rooms_report(void) {
-    if (g_started) rt_logf("rooms: %llu announcements sent, %llu received, %llu malformed", (unsigned long long)g_sent, (unsigned long long)g_received, (unsigned long long)g_rejected);
+    if (g_started) rt_logf("rooms: %llu datagrams sent, %llu announcements received, %llu queries answered, %llu malformed", (unsigned long long)g_sent, (unsigned long long)g_received, (unsigned long long)g_queries, (unsigned long long)g_rejected);
 }
