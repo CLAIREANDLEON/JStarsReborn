@@ -67,3 +67,30 @@ difficult, because it must match what the game expects exactly.
 * Offline behaviour is unchanged: without `--online` every answer is the one this runtime has always given.
 * A room that two players share is a trust boundary. Before anything is exposed beyond a local network, input
   from a peer must be treated as untrusted, which is a separate piece of work recorded in the checklist.
+
+## Addendum (2026-11-02): the first room directory
+
+**Context.** With contexts, signaling contexts and the world list answered, the game enters its Online Battle menus (run 20261102-010835).
+The next requests are room requests: `SearchRoom` (caller function `0x2c1460`; request built on the stack with option `0x19`, range
+{start 1, max 20}, callback `0x2c22c0`) and `CreateJoinRoom` / `JoinRoom` / `LeaveRoom`. They need a directory that more than one machine
+sees; inventing rooms or members locally is not allowed.
+
+**Decision.** The first backend is a **LAN directory** inside the runtime, no server process:
+
+* Each room has one owner instance. The owner announces it by UDP broadcast (and unicast to any `--lobby-peer <ip>` given, for networks
+  that drop broadcast) once a second on one fixed port (default 47391, `--lobby-port`). An announcement carries the room id (64-bit random),
+  world id, owner online id, slot counts, flags and the room's external search attributes, nothing else.
+* Every instance keeps a table of rooms heard from in the last 5 s. `SearchRoom` filters that table with the game's own filters and returns
+  real entries only; an empty table is an empty answer.
+* Joining is a handshake with the owner (JOIN request → JOIN accepted with the member id and member list, or refused because full/closed);
+  the owner tells members about joins and leaves; a member that stops answering for 10 s is reported as gone. Room events reach the game's
+  room-event callback only from these messages.
+* Each member's address in the directory is also the address Signaling hands to the game for its own P2P transport (the virtual-port
+  sockets in `jstars_net.c`).
+* Messages are versioned (`JSRM`, version 1), size-checked and ignored when malformed. Nothing is sent unless `--online` is given.
+
+**Not decided yet.** A self-hosted internet directory (same messages over a relay) and NAT traversal. Neither is needed for a two-PC test on one
+network. Wire compatibility with PSN or PS4s is a non-goal.
+
+**Evidence still required before each piece is implemented:** the exact request, response and event structures the game reads, from its own callbacks
+(the GetWorldInfoList callback `0x2c04c0` showed the world list is read as a contiguous 0x28-byte array, not a linked list).

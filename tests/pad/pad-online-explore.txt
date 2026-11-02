@@ -1,0 +1,19 @@
+# Automated test input (NOT a controller; every transition is logged as "SCRIPTED TEST INPUT"). Seconds count from the
+# first scePadOpen. Same opening as pad-online-probe.txt up to Online Battle (CROSS at 86). Then it waits so a capture
+# shows the Online Battle submenu (which opened on Rank Match in run 20261102-010835), moves DOWN once to the next entry
+# (expected: the friendly / player match path, unconfirmed) and accepts with a slow CROSS cadence, so the captures and
+# the --trace-np log show which room request the game makes there. Run with frequent captures (run-gpu31.cmd).
+at 40 press CROSS for 200
+at 48 press LEFT for 200
+at 50 press CROSS for 200
+at 62 press CROSS for 200
+at 72 press DOWN for 200
+at 75 press DOWN for 200
+at 78 press DOWN for 200
+at 81 press DOWN for 200
+at 86 press CROSS for 200
+at 96 press DOWN for 200
+at 100 press CROSS for 200
+every 6000 from 108 to 168 press CROSS for 200
+at 180 press CIRCLE for 200
+at 188 press CIRCLE for 200
