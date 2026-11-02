@@ -85,6 +85,36 @@ void rt_audio_set_dump(const char* prefix);  // --dump-audio: per-port stereo S1
 // Network layer (jstars_net.c). Off by default: without --online the game gets the offline answers.
 void rt_net_configure(int online, int trace);
 int rt_net_online(void);
+
+// LAN room directory (jstars_rooms.c; docs/ADR-007-online.md addendum)
+#define ROOM_MAX_INT 8
+#define ROOM_MAX_BIN 2
+#define ROOM_MAX_BIN_LEN 64
+typedef struct {
+    uint64_t room_id;
+    uint32_t world_id;
+    uint16_t max_slot, cur_members;
+    uint32_t flags;
+    char owner[16];                 // owner's online id, not terminated when 16 characters long
+    uint32_t owner_ip;              // network order, from the datagram's source (0 for a local room)
+    uint16_t owner_port;            // the owner's P2P UDP port, host order (0 = unknown)
+    uint8_t n_int, n_bin;
+    struct { uint16_t id; uint32_t value; } ints[ROOM_MAX_INT];
+    struct { uint16_t id; uint16_t len; uint8_t data[ROOM_MAX_BIN_LEN]; } bins[ROOM_MAX_BIN];
+    uint64_t heard_ms;
+} RoomInfo;
+void rt_rooms_configure(uint16_t port, const char* peers_csv);
+int rt_rooms_start(void);
+void rt_rooms_report(void);
+uint64_t rt_rooms_nonce(void);
+uint64_t rt_rooms_new_id(void);
+uint64_t rt_rooms_now_ms(void);
+int rt_rooms_encode(const RoomInfo* r, uint64_t nonce, uint8_t* buf, int cap);
+int rt_rooms_decode(const uint8_t* buf, int len, RoomInfo* r, uint64_t* nonce_out);
+int rt_rooms_ingest(const uint8_t* buf, int len, uint32_t ip, uint64_t at_ms);
+int rt_rooms_snapshot(RoomInfo* out, int max, uint64_t at_ms);
+int rt_rooms_publish(const RoomInfo* r);
+void rt_rooms_unpublish(uint64_t room_id);
 void rt_net_report(void);
 void rt_sleep_ms_for_selftest(int ms);
 void rt_np_configure(int trace);   // --trace-np: log every call into the NP libraries with its answer

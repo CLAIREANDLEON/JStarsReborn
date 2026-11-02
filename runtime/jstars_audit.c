@@ -268,6 +268,10 @@ static const AuditRow rows[] = {
     {"sceNpMatching2AbortContextStart", "verified", "a pending start reports CONTEXT_STOPPED with ABORTED (selftest-host)"},
     {"sceNpMatching2GetServerId", "partial", "one local server (id 1); no world or room exists behind it"},
     {"sceNpMatching2GetWorldInfoList", "verified", "one local world whose counts are the local room directory's (all 0 until rooms exist); answer delivered to the request callback from a library thread; layouts checked against the game's caller 0x2c03e0 and callback 0x2c04c0; selftest-host"},
+    {"sceNpMatching2CreateJoinRoom", "partial", "a room owned by this instance with this player as its only member, announced on the LAN directory; answer layout checked against the game's callback 0x2c1240; password slots, groups and member attributes not kept; selftest-host"},
+    {"sceNpMatching2LeaveRoom", "partial", "stops announcing the room; nobody else can be in it yet (no join); selftest-host"},
+    {"sceNpMatching2SetRoomDataExternal", "partial", "replaces the announced search attributes (up to 8 int, 2 bin of 64 bytes); selftest-host"},
+    {"sceNpMatching2SearchRoom", "partial", "rooms other instances announced on the LAN in the last 5 s, filtered by world, flags and int filters (operators EQ..GE = 1..6 assumed from the PS3 values); bin filters not applied; layout checked against the game's callback 0x2c22c0; selftest-host"},
     // ---- libSceSaveData (jstars_savedata.c): save folders on the host; format is this port's own -------------------------
     {"sceSaveDataInitialize", "verified", "selftest: mount before initialize is NOT_INITIALIZED"},
     {"sceSaveDataTerminate", "partial", "clears initialized state"},

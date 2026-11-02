@@ -281,6 +281,8 @@ int main(int argc, char** argv) {
 #endif
     const char *boot = NULL, *logpath = "jstars-boot.log", *gpu_dir = NULL, *capture_dir = NULL, *game_root = NULL, *user_dir = NULL, *pad_script = NULL, *experiments = NULL;
     int online = 0, trace_net = 0, trace_np = 0;
+    uint16_t lobby_port = 0;
+    const char* lobby_peers = NULL;
     int check_only = 0, selftest = 0, audit_dump = 0, stop_at_gnm = 0, win_w = 1280, win_h = 720;
     for (int i = 1; i < argc; ++i) {
         if (!strcmp(argv[i], "--version")) { printf("JStarsReborn runtime %s\n", JSTARS_RUNTIME_VERSION); return 0; }
@@ -308,6 +310,8 @@ int main(int argc, char** argv) {
         else if (!strcmp(argv[i], "--count-imports")) rt_thunk_set_counting(1);
         else if (!strcmp(argv[i], "--experiment") && i + 1 < argc) experiments = argv[++i];
         else if (!strcmp(argv[i], "--online")) online = 1;
+        else if (!strcmp(argv[i], "--lobby-port") && i + 1 < argc) lobby_port = (uint16_t)atoi(argv[++i]);
+        else if (!strcmp(argv[i], "--lobby-peer") && i + 1 < argc) lobby_peers = argv[++i];
         else if (!strcmp(argv[i], "--trace-net")) trace_net = 1;
         else if (!strcmp(argv[i], "--trace-np")) trace_np = 1;
         else if (!strcmp(argv[i], "--trace-draws") && i + 1 < argc) { ++i; os_setenv("JGPU_TRACE_DRAWS", argv[i]); }
@@ -316,7 +320,7 @@ int main(int argc, char** argv) {
         else if (!strcmp(argv[i], "--capture-max") && i + 1 < argc) g_capture_max = atoi(argv[++i]);
         else { fprintf(stderr, "usage: %s --boot boot-linked.bin [--log file] [--check-imports] [--stop-at-first-gnm] [--selftest-host] [--audit-dump]\n"
                                "       [--game-root dir] [--user-dir dir] [--gpu-dir dir] [--capture-dir dir] [--window WxH] [--max-seconds n] [--capture-flips n]\n"
-                               "       [--capture-interval flips] [--capture-max n] [--pad-script file] [--no-keyboard] [--no-audio] [--volume 0-100] [--dump-audio prefix] [--pad-none] [--sample-threads seconds] [--count-imports] [--trace-draws first,count] [--experiment names] [--online] [--trace-net] [--trace-np]\n", argv[0]); return 1; }
+                               "       [--capture-interval flips] [--capture-max n] [--pad-script file] [--no-keyboard] [--no-audio] [--volume 0-100] [--dump-audio prefix] [--pad-none] [--sample-threads seconds] [--count-imports] [--trace-draws first,count] [--experiment names] [--online] [--lobby-port n] [--lobby-peer ip[,ip]] [--trace-net] [--trace-np]\n", argv[0]); return 1; }
     }
     if (audit_dump) { extern void rt_audit_dump(void*); rt_audit_dump(stdout); return 0; }
     if (selftest) { rt_log_open(logpath); extern int rt_selftest_host(const char*); char sd[4096]; snprintf(sd, sizeof sd, "%s.selftest", logpath); return rt_selftest_host(sd); }
@@ -327,6 +331,7 @@ int main(int argc, char** argv) {
     if (experiments) rt_set_experiments(experiments);
     rt_net_configure(online, trace_net);
     rt_np_configure(trace_np);
+    rt_rooms_configure(lobby_port, lobby_peers);
     if (online) rt_logf("--online: the network layer is active. The game gets real UDP sockets on this host; "
                         "no PlayStation Network service is contacted and no account is used.");
     {

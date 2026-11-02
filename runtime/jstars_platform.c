@@ -374,6 +374,8 @@ static struct {
     void* request_arg;
 } g_m2_ctx[M2_MAX_CTX];
 static uint32_t g_m2_generation;
+// The room this instance is in (one at a time, as the game uses it). Guarded by g_m2_lock.
+static struct { int in_room; uint16_t ctx_id; RoomInfo info; uint16_t team_id; uint64_t lobby_id; } g_m2_room;
 
 // Callers hold g_m2_lock.
 static int m2_ctx_index(uint16_t id) { const int i = (int)id - 1; return (i >= 0 && i < M2_MAX_CTX && g_m2_ctx[i].used) ? i : -1; }
@@ -385,7 +387,10 @@ static int GUEST_ABI m2_terminate(void) {
     for (int i = 0; i < M2_MAX_CTX; ++i) { const uint32_t gen = ++g_m2_generation; memset(&g_m2_ctx[i], 0, sizeof g_m2_ctx[i]); g_m2_ctx[i].generation = gen; }
     g_m2_context_cb = NULL;
     g_m2_context_userdata = NULL;
+    const uint64_t left = g_m2_room.in_room ? g_m2_room.info.room_id : 0;
+    g_m2_room.in_room = 0;
     pthread_mutex_unlock(&g_m2_lock);
+    if (left) rt_rooms_unpublish(left);
     np_trace("sceNpMatching2Terminate");
     return 0;
 }
@@ -427,7 +432,10 @@ static int GUEST_ABI m2_destroy_context(uint16_t ctx_id) {
     const uint32_t gen = ++g_m2_generation;     // a start still pending for this slot finds a new generation and gives up
     memset(&g_m2_ctx[i], 0, sizeof g_m2_ctx[i]);
     g_m2_ctx[i].generation = gen;
+    const uint64_t left = g_m2_room.in_room && g_m2_room.ctx_id == ctx_id ? g_m2_room.info.room_id : 0;
+    if (left) g_m2_room.in_room = 0;
     pthread_mutex_unlock(&g_m2_lock);
+    if (left) rt_rooms_unpublish(left);
     np_trace("sceNpMatching2DestroyContext(context %u)", ctx_id);
     return 0;
 }
@@ -495,6 +503,7 @@ static int GUEST_ABI m2_context_start(uint16_t ctx_id, uint64_t timeout) {
     const uint32_t gen = g_m2_ctx[i].generation;
     pthread_mutex_unlock(&g_m2_lock);
     np_trace("sceNpMatching2ContextStart(context %u, timeout %llu us)", ctx_id, (unsigned long long)timeout);
+    rt_rooms_start();
     if (rt_spawn_guest_thread(m2_start_thread, (void*)(((uintptr_t)gen << 16) | ctx_id), "NpMatching2")) {
         pthread_mutex_lock(&g_m2_lock);
         if (g_m2_ctx[i].generation == gen) g_m2_ctx[i].starting = 0;
@@ -628,11 +637,247 @@ static int GUEST_ABI m2_get_world_info_list(uint16_t ctx_id, const void* request
     list->world = &list->one;
     list->world_num = 1;
     list->one.world_id = M2_LOCAL_WORLD_ID;
+    { RoomInfo seen[64]; list->one.rooms = (uint32_t)rt_rooms_snapshot(seen, 64, rt_rooms_now_ms()); }
+    const uint32_t list_rooms = list->one.rooms;
     const uint32_t id = m2_post_request_locked(i, ctx_id, M2_REQUEST_EVENT_GET_WORLD_INFO_LIST, 0, list);
     pthread_mutex_unlock(&g_m2_lock);
     if (!id) return M2_ERR_OUT_OF_MEMORY;
     *req_id = id;
-    rt_logf("sceNpMatching2GetWorldInfoList(context %u, server %u) -> request %u: one local world (id %u), 0 rooms", ctx_id, server_id, id, M2_LOCAL_WORLD_ID);
+    rt_logf("sceNpMatching2GetWorldInfoList(context %u, server %u) -> request %u: one local world (id %u), %u room(s) heard on the network", ctx_id, server_id, id, M2_LOCAL_WORLD_ID, list_rooms);
+    return 0;
+}
+
+// ---- Matching2 rooms over the LAN directory (jstars_rooms.c) --------------------------------------------------------
+// Layouts below are shadPS4's np_types2.h ones, confirmed against what this game reads: its CreateJoinRoom callback
+// (0x2c1240) copies a 0x58-byte room and 0x58-byte members from { room; members; membersNum; me; owner }, and its
+// SearchRoom callback (0x2c22c0) walks the `next` chain of 0x88-byte external room entries, copying the owner NpId
+// (0x24 bytes) and the int (8-byte) and bin (0x18-byte) search attributes. The request offsets are those of the same
+// header; the game's CreateJoinRoom call (0x2c0fd9) puts its blocked-user list at +0x50/+0x58 as that layout says.
+enum { M2_REQUEST_EVENT_SET_ROOM_DATA_EXTERNAL = 0x0004, M2_REQUEST_EVENT_CREATE_JOIN_ROOM = 0x0101,
+       M2_REQUEST_EVENT_LEAVE_ROOM = 0x0103, M2_REQUEST_EVENT_SEARCH_ROOM = 0x0106 };
+enum { M2_ERR_ALREADY_JOINED = (int)0x80550C24, M2_ERR_INVALID_ROOM_ID = (int)0x80550C0F, M2_ERR_ROOM_NOT_FOUND = (int)0x80550C30 };
+#define M2_MEMBER_FLAG_OWNER 0x80000000u
+#define M2_ROOM_FLAG_FULL 0x20000000u
+#define M2_ROOM_FLAG_HIDDEN 0x10000000u
+
+typedef struct {
+    void* next; uint64_t join_date; uint8_t np_id[36]; uint8_t pad[4];
+    uint16_t member_id; uint8_t team_id; uint8_t nat_type; uint32_t flag_attr;
+    void* room_group; void* bin_attr; uint64_t bin_attr_num;
+} M2Member;
+_Static_assert(sizeof(M2Member) == 0x58, "SceNpMatching2RoomMemberDataInternal is 0x58 bytes");
+typedef struct {
+    uint16_t public_slots, private_slots, open_public_slots, open_private_slots, max_slot, server_id;
+    uint32_t world_id; uint64_t lobby_id, room_id, passwd_slot_mask, joined_slot_mask;
+    void* room_group; uint64_t room_groups; uint32_t flags; uint8_t pad[4]; void* internal_bin_attr; uint64_t internal_bin_attrs;
+} M2RoomInternal;
+_Static_assert(sizeof(M2RoomInternal) == 0x58, "SceNpMatching2RoomDataInternal is 0x58 bytes");
+typedef struct {
+    void* next; uint16_t max_slot, cur_members; uint32_t flags; uint16_t server_id; uint8_t pad[2]; uint32_t world_id;
+    uint64_t lobby_id, room_id, passwd_slot_mask, joined_slot_mask;
+    uint16_t public_slots, private_slots, open_public_slots, open_private_slots;
+    void* owner_np_id; void* room_group; uint64_t room_groups;
+    void* int_attr; uint64_t int_attrs; void* search_bin_attr; uint64_t search_bin_attrs; void* bin_attr; uint64_t bin_attrs;
+} M2RoomExternal;
+_Static_assert(sizeof(M2RoomExternal) == 0x88, "SceNpMatching2RoomDataExternal is 0x88 bytes");
+typedef struct { uint16_t id; uint8_t pad[2]; uint32_t num; } M2IntAttr;
+typedef struct { uint16_t id; uint8_t pad[6]; const uint8_t* data; uint64_t size; } M2BinAttr;
+_Static_assert(sizeof(M2BinAttr) == 0x18, "SceNpMatching2BinAttr is 0x18 bytes");
+
+
+static uint64_t m2_rtc_now(void) {   // SceRtcTick: microseconds since 0001-01-01
+    struct timespec ts; clock_gettime(CLOCK_REALTIME, &ts);
+    return ((uint64_t)ts.tv_sec + 62135596800ull) * 1000000ull + (uint64_t)ts.tv_nsec / 1000u;
+}
+static void m2_np_id(uint8_t out[36], const char* online_id) {
+    memset(out, 0, 36);
+    size_t n = strnlen(online_id, 16);
+    memcpy(out, online_id, n);
+}
+static void m2_copy_attrs(RoomInfo* r, const M2IntAttr* ints, uint64_t n_int, const M2BinAttr* bins, uint64_t n_bin) {
+    if (ints) {
+        r->n_int = 0;
+        for (uint64_t i = 0; i < n_int && r->n_int < ROOM_MAX_INT; ++i) { r->ints[r->n_int].id = ints[i].id; r->ints[r->n_int].value = ints[i].num; r->n_int++; }
+        if (n_int > ROOM_MAX_INT) rt_logf("Matching2: %llu int search attributes given, %d kept", (unsigned long long)n_int, ROOM_MAX_INT);
+    }
+    if (bins) {
+        r->n_bin = 0;
+        for (uint64_t i = 0; i < n_bin && r->n_bin < ROOM_MAX_BIN; ++i) {
+            const uint64_t len = bins[i].size > ROOM_MAX_BIN_LEN ? ROOM_MAX_BIN_LEN : bins[i].size;
+            if (bins[i].size > ROOM_MAX_BIN_LEN) rt_logf("Matching2: bin search attribute %u is %llu bytes; %d kept", bins[i].id, (unsigned long long)bins[i].size, ROOM_MAX_BIN_LEN);
+            r->bins[r->n_bin].id = bins[i].id; r->bins[r->n_bin].len = (uint16_t)len;
+            if (len && bins[i].data) memcpy(r->bins[r->n_bin].data, bins[i].data, len);
+            r->n_bin++;
+        }
+    }
+}
+
+// Common checks for a room request; on success the lock is HELD and *idx is the context's index.
+static int m2_begin_request(uint16_t ctx_id, const void* request, const void* opt, const uint32_t* req_id, int* idx) {
+    if (!g_np_m2_init) return M2_ERR_NOT_INITIALIZED;
+    if (!request || !req_id) return M2_ERR_INVALID_ARGUMENT;
+    pthread_mutex_lock(&g_m2_lock);
+    const int i = m2_ctx_index(ctx_id);
+    if (i < 0) { pthread_mutex_unlock(&g_m2_lock); return M2_ERR_INVALID_CONTEXT_ID; }
+    if (!g_m2_ctx[i].started) { pthread_mutex_unlock(&g_m2_lock); return M2_ERR_CONTEXT_NOT_STARTED; }
+    m2_store_request_cb(i, opt);
+    *idx = i;
+    return 0;
+}
+
+// CreateJoinRoom: this instance becomes the owner and only member of a new room, which the directory announces on the
+// local network. Nobody else is reported in it until somebody really joins.
+static int GUEST_ABI m2_create_join_room(uint16_t ctx_id, const void* request, const void* opt, uint32_t* req_id) {
+    int i, rc = m2_begin_request(ctx_id, request, opt, req_id, &i);
+    if (rc) return rc;
+    const uint8_t* q = (const uint8_t*)request;
+    uint16_t max_slot; uint32_t flags, world_id; uint64_t lobby_id;
+    memcpy(&max_slot, q + 0x00, 2); memcpy(&flags, q + 0x08, 4); memcpy(&world_id, q + 0x0C, 4); memcpy(&lobby_id, q + 0x10, 8);
+    const uint8_t team_id = q[2];
+    if (g_m2_room.in_room) { pthread_mutex_unlock(&g_m2_lock); return M2_ERR_ALREADY_JOINED; }
+    if (max_slot == 0 || max_slot > 64) { pthread_mutex_unlock(&g_m2_lock); return M2_ERR_INVALID_ARGUMENT; }
+    RoomInfo r; memset(&r, 0, sizeof r);
+    r.room_id = rt_rooms_new_id(); r.world_id = world_id; r.max_slot = max_slot; r.cur_members = 1; r.flags = flags;
+    memcpy(r.owner, g_m2_ctx[i].online_id, 16);
+    const M2IntAttr* ints; uint64_t n_int; const M2BinAttr* bins; uint64_t n_bin;
+    memcpy(&ints, q + 0x70, 8); memcpy(&n_int, q + 0x78, 8); memcpy(&bins, q + 0x80, 8); memcpy(&n_bin, q + 0x88, 8);
+    m2_copy_attrs(&r, ints, n_int, bins, n_bin);
+
+    struct Answer { M2RoomInternal* room; M2Member* members; uint64_t members_num; M2Member* me; M2Member* owner; M2RoomInternal room_data; M2Member member; };
+    struct Answer* a = (struct Answer*)calloc(1, sizeof *a);
+    if (!a) { pthread_mutex_unlock(&g_m2_lock); return M2_ERR_OUT_OF_MEMORY; }
+    a->room = &a->room_data; a->members = a->me = a->owner = &a->member; a->members_num = 1;
+    a->room_data.public_slots = max_slot; a->room_data.open_public_slots = (uint16_t)(max_slot - 1); a->room_data.max_slot = max_slot;
+    a->room_data.server_id = M2_SERVER_ID; a->room_data.world_id = world_id; a->room_data.lobby_id = lobby_id; a->room_data.room_id = r.room_id;
+    a->room_data.joined_slot_mask = 1; a->room_data.flags = flags;
+    a->member.join_date = m2_rtc_now(); m2_np_id(a->member.np_id, g_m2_ctx[i].online_id);
+    a->member.member_id = 1; a->member.team_id = team_id; a->member.nat_type = 2; a->member.flag_attr = M2_MEMBER_FLAG_OWNER;
+
+    g_m2_room.in_room = 1; g_m2_room.ctx_id = ctx_id; g_m2_room.info = r; g_m2_room.team_id = team_id; g_m2_room.lobby_id = lobby_id;
+    const uint32_t id = m2_post_request_locked(i, ctx_id, M2_REQUEST_EVENT_CREATE_JOIN_ROOM, 0, a);
+    if (!id) { g_m2_room.in_room = 0; pthread_mutex_unlock(&g_m2_lock); return M2_ERR_OUT_OF_MEMORY; }
+    pthread_mutex_unlock(&g_m2_lock);
+    *req_id = id;
+    rt_rooms_start();
+    rt_rooms_publish(&r);
+    rt_logf("sceNpMatching2CreateJoinRoom(context %u, world %u, %u slots, flags 0x%08x, %u int / %u bin search attributes) -> request %u: "
+            "room %016llx owned by this instance, announced on the local network",
+            ctx_id, world_id, max_slot, flags, r.n_int, r.n_bin, id, (unsigned long long)r.room_id);
+    return 0;
+}
+
+static int GUEST_ABI m2_leave_room(uint16_t ctx_id, const void* request, const void* opt, uint32_t* req_id) {
+    int i, rc = m2_begin_request(ctx_id, request, opt, req_id, &i);
+    if (rc) return rc;
+    uint64_t room_id; memcpy(&room_id, request, 8);
+    if (!g_m2_room.in_room || g_m2_room.info.room_id != room_id) { pthread_mutex_unlock(&g_m2_lock); return M2_ERR_ROOM_NOT_FOUND; }
+    g_m2_room.in_room = 0;
+    uint64_t* answer = (uint64_t*)malloc(sizeof *answer);
+    if (answer) *answer = room_id;
+    const uint32_t id = answer ? m2_post_request_locked(i, ctx_id, M2_REQUEST_EVENT_LEAVE_ROOM, 0, answer) : 0;
+    pthread_mutex_unlock(&g_m2_lock);
+    rt_rooms_unpublish(room_id);
+    if (!id) return M2_ERR_OUT_OF_MEMORY;
+    *req_id = id;
+    rt_logf("sceNpMatching2LeaveRoom(context %u, room %016llx) -> request %u: the room is no longer announced", ctx_id, (unsigned long long)room_id, id);
+    return 0;
+}
+
+static int GUEST_ABI m2_set_room_data_external(uint16_t ctx_id, const void* request, const void* opt, uint32_t* req_id) {
+    int i, rc = m2_begin_request(ctx_id, request, opt, req_id, &i);
+    if (rc) return rc;
+    const uint8_t* q = (const uint8_t*)request;
+    uint64_t room_id; const M2IntAttr* ints; uint64_t n_int; const M2BinAttr* bins; uint64_t n_bin;
+    memcpy(&room_id, q, 8); memcpy(&ints, q + 8, 8); memcpy(&n_int, q + 16, 8); memcpy(&bins, q + 24, 8); memcpy(&n_bin, q + 32, 8);
+    if (!g_m2_room.in_room || g_m2_room.info.room_id != room_id) { pthread_mutex_unlock(&g_m2_lock); return M2_ERR_ROOM_NOT_FOUND; }
+    m2_copy_attrs(&g_m2_room.info, ints, n_int, bins, n_bin);
+    const RoomInfo r = g_m2_room.info;
+    const uint32_t id = m2_post_request_locked(i, ctx_id, M2_REQUEST_EVENT_SET_ROOM_DATA_EXTERNAL, 0, NULL);
+    pthread_mutex_unlock(&g_m2_lock);
+    if (!id) return M2_ERR_OUT_OF_MEMORY;
+    rt_rooms_publish(&r);
+    *req_id = id;
+    rt_logf("sceNpMatching2SetRoomDataExternal(context %u, room %016llx, %u int / %u bin search attributes) -> request %u",
+            ctx_id, (unsigned long long)room_id, r.n_int, r.n_bin, id);
+    return 0;
+}
+
+// Search operators: SCE_NP_MATCHING2_OPERATOR_EQ..GE = 1..6 (the PS3 values, as in RPCS3's sceNp2.h; shadPS4 does not
+// name them). An unknown operator does not exclude a room, and is logged.
+static int m2_int_match(uint8_t op, uint32_t have, uint32_t want) {
+    switch (op) {
+    case 1: return have == want; case 2: return have != want; case 3: return have < want;
+    case 4: return have <= want; case 5: return have > want; case 6: return have >= want;
+    default: rt_logf("Matching2 SearchRoom: unknown operator %u; not used to exclude rooms", op); return 1;
+    }
+}
+static int m2_room_matches(const RoomInfo* r, uint32_t world_id, uint32_t flag_filter, uint32_t flag_attr, const uint8_t* filters, uint64_t n_filters) {
+    if (world_id && r->world_id != world_id) return 0;
+    if ((r->flags & flag_filter) != (flag_attr & flag_filter)) return 0;
+    for (uint64_t f = 0; f < n_filters; ++f) {
+        const uint8_t* e = filters + f * 16;   // { u8 operator; pad[7]; IntAttr { u16 id; pad[2]; u32 num } }
+        uint16_t id; uint32_t want; memcpy(&id, e + 8, 2); memcpy(&want, e + 12, 4);
+        int found = 0, ok = 0;
+        for (int k = 0; k < r->n_int; ++k) if (r->ints[k].id == id) { found = 1; ok = m2_int_match(e[0], r->ints[k].value, want); }
+        if (!found || !ok) return 0;
+    }
+    return 1;
+}
+
+// SearchRoom: the rooms other instances on this network announced in the last few seconds, filtered with the game's own
+// conditions. If none are there, the answer is an empty list.
+static int GUEST_ABI m2_search_room(uint16_t ctx_id, const void* request, const void* opt, uint32_t* req_id) {
+    int i, rc = m2_begin_request(ctx_id, request, opt, req_id, &i);
+    if (rc) return rc;
+    pthread_mutex_unlock(&g_m2_lock);
+    const uint8_t* q = (const uint8_t*)request;
+    uint32_t world_id, start, max, flag_filter, flag_attr; const uint8_t* filters; uint64_t n_filters;
+    memcpy(&world_id, q + 0x04, 4); memcpy(&start, q + 0x10, 4); memcpy(&max, q + 0x14, 4);
+    memcpy(&flag_filter, q + 0x18, 4); memcpy(&flag_attr, q + 0x1C, 4); memcpy(&filters, q + 0x20, 8); memcpy(&n_filters, q + 0x28, 8);
+    if (!filters) n_filters = 0;
+    if (start == 0) start = 1;
+    if (max == 0 || max > 20) max = 20;
+    rt_rooms_start();
+    RoomInfo seen[64];
+    const int n_seen = rt_rooms_snapshot(seen, 64, rt_rooms_now_ms());
+    RoomInfo match[64]; int n_match = 0;
+    for (int k = 0; k < n_seen; ++k) {
+        if (seen[k].flags & M2_ROOM_FLAG_HIDDEN) continue;
+        if (m2_room_matches(&seen[k], world_id, flag_filter, flag_attr, filters, n_filters)) match[n_match++] = seen[k];
+    }
+    const int first = (int)start - 1 < n_match ? (int)start - 1 : n_match;
+    const int count = n_match - first < (int)max ? n_match - first : (int)max;
+    struct Item { M2RoomExternal ext; uint8_t owner[36]; uint8_t pad[4]; M2IntAttr ints[ROOM_MAX_INT]; M2BinAttr bins[ROOM_MAX_BIN]; uint8_t bin_data[ROOM_MAX_BIN][ROOM_MAX_BIN_LEN]; };
+    struct Answer { uint32_t start, total, results; uint8_t pad[4]; M2RoomExternal* first; struct Item items[]; };
+    struct Answer* a = (struct Answer*)calloc(1, sizeof *a + (size_t)(count > 0 ? count : 0) * sizeof(struct Item));
+    if (!a) return M2_ERR_OUT_OF_MEMORY;
+    a->start = start; a->total = (uint32_t)n_match; a->results = (uint32_t)count;
+    for (int k = 0; k < count; ++k) {
+        const RoomInfo* r = &match[first + k];
+        struct Item* it = &a->items[k];
+        it->ext.next = k + 1 < count ? &a->items[k + 1].ext : NULL;
+        it->ext.max_slot = r->max_slot; it->ext.cur_members = r->cur_members; it->ext.flags = r->flags; it->ext.server_id = M2_SERVER_ID;
+        it->ext.world_id = r->world_id; it->ext.room_id = r->room_id;
+        it->ext.public_slots = r->max_slot; it->ext.open_public_slots = (uint16_t)(r->max_slot - r->cur_members);
+        it->ext.joined_slot_mask = r->cur_members >= 64 ? ~0ull : ((1ull << r->cur_members) - 1);
+        char who[17]; memcpy(who, r->owner, 16); who[16] = 0;
+        m2_np_id(it->owner, who); it->ext.owner_np_id = it->owner;
+        for (int x = 0; x < r->n_int; ++x) { it->ints[x].id = r->ints[x].id; it->ints[x].num = r->ints[x].value; }
+        it->ext.int_attr = r->n_int ? it->ints : NULL; it->ext.int_attrs = r->n_int;
+        for (int x = 0; x < r->n_bin; ++x) { memcpy(it->bin_data[x], r->bins[x].data, r->bins[x].len); it->bins[x].id = r->bins[x].id; it->bins[x].data = it->bin_data[x]; it->bins[x].size = r->bins[x].len; }
+        it->ext.search_bin_attr = r->n_bin ? it->bins : NULL; it->ext.search_bin_attrs = r->n_bin;
+    }
+    a->first = count > 0 ? &a->items[0].ext : NULL;
+    pthread_mutex_lock(&g_m2_lock);
+    const int still = m2_ctx_index(ctx_id) == i;
+    const uint32_t id = still ? m2_post_request_locked(i, ctx_id, M2_REQUEST_EVENT_SEARCH_ROOM, 0, a) : 0;
+    pthread_mutex_unlock(&g_m2_lock);
+    if (!still) { free(a); return M2_ERR_INVALID_CONTEXT_ID; }
+    if (!id) return M2_ERR_OUT_OF_MEMORY;
+    *req_id = id;
+    rt_logf("sceNpMatching2SearchRoom(context %u, world %u, from %u max %u, %llu int filters, flags 0x%x/0x%x) -> request %u: "
+            "%d room(s) heard on the network, %d match, %d returned", ctx_id, world_id, start, max, (unsigned long long)n_filters,
+            flag_filter, flag_attr, id, n_seen, n_match, count);
     return 0;
 }
 
@@ -1132,6 +1377,10 @@ const HostSymbol platform_symbols[] = {
     {"sceNpMatching2AbortContextStart", "libSceNpMatching2", (void*)m2_abort_context_start, 0},
     {"sceNpMatching2GetServerId", "libSceNpMatching2", (void*)m2_get_server_id, 0},
     {"sceNpMatching2GetWorldInfoList", "libSceNpMatching2", (void*)m2_get_world_info_list, 0},
+    {"sceNpMatching2CreateJoinRoom", "libSceNpMatching2", (void*)m2_create_join_room, 0},
+    {"sceNpMatching2LeaveRoom", "libSceNpMatching2", (void*)m2_leave_room, 0},
+    {"sceNpMatching2SetRoomDataExternal", "libSceNpMatching2", (void*)m2_set_room_data_external, 0},
+    {"sceNpMatching2SearchRoom", "libSceNpMatching2", (void*)m2_search_room, 0},
     {"sceNpSignalingInitialize", "libSceNpSignaling", (void*)sig_initialize, 0},
     {"sceNpSignalingTerminate", "libSceNpSignaling", (void*)sig_terminate, 0},
     {"sceNpSignalingCreateContext", "libSceNpSignaling", (void*)sig_create_context, 0},

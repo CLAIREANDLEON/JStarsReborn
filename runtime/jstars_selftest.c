@@ -42,6 +42,36 @@ static void GUEST_ABI m2_request_cb(uint16_t ctx_id, uint32_t req_id, uint16_t e
     }
     __atomic_add_fetch(&m2_req_calls, 1, __ATOMIC_SEQ_CST);
 }
+// Room request answers: copied inside the callback, because the library frees them when it returns.
+static volatile int rr_calls; static volatile uint16_t rr_event; static volatile int rr_error;
+static uint8_t rr_room[0x58], rr_member[0x58]; static volatile uint64_t rr_members_num, rr_left_room;
+static volatile int rr_me_is_owner; static volatile uint32_t rr_total, rr_results; static uint8_t rr_ext[0x88], rr_owner[36];
+static volatile uint32_t rr_attr_num; static volatile uint16_t rr_attr_id;
+static void GUEST_ABI room_request_cb(uint16_t ctx_id, uint32_t req_id, uint16_t event, int error, const void* data, void* arg) {
+    (void)ctx_id; (void)req_id; (void)arg;
+    rr_event = event; rr_error = error;
+    if (event == 0x0101 && data) {
+        const uint8_t* d = (const uint8_t*)data;
+        const uint8_t* room; const uint8_t* members; const uint8_t* me; const uint8_t* owner;
+        memcpy(&room, d, 8); memcpy(&members, d + 8, 8); memcpy((void*)&rr_members_num, d + 16, 8); memcpy(&me, d + 24, 8); memcpy(&owner, d + 32, 8);
+        memcpy(rr_room, room, 0x58); memcpy(rr_member, members, 0x58); rr_me_is_owner = me == owner && me == members;
+    } else if (event == 0x0103 && data) {
+        memcpy((void*)&rr_left_room, data, 8);
+    } else if (event == 0x0106 && data) {
+        const uint8_t* d = (const uint8_t*)data;
+        memcpy((void*)&rr_total, d + 4, 4); memcpy((void*)&rr_results, d + 8, 4);
+        const uint8_t* first; memcpy(&first, d + 16, 8);
+        memset(rr_ext, 0, sizeof rr_ext); memset(rr_owner, 0, sizeof rr_owner); rr_attr_num = 0; rr_attr_id = 0;
+        if (first) {
+            memcpy(rr_ext, first, 0x88);
+            const uint8_t* own; memcpy(&own, first + 0x40, 8); if (own) memcpy(rr_owner, own, 36);
+            const uint8_t* ints; uint64_t n; memcpy(&ints, first + 0x58, 8); memcpy(&n, first + 0x60, 8);
+            if (ints && n) { uint16_t id; uint32_t v; memcpy(&id, ints, 2); memcpy(&v, ints + 4, 4); rr_attr_id = id; rr_attr_num = v; }
+        }
+    }
+    __atomic_add_fetch(&rr_calls, 1, __ATOMIC_SEQ_CST);
+}
+static int rr_wait(int n) { for (int i = 0; i < 200 && __atomic_load_n(&rr_calls, __ATOMIC_SEQ_CST) < n; ++i) rt_sleep_ms_for_selftest(10); return rr_calls; }
 static int m2_wait_calls(int n) {   // up to 2 s
     for (int i = 0; i < 200 && __atomic_load_n(&m2_cb_calls, __ATOMIC_SEQ_CST) < n; ++i) rt_sleep_ms_for_selftest(10);
     return __atomic_load_n(&m2_cb_calls, __ATOMIC_SEQ_CST);
@@ -576,9 +606,92 @@ int rt_selftest_host(const char* scratch_dir) {
             CHECK(m2_req_calls == 0, "m2: the answer to a destroyed context's request is not delivered");
             CHECK(create(param, &ctx) == 0, "m2: a context is created again");
         }
+        // Rooms. Online so the directory can start; the requests need a started context.
+        {
+            rt_net_configure(1, 0);
+            rt_rooms_configure(47399, NULL);
+            int (GUEST_ABI * req4)(uint16_t, const void*, const void*, uint32_t*);
+            #define M2REQ(name) ((int (GUEST_ABI*)(uint16_t, const void*, const void*, uint32_t*))rt_find_host(name))
+            uint8_t opt[24]; memset(opt, 0, sizeof opt); void* cbp = (void*)room_request_cb; memcpy(opt, &cbp, 8);
+            uint32_t rid = 0;
+            m2_cb_calls = 0;
+            CHECK(start(ctx, 0) == 0 && m2_wait_calls(1) == 1, "m2 rooms: the context is started");
+            uint8_t cj[0xB8]; memset(cj, 0, sizeof cj);
+            const uint16_t slots = 4; const uint32_t world = 1, rflags = 0x80000000u; memcpy(cj, &slots, 2); cj[2] = 1; memcpy(cj + 8, &rflags, 4); memcpy(cj + 12, &world, 4);
+            uint8_t ia[8] = {0}; const uint16_t aid = 1; const uint32_t av = 7; memcpy(ia, &aid, 2); memcpy(ia + 4, &av, 4);
+            const void* iap = ia; const uint64_t one = 1; memcpy(cj + 0x70, &iap, 8); memcpy(cj + 0x78, &one, 8);
+            req4 = M2REQ("sceNpMatching2CreateJoinRoom");
+            rr_calls = 0;
+            CHECK(req4 && req4(ctx, cj, opt, &rid) == 0 && rr_wait(1) == 1 && rr_event == 0x0101 && rr_error == 0, "m2 rooms: CreateJoinRoom answers CREATE_JOIN_ROOM");
+            uint16_t max_slot, open_pub, member_id; uint64_t room_id; uint32_t mflags;
+            memcpy(&max_slot, rr_room + 8, 2); memcpy(&open_pub, rr_room + 4, 2); memcpy(&room_id, rr_room + 0x18, 8);
+            memcpy(&member_id, rr_member + 0x38, 2); memcpy(&mflags, rr_member + 0x3C, 4);
+            CHECK(max_slot == 4 && open_pub == 3 && room_id != 0 && rr_members_num == 1 && rr_me_is_owner && member_id == 1 && mflags == 0x80000000u && rr_member[16] != 0,
+                  "m2 rooms: the new room has 4 slots, 3 open, and one member: this player, owner, member id 1");
+            CHECK(req4(ctx, cj, opt, &rid) == (int)0x80550C24, "m2 rooms: a second CreateJoinRoom while in a room reports ALREADY_JOINED");
+            uint8_t sd[56]; memset(sd, 0, sizeof sd); memcpy(sd, &room_id, 8);
+            rr_calls = 0;
+            CHECK(M2REQ("sceNpMatching2SetRoomDataExternal")(ctx, sd, opt, &rid) == 0 && rr_wait(1) == 1 && rr_event == 0x0004, "m2 rooms: SetRoomDataExternal on the room answers");
+            uint8_t lv[32]; memset(lv, 0, sizeof lv); const uint64_t wrong = room_id + 1; memcpy(lv, &wrong, 8);
+            CHECK(M2REQ("sceNpMatching2LeaveRoom")(ctx, lv, opt, &rid) == (int)0x80550C30, "m2 rooms: leaving a room this player is not in reports ROOM_NOT_FOUND");
+            memcpy(lv, &room_id, 8); rr_calls = 0;
+            CHECK(M2REQ("sceNpMatching2LeaveRoom")(ctx, lv, opt, &rid) == 0 && rr_wait(1) == 1 && rr_event == 0x0103 && rr_left_room == room_id,
+                  "m2 rooms: LeaveRoom answers LEAVE_ROOM with the room id");
+            // SearchRoom sees rooms other instances announce, and only those that pass the game's filters.
+            RoomInfo peer; memset(&peer, 0, sizeof peer);
+            peer.room_id = 0x5151515151515151ull; peer.world_id = 1; peer.max_slot = 4; peer.cur_members = 1; memcpy(peer.owner, "OtherPC", 7);
+            peer.n_int = 1; peer.ints[0].id = 1; peer.ints[0].value = 7;
+            uint8_t pkt[512]; const int plen = rt_rooms_encode(&peer, 0x7777ull, pkt, sizeof pkt);
+            uint8_t sr[0x50]; memset(sr, 0, sizeof sr); const int optn = 0x19; const uint32_t rs = 1, rm = 20; memcpy(sr, &optn, 4); memcpy(sr + 4, &world, 4); memcpy(sr + 0x10, &rs, 4); memcpy(sr + 0x14, &rm, 4);
+            uint8_t flt[16]; memset(flt, 0, sizeof flt); flt[0] = 1; memcpy(flt + 8, &aid, 2); memcpy(flt + 12, &av, 4);
+            const void* fp = flt; memcpy(sr + 0x20, &fp, 8); memcpy(sr + 0x28, &one, 8);
+            rr_calls = 0;
+            CHECK(M2REQ("sceNpMatching2SearchRoom")(ctx, sr, opt, &rid) == 0 && rr_wait(1) == 1 && rr_event == 0x0106 && rr_total == 0 && rr_results == 0,
+                  "m2 rooms: with no other instance on the network, SearchRoom answers an empty list");
+            CHECK(rt_rooms_ingest(pkt, plen, 0x0200007f, rt_rooms_now_ms()) == 1, "m2 rooms: another instance's room is heard");
+            rr_calls = 0;
+            uint64_t ext_room; uint16_t ext_cur;
+            CHECK(M2REQ("sceNpMatching2SearchRoom")(ctx, sr, opt, &rid) == 0 && rr_wait(1) == 1 && rr_total == 1 && rr_results == 1, "m2 rooms: SearchRoom finds the heard room");
+            memcpy(&ext_room, rr_ext + 0x20, 8); memcpy(&ext_cur, rr_ext + 0x0A, 2);
+            CHECK(ext_room == peer.room_id && ext_cur == 1 && !memcmp(rr_owner, "OtherPC", 7) && rr_attr_id == 1 && rr_attr_num == 7,
+                  "m2 rooms: the result carries the room id, member count, owner NP id and search attribute as announced");
+            const uint32_t av2 = 8; memcpy(flt + 12, &av2, 4); rr_calls = 0;
+            CHECK(M2REQ("sceNpMatching2SearchRoom")(ctx, sr, opt, &rid) == 0 && rr_wait(1) == 1 && rr_total == 0, "m2 rooms: a room whose attribute fails the filter is not returned");
+            rt_net_configure(0, 0);
+            #undef M2REQ
+        }
         CHECK(destroy(ctx) == 0, "m2: the first context is destroyed");
         CHECK(F(int, "sceNpMatching2Terminate", (void))() == 0 && server(ctx, &sid) == (int)0x80550C03,
               "m2: after Terminate the library reports NOT_INITIALIZED");
+    }
+
+    // ---- LAN room directory: wire format and table ------------------------------------------------------------------
+    {
+        RoomInfo r, back; memset(&r, 0, sizeof r);
+        r.room_id = 0x1122334455667788ull; r.world_id = 1; r.max_slot = 4; r.cur_members = 1; r.flags = 0x80000000u;
+        memcpy(r.owner, "PeerPlayer", 10); r.owner_port = 3658; r.n_int = 2; r.ints[0].id = 1; r.ints[0].value = 7; r.ints[1].id = 2; r.ints[1].value = 9;
+        r.n_bin = 1; r.bins[0].id = 0x5c; r.bins[0].len = 5; memcpy(r.bins[0].data, "hello", 5);
+        uint8_t buf[1024]; uint64_t nonce = 0;
+        const int len = rt_rooms_encode(&r, 0xABCDEFull, buf, sizeof buf);
+        CHECK(len > 16 && rt_rooms_decode(buf, len, &back, &nonce) == 1 && nonce == 0xABCDEFull, "rooms: an announcement from another instance decodes");
+        CHECK(back.room_id == r.room_id && back.max_slot == 4 && back.cur_members == 1 && !memcmp(back.owner, "PeerPlayer", 10) && back.owner_port == 3658 &&
+              back.n_int == 2 && back.ints[1].value == 9 && back.n_bin == 1 && back.bins[0].len == 5 && !memcmp(back.bins[0].data, "hello", 5),
+              "rooms: every field survives encoding");
+        const int own = rt_rooms_encode(&r, rt_rooms_nonce(), buf, sizeof buf);
+        CHECK(rt_rooms_decode(buf, own, &back, NULL) == 0, "rooms: this instance's own announcement is recognised as its own");
+        rt_rooms_encode(&r, 0xABCDEFull, buf, sizeof buf);
+        CHECK(rt_rooms_decode(buf, len - 1, &back, NULL) == -1, "rooms: a truncated announcement is rejected");
+        buf[0] = 'X'; CHECK(rt_rooms_decode(buf, len, &back, NULL) == -1, "rooms: a wrong magic is rejected"); buf[0] = 'J';
+        RoomInfo bad = r; bad.cur_members = 5; const int bl = rt_rooms_encode(&bad, 1, buf, sizeof buf);
+        CHECK(rt_rooms_decode(buf, bl, &back, NULL) == -1, "rooms: more members than slots is rejected");
+        rt_rooms_encode(&r, 0xABCDEFull, buf, sizeof buf);
+        const uint64_t t0 = rt_rooms_now_ms();
+        CHECK(rt_rooms_ingest(buf, len, 0x0100007f, t0) == 1, "rooms: a heard room enters the table");
+        RoomInfo seen[8];
+        int listed = 0;
+        for (int k = 0, n = rt_rooms_snapshot(seen, 8, t0 + 1000); k < n; ++k) listed |= seen[k].room_id == r.room_id && seen[k].owner_ip == 0x0100007f;
+        CHECK(listed, "rooms: the table lists it with its sender's address");
+        CHECK(rt_rooms_snapshot(seen, 8, t0 + 6000) == 0, "rooms: a room not heard for more than 5 s is dropped");
     }
 
     // ---- NP Signaling contexts ------------------------------------------------------------------------------
