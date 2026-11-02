@@ -23,39 +23,72 @@ typedef int64_t (GUEST_ABI* GuestFn10)(uint64_t, uint64_t, uint64_t, uint64_t, u
 static GuestFn10 g_real_submit_flip, g_real_set_flip_rate;
 static int g_frame_stats, g_flip_rate_override = -1;
 static int g_requested_flip_rate = -1;
+// --flip-rate-after s: the override is applied only from second s on (the game's own rate before that), so a run can reach
+// a known scene at the game's rate and then measure game speed against the wall clock with the override in force.
+static int g_flip_rate_after;
+static int g_flip_override_active;
+static int g_flip_override_due, g_flip_override_attempted;
+static uint64_t g_flip_handle;
+static int g_flip_handle_known;
 #define FT_RING 4096
 static uint64_t g_ft_tsc[FT_RING];
 static uint64_t g_ft_count;
 static pthread_mutex_t g_ft_lock = PTHREAD_MUTEX_INITIALIZER;
 
-void rt_gpu_timing_configure(int frame_stats, int flip_rate_override) { g_frame_stats = frame_stats; g_flip_rate_override = flip_rate_override; }
+void rt_gpu_timing_configure(int frame_stats, int flip_rate_override, int flip_rate_after) {
+    g_frame_stats = frame_stats;
+    g_flip_rate_override = flip_rate_override;
+    g_flip_rate_after = flip_rate_after > 0 ? flip_rate_after : 0;
+    g_flip_override_active = flip_rate_override >= 0 && g_flip_rate_after == 0;
+    g_flip_override_due = g_flip_override_attempted = 0;
+    g_flip_handle_known = 0;
+}
 
 static int64_t GUEST_ABI submit_flip_wrapper(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f, uint64_t g, uint64_t h, uint64_t i, uint64_t j) {
     const uint64_t now = rt_read_tsc();
     pthread_mutex_lock(&g_ft_lock);
+    // Apply on the guest submission thread, not the host monitor thread. The
+    // timing lock serializes this with the game's own SetFlipRate calls.
+    if (g_flip_override_due && !g_flip_override_attempted && g_flip_handle_known && g_real_set_flip_rate) {
+        g_flip_override_attempted = 1;
+        const int64_t rc = g_real_set_flip_rate(g_flip_handle, (uint64_t)g_flip_rate_override, 0, 0, 0, 0, 0, 0, 0, 0);
+        g_flip_override_active = rc == 0;
+        rt_logf("frame timing: delayed --flip-rate %d attempt on guest submission (threshold %d s; game requested %d; result %lld; %s)",
+                g_flip_rate_override, g_flip_rate_after, g_requested_flip_rate, (long long)rc,
+                g_flip_override_active ? "override active" : "override failed; game rate retained");
+    }
     g_ft_tsc[g_ft_count % FT_RING] = now;
     ++g_ft_count;
     pthread_mutex_unlock(&g_ft_lock);
     return g_real_submit_flip(a, b, c, d, e, f, g, h, i, j);
 }
 static int64_t GUEST_ABI set_flip_rate_wrapper(uint64_t handle, uint64_t rate, uint64_t c, uint64_t d, uint64_t e, uint64_t f, uint64_t g, uint64_t h, uint64_t i, uint64_t j) {
+    pthread_mutex_lock(&g_ft_lock);
     if ((int)rate != g_requested_flip_rate) {
         g_requested_flip_rate = (int)rate;
         rt_logf("frame timing: the game asks for flip rate %d (a frame every %d vblank%s)%s", (int)rate, (int)rate + 1, rate ? "s" : "",
-                g_flip_rate_override >= 0 ? "; overridden by --flip-rate (experiment)" : "");
+                g_flip_override_active ? "; overridden by --flip-rate (experiment)" : g_flip_rate_override >= 0 ? "; --flip-rate is pending (--flip-rate-after)" : "");
     }
-    if (g_flip_rate_override >= 0) rate = (uint64_t)g_flip_rate_override;
-    return g_real_set_flip_rate(handle, rate, c, d, e, f, g, h, i, j);
+    if (g_flip_override_active) rate = (uint64_t)g_flip_rate_override;
+    const int64_t rc = g_real_set_flip_rate(handle, rate, c, d, e, f, g, h, i, j);
+    if (rc == 0) { g_flip_handle = handle; g_flip_handle_known = 1; }
+    pthread_mutex_unlock(&g_ft_lock);
+    return rc;
 }
 static int cmp_u64(const void* x, const void* y) { const uint64_t a = *(const uint64_t*)x, b = *(const uint64_t*)y; return a < b ? -1 : a > b; }
 
 // Called once a second by the monitor: every 5 s, the guest frames submitted in that window and their frame times.
 void rt_gpu_timing_tick(int sec) {
+    pthread_mutex_lock(&g_ft_lock);
+    if (g_flip_rate_override >= 0 && g_flip_rate_after > 0 && sec >= g_flip_rate_after) g_flip_override_due = 1;
+    pthread_mutex_unlock(&g_ft_lock);
     if (!g_frame_stats || sec % 5) return;
     static uint64_t last_count;
     static uint64_t iv[FT_RING];
     pthread_mutex_lock(&g_ft_lock);
     const uint64_t count = g_ft_count;
+    const int requested_rate = g_requested_flip_rate;
+    const int override_active = g_flip_override_active;
     uint64_t n = count - last_count;
     if (n > FT_RING - 1) n = FT_RING - 1;
     int k = 0;
@@ -70,7 +103,7 @@ void rt_gpu_timing_tick(int sec) {
     const double ms = 1000.0 / (double)rt_tsc_frequency();
     rt_logf("frame timing t=%ds: %llu guest frames in 5 s = %.2f fps; frame time ms p50 %.2f p95 %.2f p99 %.2f max %.2f (game flip rate %d%s)",
             sec, (unsigned long long)frames, frames / 5.0, iv[k / 2] * ms, iv[(k * 95) / 100] * ms, iv[(k * 99) / 100] * ms, iv[k - 1] * ms,
-            g_requested_flip_rate, g_flip_rate_override >= 0 ? ", overridden" : "");
+            requested_rate, override_active ? ", overridden" : "");
 }
 
 void* rt_gpu_resolve(const char* nid_lib) {
@@ -133,7 +166,7 @@ void rt_gpu_mem_unmap(void* addr, uint64_t len) { (void)addr; (void)len; }
 int rt_gpu_start(const char* t, const char* d, const char* c, int w, int h) { (void)t; (void)d; (void)c; (void)w; (void)h; rt_logf("this build has no GPU library"); return 1; }
 void rt_gpu_capture(int n) { (void)n; }
 void rt_gpu_stats(uint64_t out[5]) { memset(out, 0, 5 * sizeof *out); }
-void rt_gpu_timing_configure(int frame_stats, int flip_rate_override) { (void)frame_stats; (void)flip_rate_override; }
+void rt_gpu_timing_configure(int frame_stats, int flip_rate_override, int flip_rate_after) { (void)frame_stats; (void)flip_rate_override; (void)flip_rate_after; }
 void rt_gpu_timing_tick(int sec) { (void)sec; }
 void rt_gpu_fsr_probe(void) {}
 #endif

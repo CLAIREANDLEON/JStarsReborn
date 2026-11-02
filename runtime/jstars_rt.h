@@ -58,7 +58,7 @@ int rt_compiled_sdk_version(void);                 // SDK version from the eboot
 int rt_gpu_start(const char* title, const char* data_dir, const char* capture_dir, int width, int height); // 0 on success
 void rt_gpu_capture(int n);                        // request PNG captures of the next n presented frames
 void rt_gpu_stats(uint64_t out[5]);
-void rt_gpu_timing_configure(int frame_stats, int flip_rate_override);
+void rt_gpu_timing_configure(int frame_stats, int flip_rate_override, int flip_rate_after);
 void rt_gpu_timing_tick(int sec);
 void rt_gpu_fsr_probe(void);                // draws, dispatches, flips, gnm frames, GPU-visible maps
 
