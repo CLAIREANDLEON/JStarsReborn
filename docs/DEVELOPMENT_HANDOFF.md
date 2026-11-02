@@ -83,3 +83,16 @@ Codex (GPT) works on the same project through `E:\JStarsWork\AI_HANDOFF` on the 
    behind a backend interface whose first implementation is a LAN room directory.
 3. Signaling `ActivateConnection` / `GetConnectionStatus` / `GetConnectionInfo` (peer address for the game's own P2P transport), then a
    two-instance test.
+
+## Update: hosting a Friendly Match room works on one PC (runs 20261102-012644 … 014352)
+
+* `pad-online-explore.txt` mapped the menus: Online Battle → *Rank Match / Friendly Match / Rankings / Battle Records / Player Settings*;
+  Friendly Match → *Create a Room / Search for a Room / Quick Match / Confirm Invite / Change Player Settings*. Create a Room calls
+  `sceNpMatching2CreateJoinRoom` (`eboot.bin+0x2c0fde`).
+* `runtime/jstars_rooms.c`: the LAN room directory (ADR-007 addendum), plus CreateJoinRoom / LeaveRoom / SetRoomDataExternal / SearchRoom
+  (`a43adba`). After the room is created the game opens its P2P receive loop and POSTs `/v1/sessions`; that is answered with a session
+  recorded on this machine (`2effbba`).
+* online-l (`20261102-014352-…-35f0e4`): the game shows its **Friendly Match room screen as host** (Room Message "Join this game!",
+  Send invite, Kick) and, with nobody else in the room, asks "Proceed to battle alone?". Self-test 303/0.
+* **Not done:** `JoinRoom` (a second instance joining the owner), member-joined/left room events, Signaling connections (peer addresses for the
+  game's P2P socket), and the two-instance test. Those are the next steps, in that order.
