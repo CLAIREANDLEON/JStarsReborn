@@ -11,15 +11,15 @@ No game files, keys, firmware or decryption tools are included or downloaded. Th
 > Use only a dump you made yourself from a copy of the game you legally own. Piracy is not supported in any form.
 > Provided as is, without warranty. Read the full [DISCLAIMER.md](DISCLAIMER.md).
 
-**State (0.4.0):** on the owner's Windows 11 PC the game boots, shows the title, creates and loads its own
+**State (0.5.0, pre-release):** on the owner's Windows 11 PC the game boots, shows the title, creates and loads its own
 save data, and runs the menus and Free Battle matches, driven by scripted test input and by a live controller. Movies are
-skipped (no decoder), trophies are an empty set, and online features are not available. Whether it plays well and sounds
-right has **not** been confirmed by a human tester yet. See [CHANGELOG.md](CHANGELOG.md) for the full list of known issues.
+skipped (no decoder) and trophies are an empty set. Whether it plays well and sounds right has **not** been confirmed by a
+human tester yet. See [CHANGELOG.md](CHANGELOG.md) for the full list of known issues.
 
-**Development branch (`feature/online-np`, unreleased 0.5.0):** local NP compatibility, UDP transport and Matching2 world-list
-callbacks now let the online-j probe enter the game's Online Battle menus. Runtime host tests pass 278/0 on Linux and Windows
-at `711045b`. Room operations and peer connections are still pending; multiplayer is not demonstrated. These changes are not
-in the 0.4.0 release. See the [development handoff](docs/DEVELOPMENT_HANDOFF.md) for evidence and next steps.
+> **Online play is still in testing.** It is off by default (launcher Settings > "Online test features"). With it on, the
+> game's Online Battle menus open and a Friendly Match room can be hosted and found by other PCs; **joining a room, and so
+> an actual match between two players, does not work yet.** Nothing contacts PlayStation Network and no account is used.
+> The goal is direct peer-to-peer play between players over the internet; see [docs/ADR-007-online.md](docs/ADR-007-online.md).
 
 ## Using it (Windows)
 
@@ -70,6 +70,8 @@ installed llvm-mingw C++ libraries remains unresolved.
   ([docs/checkpoints/README-CHECKPOINT-0.3.0.md](docs/checkpoints/README-CHECKPOINT-0.3.0.md), `evidence/windows-gpu-0.3.0/`).
 - 0.4.0: launcher, native preparation, normal play sessions, renderer storage-format fix
   (`evidence/windows-launcher-0.4.0/`).
+- 0.5.0 (pre-release): online in testing: real sockets, local sign-in answers, Matching2/Signaling, room hosting and search;
+  launcher online setting.
 
 ## License
 
