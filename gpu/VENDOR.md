@@ -26,7 +26,7 @@ layer; any binary that links it is distributed under GPL-2.0-or-later (see `../T
   | `shader_recompiler/.../spirv_emit_context.h` | explicit-object ("deducing this") members replaced by const/non-const overloads | GCC 13 does not implement C++23 deducing-this |
   | `video_core/amdgpu/liverpool.cpp` | PM4 trace (ring of the last packet headers, raw dwords around a failing packet and a copy of the failing buffer next to the log); every graphics submission is logged and the first six dcb buffers are saved; draw trace (`JGPU_TRACE_DRAWS`); **correctness:** a packet's length is read once before the packet is processed (the guest may reuse the command buffer as soon as a packet signals completion) | diagnostics from the run folder alone; the length fix is a genuine behavioural change to the vendored code |
   | `video_core/page_manager.cpp` | one include (`common/thread.h`) | missing transitively |
-  | `renderer_vulkan/vk_presenter.cpp/.h` | ImGui composition replaced by a letterboxed, aspect-preserving blit of the game frame. **0.3.x:** frames are dropped, with a rate-limited warning, while the surface reports a 0x0 extent; degenerate sizes no longer reach `SetExpectedGameSize`; a failed frame-image allocation logs its dimensions | a minimised/hidden window made `vmaCreateImage` fail with `ErrorInitializationFailed` and ended Windows run 20261101-060040 with GPU FATAL (exit 5) |
+  | `renderer_vulkan/vk_presenter.cpp/.h` | ImGui composition replaced by a letterboxed, aspect-preserving blit of the game frame. **0.3.x:** frames are dropped, with a rate-limited warning, while the surface reports a 0x0 extent; degenerate sizes no longer reach `SetExpectedGameSize`; a failed frame-image allocation logs its dimensions | a minimised/hidden window made `vmaCreateImage` fail with `ErrorInitializationFailed` and ended Windows run 20261101-060040 with GPU FATAL (exit 5) ; **0.5.2:** public `GetInstance()` accessor so `gpu/jgpu_fsr.cpp` can hand the Vulkan device to the FidelityFX loader |
   | `renderer_vulkan/vk_swapchain.cpp/.h` | `SurfaceUsable()` (false while the surface extent is 0x0) | used by the presenter guard above |
   | `texture_cache/image.cpp` | block-compressed images are created without storage usage when the device reports that combination unsupported but supports the format without it (AMD RX 9070 XT: BC5, BC6H; `tools/vkprobe`) | removes the logged `Bc5UnormBlock ... not supported` errors; the create info now matches what the device reported (0.4.0) |
   | `texture_cache/image_view.cpp` | a storage view of such a block-compressed image logs an error instead of silently creating an invalid view | visibility of the case above (never observed in the recorded runs) |
@@ -46,6 +46,7 @@ layer; any binary that links it is distributed under GPL-2.0-or-later (see `../T
 | Zydis + Zycore | 120e0e70 / 38d4f028 | MIT |
 | stb_image_write | (as in shadPS4) | MIT / public domain |
 | renderdoc_app.h | (as in shadPS4) | MIT |
+| AMD FSR SDK API headers (`externals/ffx-api`, C API only; DLLs not vendored) | 7539ae8b (v2.4.0) | MIT |
 | gcn register headers | (in-tree in shadPS4) | GPL-2.0-or-later |
 | Boost (ICL, Asio headers; header-only) | system 1.83 | BSL-1.0 |
 Build-time tool: `glslangValidator` (glslang 15.1, BSD-3-Clause) generates the host shaders; it is not shipped.

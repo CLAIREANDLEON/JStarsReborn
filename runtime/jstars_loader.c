@@ -283,7 +283,7 @@ int main(int argc, char** argv) {
     const char *boot = NULL, *logpath = "jstars-boot.log", *gpu_dir = NULL, *capture_dir = NULL, *game_root = NULL, *user_dir = NULL, *pad_script = NULL, *experiments = NULL;
     int online = 0, trace_net = 0, trace_np = 0;
     uint16_t lobby_port = 0;
-    int frame_stats = 0, flip_rate = -1;
+    int frame_stats = 0, flip_rate = -1, ffx_probe = 0;
     const char *vblank_hz = NULL, *present_mode = NULL;
     const char* lobby_peers = NULL;
     int check_only = 0, selftest = 0, audit_dump = 0, stop_at_gnm = 0, win_w = 1280, win_h = 720;
@@ -314,6 +314,7 @@ int main(int argc, char** argv) {
         else if (!strcmp(argv[i], "--experiment") && i + 1 < argc) experiments = argv[++i];
         else if (!strcmp(argv[i], "--online")) online = 1;
         else if (!strcmp(argv[i], "--frame-stats")) frame_stats = 1;
+        else if (!strcmp(argv[i], "--ffx-probe")) ffx_probe = 1;
         else if (!strcmp(argv[i], "--flip-rate") && i + 1 < argc) flip_rate = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--vblank-hz") && i + 1 < argc) vblank_hz = argv[++i];
         else if (!strcmp(argv[i], "--present-mode") && i + 1 < argc) present_mode = argv[++i];
@@ -327,7 +328,7 @@ int main(int argc, char** argv) {
         else if (!strcmp(argv[i], "--capture-max") && i + 1 < argc) g_capture_max = atoi(argv[++i]);
         else { fprintf(stderr, "usage: %s --boot boot-linked.bin [--log file] [--check-imports] [--stop-at-first-gnm] [--selftest-host] [--audit-dump]\n"
                                "       [--game-root dir] [--user-dir dir] [--gpu-dir dir] [--capture-dir dir] [--window WxH] [--max-seconds n] [--capture-flips n]\n"
-                               "       [--capture-interval flips] [--capture-max n] [--pad-script file] [--no-keyboard] [--no-audio] [--volume 0-100] [--dump-audio prefix] [--pad-none] [--sample-threads seconds] [--count-imports] [--trace-draws first,count] [--experiment names] [--frame-stats] [--flip-rate n] [--vblank-hz n] [--present-mode Fifo|Mailbox|Immediate] [--online] [--lobby-port n] [--lobby-peer ip[,ip]] [--trace-net] [--trace-np]\n", argv[0]); return 1; }
+                               "       [--capture-interval flips] [--capture-max n] [--pad-script file] [--no-keyboard] [--no-audio] [--volume 0-100] [--dump-audio prefix] [--pad-none] [--sample-threads seconds] [--count-imports] [--trace-draws first,count] [--experiment names] [--frame-stats] [--ffx-probe] [--flip-rate n] [--vblank-hz n] [--present-mode Fifo|Mailbox|Immediate] [--online] [--lobby-port n] [--lobby-peer ip[,ip]] [--trace-net] [--trace-np]\n", argv[0]); return 1; }
     }
     if (audit_dump) { extern void rt_audit_dump(void*); rt_audit_dump(stdout); return 0; }
     if (selftest) { rt_log_open(logpath); extern int rt_selftest_host(const char*); char sd[4096]; snprintf(sd, sizeof sd, "%s.selftest", logpath); return rt_selftest_host(sd); }
@@ -470,6 +471,7 @@ int main(int argc, char** argv) {
             rt_logf("GPU library did not start; run with --stop-at-first-gnm for the loader-only diagnostic");
             return 6;
         }
+        if (ffx_probe) rt_gpu_fsr_probe();
     }
 
     uint64_t n_host = 0, n_module = 0, n_trap = 0;

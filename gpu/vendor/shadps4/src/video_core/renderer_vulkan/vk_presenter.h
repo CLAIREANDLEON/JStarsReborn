@@ -99,6 +99,11 @@ public:
     void Present(Frame* frame, bool is_reusing_frame = false, bool is_game_frame = true);
     Frame* PrepareLastFrame();
 
+    // JStarsReborn: the device, for the FidelityFX capability probe (jgpu_fsr.cpp).
+    const Instance& GetInstance() const {
+        return instance;
+    }
+
 private:
     Frame* GetRenderFrame();
 

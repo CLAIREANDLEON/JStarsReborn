@@ -118,6 +118,7 @@ int rt_gpu_start(const char* title, const char* data_dir, const char* capture_di
     return 0;
 }
 void rt_gpu_capture(int n) { if (g_gpu_on) jgpu_request_capture(n); }
+void rt_gpu_fsr_probe(void) { if (g_gpu_on) { jgpu_fsr_probe(); rt_logf("%s", jgpu_fsr_report()); } }
 void rt_gpu_stats(uint64_t out[5]) {
     JgpuStats s = {0};
     if (g_gpu_on) jgpu_get_stats(&s);
@@ -134,4 +135,5 @@ void rt_gpu_capture(int n) { (void)n; }
 void rt_gpu_stats(uint64_t out[5]) { memset(out, 0, 5 * sizeof *out); }
 void rt_gpu_timing_configure(int frame_stats, int flip_rate_override) { (void)frame_stats; (void)flip_rate_override; }
 void rt_gpu_timing_tick(int sec) { (void)sec; }
+void rt_gpu_fsr_probe(void) {}
 #endif

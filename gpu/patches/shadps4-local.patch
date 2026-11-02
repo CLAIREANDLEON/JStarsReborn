@@ -718,7 +718,19 @@
  };
  
  enum SchedulerType {
-@@ -134,7 +132,6 @@
+@@ -101,6 +99,11 @@
+     void Present(Frame* frame, bool is_reusing_frame = false, bool is_game_frame = true);
+     Frame* PrepareLastFrame();
+ 
++    // JStarsReborn: the device, for the FidelityFX capability probe (jgpu_fsr.cpp).
++    const Instance& GetInstance() const {
++        return instance;
++    }
++
+ private:
+     Frame* GetRenderFrame();
+ 
+@@ -134,7 +137,6 @@
      std::mutex free_mutex;
      std::condition_variable free_cv;
      std::condition_variable_any frame_cv;

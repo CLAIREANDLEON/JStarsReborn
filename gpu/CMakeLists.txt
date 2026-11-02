@@ -30,7 +30,7 @@ else()
     set(JGPU_WINDOW jgpu_window_x11.cpp)
 endif()
 
-add_library(jstars_gpu STATIC ${CPP_SOURCES} ${C_SOURCES} jgpu.cpp jgpu_kernel.cpp jgpu_stb.cpp ${JGPU_WINDOW})
+add_library(jstars_gpu STATIC ${CPP_SOURCES} ${C_SOURCES} jgpu.cpp jgpu_kernel.cpp jgpu_stb.cpp jgpu_fsr.cpp ${JGPU_WINDOW})
 add_dependencies(jstars_gpu jgpu_host_shaders)
 target_include_directories(jstars_gpu PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/shim ${V}/shadps4 ${V}/shadps4/src ${GEN}
@@ -38,7 +38,7 @@ target_include_directories(jstars_gpu PRIVATE
     ${V}/externals/sirit/include ${V}/externals/sirit/src ${V}/externals/sirit/externals/SPIRV-Headers/include
     ${V}/externals/robin-map/include ${V}/externals/xbyak ${V}/externals/magic_enum/include
     ${V}/externals/half/include ${V}/externals/gcn/include ${V}/externals/xxhash
-    ${V}/externals/stb ${V}/externals/renderdoc
+    ${V}/externals/stb ${V}/externals/renderdoc ${V}/externals/ffx-api
     ${V}/externals/zydis/include ${V}/externals/zydis/src ${V}/externals/zydis/dependencies/zycore/include)
 if(JGPU_BOOST_INCLUDE)
     target_include_directories(jstars_gpu SYSTEM PRIVATE ${JGPU_BOOST_INCLUDE})
