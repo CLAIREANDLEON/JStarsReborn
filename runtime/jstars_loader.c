@@ -229,6 +229,7 @@ static void* monitor_main(void* arg) {
             ++captured;
             rt_logf("capture requested at flip %" PRIu64, st[2]);
         }
+        rt_gpu_timing_tick(sec);
         if (g_sample_interval && sec % g_sample_interval == 0) { rt_sample_threads(); rt_thunk_report(); rt_fs_report(); }
         if (g_max_seconds && sec >= g_max_seconds) {
             rt_logf("--max-seconds %d reached; stopping (exit 7)", g_max_seconds);
@@ -282,6 +283,8 @@ int main(int argc, char** argv) {
     const char *boot = NULL, *logpath = "jstars-boot.log", *gpu_dir = NULL, *capture_dir = NULL, *game_root = NULL, *user_dir = NULL, *pad_script = NULL, *experiments = NULL;
     int online = 0, trace_net = 0, trace_np = 0;
     uint16_t lobby_port = 0;
+    int frame_stats = 0, flip_rate = -1;
+    const char *vblank_hz = NULL, *present_mode = NULL;
     const char* lobby_peers = NULL;
     int check_only = 0, selftest = 0, audit_dump = 0, stop_at_gnm = 0, win_w = 1280, win_h = 720;
     for (int i = 1; i < argc; ++i) {
@@ -310,6 +313,10 @@ int main(int argc, char** argv) {
         else if (!strcmp(argv[i], "--count-imports")) rt_thunk_set_counting(1);
         else if (!strcmp(argv[i], "--experiment") && i + 1 < argc) experiments = argv[++i];
         else if (!strcmp(argv[i], "--online")) online = 1;
+        else if (!strcmp(argv[i], "--frame-stats")) frame_stats = 1;
+        else if (!strcmp(argv[i], "--flip-rate") && i + 1 < argc) flip_rate = atoi(argv[++i]);
+        else if (!strcmp(argv[i], "--vblank-hz") && i + 1 < argc) vblank_hz = argv[++i];
+        else if (!strcmp(argv[i], "--present-mode") && i + 1 < argc) present_mode = argv[++i];
         else if (!strcmp(argv[i], "--lobby-port") && i + 1 < argc) lobby_port = (uint16_t)atoi(argv[++i]);
         else if (!strcmp(argv[i], "--lobby-peer") && i + 1 < argc) lobby_peers = argv[++i];
         else if (!strcmp(argv[i], "--trace-net")) trace_net = 1;
@@ -320,7 +327,7 @@ int main(int argc, char** argv) {
         else if (!strcmp(argv[i], "--capture-max") && i + 1 < argc) g_capture_max = atoi(argv[++i]);
         else { fprintf(stderr, "usage: %s --boot boot-linked.bin [--log file] [--check-imports] [--stop-at-first-gnm] [--selftest-host] [--audit-dump]\n"
                                "       [--game-root dir] [--user-dir dir] [--gpu-dir dir] [--capture-dir dir] [--window WxH] [--max-seconds n] [--capture-flips n]\n"
-                               "       [--capture-interval flips] [--capture-max n] [--pad-script file] [--no-keyboard] [--no-audio] [--volume 0-100] [--dump-audio prefix] [--pad-none] [--sample-threads seconds] [--count-imports] [--trace-draws first,count] [--experiment names] [--online] [--lobby-port n] [--lobby-peer ip[,ip]] [--trace-net] [--trace-np]\n", argv[0]); return 1; }
+                               "       [--capture-interval flips] [--capture-max n] [--pad-script file] [--no-keyboard] [--no-audio] [--volume 0-100] [--dump-audio prefix] [--pad-none] [--sample-threads seconds] [--count-imports] [--trace-draws first,count] [--experiment names] [--frame-stats] [--flip-rate n] [--vblank-hz n] [--present-mode Fifo|Mailbox|Immediate] [--online] [--lobby-port n] [--lobby-peer ip[,ip]] [--trace-net] [--trace-np]\n", argv[0]); return 1; }
     }
     if (audit_dump) { extern void rt_audit_dump(void*); rt_audit_dump(stdout); return 0; }
     if (selftest) { rt_log_open(logpath); extern int rt_selftest_host(const char*); char sd[4096]; snprintf(sd, sizeof sd, "%s.selftest", logpath); return rt_selftest_host(sd); }
@@ -332,6 +339,11 @@ int main(int argc, char** argv) {
     rt_net_configure(online, trace_net);
     rt_np_configure(trace_np);
     rt_rooms_configure(lobby_port, lobby_peers);
+    rt_gpu_timing_configure(frame_stats, flip_rate);
+    // The renderer reads these once at start (gpu/shim/core/emulator_settings.h). Experiments only; the defaults are unchanged.
+    if (vblank_hz) { static char e1[64]; snprintf(e1, sizeof e1, "JSTARS_VBLANK_HZ=%s", vblank_hz); putenv(e1); rt_logf("experiment: vblank %s Hz", vblank_hz); }
+    if (present_mode) { static char e2[64]; snprintf(e2, sizeof e2, "JSTARS_PRESENT_MODE=%s", present_mode); putenv(e2); rt_logf("experiment: present mode %s", present_mode); }
+    if (flip_rate >= 0) rt_logf("experiment: --flip-rate %d replaces the flip rate the game asks for", flip_rate);
     if (online) rt_logf("--online: the network layer is active. The game gets real UDP sockets on this host; "
                         "no PlayStation Network service is contacted and no account is used.");
     {
