@@ -11,15 +11,15 @@ No game files, keys, firmware or decryption tools are included or downloaded. Th
 > Use only a dump you made yourself from a copy of the game you legally own. Piracy is not supported in any form.
 > Provided as is, without warranty. Read the full [DISCLAIMER.md](DISCLAIMER.md).
 
-**State (0.5.0, pre-release):** on the owner's Windows 11 PC the game boots, shows the title, creates and loads its own
+**State (0.5.1, pre-release):** on the owner's Windows 11 PC the game boots, shows the title, creates and loads its own
 save data, and runs the menus and Free Battle matches, driven by scripted test input and by a live controller. Movies are
 skipped (no decoder) and trophies are an empty set. Whether it plays well and sounds right has **not** been confirmed by a
 human tester yet. See [CHANGELOG.md](CHANGELOG.md) for the full list of known issues.
 
-> **Online play is still in testing.** It is off by default (launcher Settings > "Online test features"). With it on, the
-> game's Online Battle menus open and a Friendly Match room can be hosted and found by other PCs; **joining a room, and so
-> an actual match between two players, does not work yet.** Nothing contacts PlayStation Network and no account is used.
-> The goal is direct peer-to-peer play between players over the internet; see [docs/ADR-007-online.md](docs/ADR-007-online.md).
+> **Online play is still in testing.** It is peer-to-peer (no server) and off by default: turn it on in the launcher's
+> **Online** page. A host can open its ports with UPnP and share a room code; players on the same network or with the code
+> see the host's Friendly Match room. **Joining a room, and so an actual match between two players, does not work yet.**
+> Nothing contacts PlayStation Network and no account is used. See [docs/ADR-007-online.md](docs/ADR-007-online.md).
 
 ## Using it (Windows)
 
