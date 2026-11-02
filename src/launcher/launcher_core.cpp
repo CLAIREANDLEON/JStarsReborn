@@ -1,4 +1,5 @@
 #include "launcher_core.hpp"
+#include "online.hpp"
 
 #include "reborn/game_validate.hpp"
 #include "reborn/sha256.hpp"
@@ -98,22 +99,23 @@ std::string sanitize_player_name(const std::string& in) {
     return out.empty() ? "Player" : out;
 }
 
+// Keeps what the player typed (room codes or IPv4 addresses with an optional port), drops entries that are neither.
 std::string sanitize_lobby_peers(const std::string& in) {
     std::string out, cur;
     int kept = 0;
     auto flush = [&] {
-        int parts = 0, value = -1, digits = 0;
-        bool ok = !cur.empty();
-        for (char c : cur + ".") {
-            if (c == '.') { ok = ok && digits > 0 && value <= 255; ++parts; value = -1; digits = 0; }
-            else if (c >= '0' && c <= '9') { value = (value < 0 ? 0 : value) * 10 + (c - '0'); ++digits; ok = ok && digits <= 3; }
-            else ok = false;
-        }
-        if (ok && parts == 4 && kept < 8) { if (!out.empty()) out += ','; out += cur; ++kept; }
+        const auto a = cur.find_first_not_of(' '), b = cur.find_last_not_of(' ');
+        const std::string t = a == std::string::npos ? std::string() : cur.substr(a, b - a + 1);
         cur.clear();
+        uint32_t ip = 0;
+        uint16_t port = 0;
+        if (t.empty() || kept >= 8 || !online::decode_peer(t, &ip, &port)) return;
+        if (!out.empty()) out += ", ";
+        out += t;
+        ++kept;
     };
     for (char c : in) {
-        if (c == ',' || c == ';' || c == ' ') flush();
+        if (c == ',' || c == ';') flush();
         else cur += c;
     }
     flush();
@@ -145,6 +147,7 @@ Settings load_settings(const fs::path& file, std::vector<std::string>* notes) {
         else if (k == "confirm_button") { ok = v == "cross" || v == "circle"; if (ok) s.confirm_button = v; }
         else if (k == "player_name") s.player_name = sanitize_player_name(v);
         else if (k == "online") ok = parse_bool(v, s.online);
+        else if (k == "upnp") ok = parse_bool(v, s.upnp);
         else if (k == "lobby_peers") s.lobby_peers = sanitize_lobby_peers(v);
         if (!ok) note("settings: ignored invalid value for " + k);
     }
@@ -162,6 +165,7 @@ void save_settings(const fs::path& file, const Settings& s) {
       << "confirm_button=" << s.confirm_button << "\n"
       << "player_name=" << sanitize_player_name(s.player_name) << "\n"
       << "online=" << (s.online ? 1 : 0) << "\n"
+      << "upnp=" << (s.upnp ? 1 : 0) << "\n"
       << "lobby_peers=" << sanitize_lobby_peers(s.lobby_peers) << "\n";
     write_file_atomic(file, o.str());
 }

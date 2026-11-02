@@ -15,7 +15,7 @@
 namespace reborn::launcher {
 namespace fs = std::filesystem;
 
-inline constexpr const char* launcher_version = "0.5.0";
+inline constexpr const char* launcher_version = "0.5.1";
 
 // ---- settings (launcher.ini, UTF-8 key=value) ---------------------------------------------------------------------
 struct Settings {
@@ -27,7 +27,8 @@ struct Settings {
     std::string confirm_button = "cross"; // "cross" (default of this build) or "circle"
     std::string player_name = "Player";
     bool online = false;                // experimental: --online, LAN room directory (Friendly Match), see docs/ADR-007-online.md
-    std::string lobby_peers;            // optional comma-separated IPv4 addresses of other PCs, for networks without broadcast
+    bool upnp = true;                   // ask the router to open the two UDP ports (online.hpp)
+    std::string lobby_peers;            // friends' room codes or addresses, as typed (comma-separated)
 };
 // Reads settings; unknown keys are ignored, invalid values fall back to defaults (reported in `notes`).
 Settings load_settings(const fs::path& file, std::vector<std::string>* notes = nullptr);
@@ -36,7 +37,7 @@ void save_settings(const fs::path& file, const Settings& s);
 // Supported window sizes offered in the UI (the runtime's --window option).
 const std::vector<std::pair<int, int>>& window_sizes();
 std::string sanitize_player_name(const std::string& in); // 1..16 printable characters, default "Player"
-std::string sanitize_lobby_peers(const std::string& in);  // keeps up to 8 valid IPv4 addresses, comma-separated
+std::string sanitize_lobby_peers(const std::string& in);  // keeps up to 8 valid room codes / IPv4[:port] entries, as typed
 
 // ---- supported builds --------------------------------------------------------------------------------------------
 struct SupportedBuild {

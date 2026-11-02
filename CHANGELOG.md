@@ -1,5 +1,14 @@
 # Change log
 
+## 0.5.1 playtest preview (pre-release; online still in testing)
+
+- Online is peer-to-peer over the internet, not only the local network: a host's room code (its public address) lets another player
+  see its rooms; the launcher opens the two UDP ports with UPnP (or they are forwarded by hand). No server is involved.
+- Launcher: new **Online** page (on/off, UPnP, "Get my room code", "Friend's room code"). Opened ports are closed when the launcher exits.
+- Runtime: room-directory queries (`--lobby-peer ip[:port]`), answered to the asker's address so they pass the asker's NAT.
+- Still missing: joining a room (so no match between two players yet), Rank Match, Quick Match.
+
+
 ## 0.5.0 playtest preview (branch `feature/online-np`; pre-release)
 
 A match between two PCs is **not** possible yet (joining a room is missing); nothing here contacts PlayStation Network. Test results so far are

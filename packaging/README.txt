@@ -1,4 +1,4 @@
-JStarsReborn 0.5.0 (playtest preview) - unofficial Windows PC port runtime for J-Stars Victory VS+ (PS4, CUSA01593 version 01.02)
+JStarsReborn 0.5.1 (playtest preview) - unofficial Windows PC port runtime for J-Stars Victory VS+ (PS4, CUSA01593 version 01.02)
 ====================================================================================================
 
 Legal (read DISCLAIMER.txt)
@@ -34,15 +34,18 @@ Problems
   Troubleshooting page: open the latest session logs or create a diagnostic report (a ZIP you save yourself;
   it is never uploaded and contains no game files, saves or prepared data).
 
-Online test (experimental, off by default)
-  Settings > "Online test features" turns on Friendly Match over your LOCAL NETWORK. Nothing contacts PlayStation
-  Network and no account is used; rooms are announced to other PCs on the same network (UDP port 47391).
-  Windows may ask whether to allow JStarsReborn on private networks: allow it, or rooms cannot be seen.
-  What works: Online Battle > Friendly Match > Create a Room (you host a room; other PCs running this version
-  see it under Search for a Room). What does NOT work yet: joining another PC's room, so a match between two
-  PCs cannot start; Rank Match and Quick Match. A function that is not finished makes the game show
-  "A communication error has occurred" and return to the menu. If the other PC's rooms do not appear, enter
-  its address (e.g. 192.168.1.20) in "Other PC's address" on both PCs.
+Online (experimental, still in testing, off by default)
+  Online play is peer-to-peer: the two games talk to each other directly. There is no JStarsReborn server and nothing
+  contacts PlayStation Network; no account is used. Turn it on in the launcher's Online page.
+  - Same network: rooms are found automatically.
+  - Over the internet: the host presses "Get my room code" (the launcher asks the router to open UDP ports 47391 and
+    3658 with UPnP) and sends the code to the other player, who types it into "Friend's room code". If the router has
+    no UPnP, forward UDP 47391 and 3658 to the host PC by hand and use the host's public address instead of a code.
+  - Then both press Play > Online Battle > Friendly Match: the host chooses Create a Room, the other player Search for a Room.
+  - Windows may ask to allow JStarsReborn on networks: allow it.
+  What works: hosting a room, and seeing other players' rooms. What does NOT work yet: joining a room, so a match
+  between two players cannot start yet; Rank Match and Quick Match. Unfinished functions make the game show
+  "A communication error has occurred" and return to the menu.
 
 Not supported in this version
   Movies are skipped. Trophies are not available. Online play is the experimental test described above. Only the title screen, menus, Free Battle

@@ -24,13 +24,13 @@ int main(int argc, char** argv) {
     CHECK(b.window_width == 1280 && b.volume == 100 && b.sound && b.confirm_button == "cross" && b.player_name == "Player" && notes.size() == 4,
           "invalid settings fall back to defaults and are reported");
     CHECK(sanitize_player_name("A very long player name indeed") == "A very long play", "player name limited to 16 characters");
-    CHECK(sanitize_lobby_peers(" 192.168.1.20, 10.0.0.300;abc,10.0.0.7 ") == "192.168.1.20,10.0.0.7", "lobby peers keep only valid IPv4 addresses");
+    CHECK(sanitize_lobby_peers(" 192.168.1.20, 10.0.0.300;abc,10.0.0.7:5000 ") == "192.168.1.20, 10.0.0.7:5000", "lobby peers keep only valid addresses (and room codes)");
     CHECK(sanitize_lobby_peers("1.2.3") == "" && sanitize_lobby_peers("1.2.3.4.5") == "", "lobby peers reject malformed addresses");
     {
-        Settings o; o.online = true; o.lobby_peers = "192.168.1.20";
+        Settings o; o.online = true; o.upnp = false; o.lobby_peers = "192.168.1.20";
         save_settings(scratch / "online.ini", o);
         auto r = load_settings(scratch / "online.ini", nullptr);
-        CHECK(r.online && r.lobby_peers == "192.168.1.20", "the online setting and peer address round trip");
+        CHECK(r.online && !r.upnp && r.lobby_peers == "192.168.1.20", "the online settings and peer address round trip");
         CHECK(!load_settings(scratch / "missing.ini", nullptr).online, "online is off by default");
     }
     // game folder

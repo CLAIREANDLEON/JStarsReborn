@@ -26,6 +26,8 @@
 #include <vector>
 
 #include "launcher_core.hpp"
+#include "online.hpp"
+#include <cstring>
 #include "reborn/paths.hpp"
 #include "reborn/sha256.hpp"
 
@@ -39,22 +41,23 @@ constexpr wchar_t kWindowClass[] = L"JStarsRebornLauncher";
 constexpr wchar_t kGameWindowClass[] = L"JStarsRebornGameWindow"; // created by the runtime (gpu/jgpu_window_win32.cpp)
 constexpr wchar_t kMutexName[] = L"Local\\JStarsRebornLauncher.SingleInstance";
 constexpr UINT WM_APP_CHECKED = WM_APP + 1, WM_APP_PREP_PROGRESS = WM_APP + 2, WM_APP_PREP_DONE = WM_APP + 3,
-               WM_APP_GAME_EXITED = WM_APP + 4, WM_APP_RUNTIME_INFO = WM_APP + 5;
+               WM_APP_GAME_EXITED = WM_APP + 4, WM_APP_RUNTIME_INFO = WM_APP + 5, WM_APP_ONLINE = WM_APP + 6;
 constexpr UINT_PTR TIMER_STOP = 1, TIMER_POLL = 2;
 constexpr COLORREF kSidebar = RGB(30, 32, 40), kSidebarHover = RGB(44, 47, 58), kSidebarSel = RGB(52, 56, 70),
                    kAccent = RGB(226, 72, 40), kAccentDark = RGB(186, 52, 24), kContentBg = RGB(246, 247, 249),
                    kText = RGB(28, 30, 36), kMuted = RGB(96, 100, 112), kGood = RGB(24, 128, 64), kBad = RGB(186, 36, 36);
 
-enum Page : int { PagePlay, PageFolder, PageSettings, PageControls, PageHelp, PageCount };
+enum Page : int { PagePlay, PageFolder, PageSettings, PageOnline, PageControls, PageHelp, PageCount };
 constexpr int kPages = PageCount;
-const wchar_t* kPageNames[PageCount] = {L"Play", L"Game folder", L"Settings", L"Controls", L"Troubleshooting"};
+const wchar_t* kPageNames[PageCount] = {L"Play", L"Game folder", L"Settings", L"Online", L"Controls", L"Troubleshooting"};
 
 enum Id {
     IdNavFirst = 100, // + page
     IdPlay = 200, IdStop, IdCancelPrep, IdOpenSessionLogs, IdPrepProgress, IdStatus, IdLastHead, IdLastDetail, IdPrepStep, IdPlayHint,
     IdFolderEdit = 300, IdBrowse, IdRecheck, IdFolderDetails, IdPrepState, IdPrepareNow, IdFolderNote, IdFolderLabel,
     IdWindowSize = 400, IdSound, IdVolume, IdVolumeLabel, IdKeyboard, IdConfirm, IdPlayerName, IdSettingsNote, IdLblWindow, IdLblVolume,
-    IdLblConfirm, IdLblName, IdOnline, IdLblPeers, IdLobbyPeers,
+    IdLblConfirm, IdLblName,
+    IdOnline = 450, IdOnlineIntro, IdUpnp, IdLblMyCode, IdMyCode, IdFindCode, IdCopyCode, IdLblPeers, IdLobbyPeers, IdOnlineStatus, IdOnlineNote,
     IdControlsList = 500, IdControlsNote,
     IdOpenLatest = 600, IdOpenLogs, IdReport, IdDeletePrepared, IdOpenData, IdLicenses, IdHelpInfo, IdHelpText,
 };
@@ -154,10 +157,18 @@ struct App {
     LastExit last;
     bool foreign_game = false; // a game window exists that this launcher did not start
 
+    // online (peer-to-peer; see online.hpp)
+    std::jthread online_thread;
+    bool online_busy = false, ports_mapped = false;
+    online::Igd igd;
+    std::string my_code, online_status = "Online play is off.";
+
     // artwork (the user's own sce_sys/icon0.png, decoded locally)
     HBITMAP icon_bmp{};
     int icon_w = 0, icon_h = 0;
 } g;
+void refresh_online_page();
+void start_online_setup();
 
 int S(int v) { return MulDiv(v, static_cast<int>(g.dpi), 96); }
 
@@ -270,10 +281,21 @@ void layout() {
         place(IdLblVolume, x0, sy + S(4), lw, S(24)); place(IdVolume, fx, sy, S(260), S(32)); place(IdVolumeLabel, fx + S(268), sy + S(4), S(60), S(24)); sy += S(48);
         place(IdKeyboard, x0, sy, cw, S(26)); sy += S(42);
         place(IdLblConfirm, x0, sy + S(4), lw, S(24)); place(IdConfirm, fx, sy, S(260), S(300)); sy += S(48);
-        place(IdLblName, x0, sy + S(4), lw, S(24)); place(IdPlayerName, fx, sy, S(260), S(28)); sy += S(44);
-        place(IdOnline, x0, sy, cw, S(26)); sy += S(34);
-        place(IdLblPeers, x0, sy + S(4), lw, S(24)); place(IdLobbyPeers, fx, sy, S(260), S(28)); sy += S(44);
+        place(IdLblName, x0, sy + S(4), lw, S(24)); place(IdPlayerName, fx, sy, S(260), S(28)); sy += S(52);
         place(IdSettingsNote, x0, sy, cw, S(72));
+    }
+    // Online
+    {
+        const int lw = S(190), fx = x0 + lw;
+        int sy = y + S(4);
+        place(IdOnline, x0, sy, cw, S(26)); sy += S(32);
+        place(IdOnlineIntro, x0, sy, cw, S(54)); sy += S(60);
+        place(IdUpnp, x0, sy, cw, S(26)); sy += S(38);
+        place(IdLblMyCode, x0, sy + S(6), lw, S(24)); place(IdMyCode, fx, sy, S(220), S(34));
+        place(IdFindCode, fx + S(230), sy, S(170), S(34)); place(IdCopyCode, fx + S(410), sy, S(90), S(34)); sy += S(48);
+        place(IdLblPeers, x0, sy + S(4), lw, S(24)); place(IdLobbyPeers, fx, sy, std::max(S(220), cw - lw), S(28)); sy += S(42);
+        place(IdOnlineStatus, x0, sy, cw, S(84)); sy += S(90);
+        place(IdOnlineNote, x0, sy, cw, std::max(S(60), H_ - sy - S(16)));
     }
     // Controls
     {
@@ -625,8 +647,9 @@ void launch_game() {
     // is not implemented yet answer "signed out" (the game shows its communication error) instead of stopping the game.
     if (g.settings.online) {
         cmd += L" --online --trace-np --experiment online-probe";
-        const std::string peers = sanitize_lobby_peers(g.settings.lobby_peers);
+        const std::string peers = online::peers_to_lobby_arg(g.settings.lobby_peers);
         if (!peers.empty()) cmd += L" --lobby-peer " + W(peers);
+        if (g.settings.upnp && !g.ports_mapped && !g.online_busy) start_online_setup();
     }
     g.session_cmdline = cmd;
 
@@ -1039,14 +1062,29 @@ void build_controls() {
     add(PageSettings, L"STATIC", L"Player name", SS_LEFT, IdLblName);
     add(PageSettings, L"EDIT", L"", ES_AUTOHSCROLL | WS_TABSTOP, IdPlayerName, WS_EX_CLIENTEDGE);
     SendMessageW(ctl(IdPlayerName), EM_SETLIMITTEXT, 16, 0);
-    add(PageSettings, L"BUTTON", L"Online test features (experimental): Friendly Match rooms on the local network", BS_AUTOCHECKBOX | WS_TABSTOP, IdOnline);
-    add(PageSettings, L"STATIC", L"Other PC's address", SS_LEFT, IdLblPeers);
-    add(PageSettings, L"EDIT", L"", ES_AUTOHSCROLL | WS_TABSTOP, IdLobbyPeers, WS_EX_CLIENTEDGE);
-    SendMessageW(ctl(IdLobbyPeers), EM_SETLIMITTEXT, 127, 0);
     add(PageSettings, L"STATIC",
         L"Settings are saved at once and apply the next time you press Play. The player name is what the game sees as your console user name. "
-        L"Online test features: rooms are found on your local network only, nothing contacts PlayStation Network, and joining another PC's room "
-        L"is not finished yet. Other PC's address is optional (for networks that block broadcast), e.g. 192.168.1.20.", SS_LEFT | SS_NOPREFIX, IdSettingsNote);
+        L"Graphics options beyond the window size are not offered because the runtime has none yet. Online play is on the Online page.", SS_LEFT | SS_NOPREFIX, IdSettingsNote);
+    // Online
+    add(PageOnline, L"BUTTON", L"Enable online play (experimental, still in testing)", BS_AUTOCHECKBOX | WS_TABSTOP, IdOnline);
+    add(PageOnline, L"STATIC",
+        L"Online play is peer-to-peer: your game and your friend's game talk to each other directly. There is no JStarsReborn server and "
+        L"nothing contacts PlayStation Network. Players on the same network find each other's rooms automatically.", SS_LEFT | SS_NOPREFIX, IdOnlineIntro);
+    add(PageOnline, L"BUTTON", L"Open my ports on the router automatically (UPnP) so players on the internet can join me", BS_AUTOCHECKBOX | WS_TABSTOP, IdUpnp);
+    add(PageOnline, L"STATIC", L"Your room code", SS_LEFT, IdLblMyCode);
+    add(PageOnline, L"EDIT", L"", ES_READONLY | ES_CENTER | WS_TABSTOP, IdMyCode, WS_EX_CLIENTEDGE);
+    add(PageOnline, L"BUTTON", L"Get my room code", BS_OWNERDRAW | WS_TABSTOP, IdFindCode);
+    add(PageOnline, L"BUTTON", L"Copy", BS_OWNERDRAW | WS_TABSTOP, IdCopyCode);
+    add(PageOnline, L"STATIC", L"Friend's room code", SS_LEFT, IdLblPeers);
+    add(PageOnline, L"EDIT", L"", ES_AUTOHSCROLL | WS_TABSTOP, IdLobbyPeers, WS_EX_CLIENTEDGE);
+    SendMessageW(ctl(IdLobbyPeers), EM_SETLIMITTEXT, 200, 0);
+    add(PageOnline, L"STATIC", L"", SS_LEFT | SS_NOPREFIX, IdOnlineStatus);
+    add(PageOnline, L"STATIC",
+        L"How to play over the internet: the host gets a room code here and sends it to the other player, who types it into \"Friend's room "
+        L"code\" (several codes can be separated by commas). Both press Play and go to Online Battle > Friendly Match: the host creates a room, "
+        L"the other player uses Search for a Room. If the router has no UPnP, forward UDP ports 47391 and 3658 to this PC by hand and give your "
+        L"public address instead of a code. Still in testing: joining a room is not finished yet, so a match cannot start yet.",
+        SS_LEFT | SS_NOPREFIX, IdOnlineNote);
     // Controls
     HWND lv = add(PageControls, WC_LISTVIEWW, L"", LVS_REPORT | LVS_NOSORTHEADER | LVS_SINGLESEL | WS_TABSTOP, IdControlsList, WS_EX_CLIENTEDGE);
     ListView_SetExtendedListViewStyle(lv, LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER);
@@ -1128,9 +1166,7 @@ void load_settings_into_ui() {
     SendMessageW(ctl(IdKeyboard), BM_SETCHECK, g.settings.keyboard ? BST_CHECKED : BST_UNCHECKED, 0);
     SendMessageW(ctl(IdConfirm), CB_SETCURSEL, g.settings.confirm_button == "circle" ? 1 : 0, 0);
     set_text(IdPlayerName, W(g.settings.player_name));
-    SendMessageW(ctl(IdOnline), BM_SETCHECK, g.settings.online ? BST_CHECKED : BST_UNCHECKED, 0);
-    set_text(IdLobbyPeers, W(g.settings.lobby_peers));
-    enable(IdLobbyPeers, g.settings.online);
+    refresh_online_page();
 }
 
 // ---- first run: data folder, backups of earlier data -----------------------------------------------------------------------------------
@@ -1183,6 +1219,67 @@ void init_data() {
 }
 
 // ---- window procedure -----------------------------------------------------------------------------------------------------------------
+// ---- online page ----------------------------------------------------------------------------------------------------------
+struct OnlineResult { std::string status, code; bool mapped = false; online::Igd igd; };
+
+void refresh_online_page() {
+    if (g.settings.online && g.online_status == "Online play is off.") g.online_status = "Online play is on. Press Play, then Online Battle > Friendly Match.";
+    SendMessageW(ctl(IdOnline), BM_SETCHECK, g.settings.online ? BST_CHECKED : BST_UNCHECKED, 0);
+    SendMessageW(ctl(IdUpnp), BM_SETCHECK, g.settings.upnp ? BST_CHECKED : BST_UNCHECKED, 0);
+    if (GetFocus() != ctl(IdLobbyPeers)) set_text(IdLobbyPeers, W(g.settings.lobby_peers));
+    set_text(IdMyCode, W(g.my_code));
+    set_text(IdOnlineStatus, W(g.online_busy ? std::string("Asking the router to open UDP ports 47391 and 3658 for this PC\u2026") : g.online_status));
+    for (int id : {IdUpnp, IdFindCode, IdLobbyPeers, IdLblPeers, IdLblMyCode, IdMyCode}) enable(id, g.settings.online);
+    enable(IdFindCode, g.settings.online && !g.online_busy);
+    enable(IdCopyCode, g.settings.online && !g.my_code.empty());
+}
+
+void copy_to_clipboard(const std::wstring& text) {
+    if (text.empty() || !OpenClipboard(g.hwnd)) return;
+    EmptyClipboard();
+    if (HGLOBAL mem = GlobalAlloc(GMEM_MOVEABLE, (text.size() + 1) * sizeof(wchar_t))) {
+        memcpy(GlobalLock(mem), text.c_str(), (text.size() + 1) * sizeof(wchar_t));
+        GlobalUnlock(mem);
+        if (!SetClipboardData(CF_UNICODETEXT, mem)) GlobalFree(mem);
+    }
+    CloseClipboard();
+}
+
+// Finds the router, opens the two UDP ports (if UPnP is on) and works out the room code, on a worker thread.
+void start_online_setup() {
+    if (g.online_busy) return;
+    g.online_busy = true;
+    refresh_online_page();
+    const bool upnp = g.settings.upnp;
+    HWND hwnd = g.hwnd;
+    if (g.online_thread.joinable()) g.online_thread.join();
+    g.online_thread = std::jthread([upnp, hwnd] {
+        auto* r = new OnlineResult;
+        std::string log;
+        const std::string lan = online::local_ipv4();
+        if (lan.empty()) r->status = "This PC has no network connection.";
+        else if (!upnp) r->status = "UPnP is off. Forward UDP ports 47391 and 3658 to " + lan + " on your router, and give the other player your public address.";
+        else if (!online::igd_find(&r->igd, &log)) r->status = "Could not open the ports automatically: " + log + "Forward UDP ports 47391 and 3658 to " + lan + " by hand, or turn on UPnP in the router.";
+        else {
+            const bool a = online::igd_add_udp_mapping(r->igd, online::kDirectoryPort, lan, "JStarsReborn rooms", &log);
+            const bool b = online::igd_add_udp_mapping(r->igd, online::kGamePort, lan, "JStarsReborn game", &log);
+            r->mapped = a || b;
+            std::string pub;
+            if (!online::igd_external_ip(r->igd, &pub, &log)) r->status = "Ports opened, but the router did not tell its public address. " + log;
+            else {
+                uint32_t ip = 0; uint16_t port = 0;
+                online::decode_peer(pub, &ip, &port);
+                const bool priv = (ip >> 24) == 10 || (ip >> 20) == 0xAC1 || (ip >> 16) == 0xC0A8 || (ip >> 22) == 0x191;   // 10/8, 172.16/12, 192.168/16, 100.64/10
+                r->code = online::encode_room_code(ip, online::kDirectoryPort);
+                if (!(a && b)) r->status = "Only part of the ports could be opened: " + log;
+                else if (priv) r->status = "Ports opened, but your router is itself behind another network (" + pub + "): players on the internet may not reach you. Players on your network can.";
+                else r->status = "Ready: UDP ports 47391 and 3658 are open for this PC (" + lan + "). Send your room code to the other player.";
+            }
+        }
+        if (!PostMessageW(hwnd, WM_APP_ONLINE, 0, reinterpret_cast<LPARAM>(r))) delete r;
+    });
+}
+
 void on_command(int id, int code) {
     if (id == IDOK) { // Enter: IsDialogMessage sends IDOK; press the focused button if there is one
         HWND f = GetFocus();
@@ -1250,14 +1347,26 @@ void on_command(int id, int code) {
         break;
     case IdOnline:
         g.settings.online = SendMessageW(ctl(IdOnline), BM_GETCHECK, 0, 0) == BST_CHECKED;
-        enable(IdLobbyPeers, g.settings.online);
+        g.online_status = g.settings.online ? "Online play is on. Press Play, then Online Battle > Friendly Match." : "Online play is off.";
         save_settings_now();
+        refresh_online_page();
         break;
+    case IdUpnp:
+        g.settings.upnp = SendMessageW(ctl(IdUpnp), BM_GETCHECK, 0, 0) == BST_CHECKED;
+        save_settings_now();
+        refresh_online_page();
+        break;
+    case IdFindCode: start_online_setup(); break;
+    case IdCopyCode: copy_to_clipboard(W(g.my_code)); break;
     case IdLobbyPeers:
         if (code == EN_KILLFOCUS) {
             g.settings.lobby_peers = sanitize_lobby_peers(U(get_text(IdLobbyPeers)));
             set_text(IdLobbyPeers, W(g.settings.lobby_peers));
+            std::string bad;
+            online::peers_to_lobby_arg(g.settings.lobby_peers, &bad);
+            if (!bad.empty()) g.online_status = "Not a room code or address (ignored): " + bad;
             save_settings_now();
+            refresh_online_page();
         }
         break;
     case IdConfirm:
@@ -1454,6 +1563,16 @@ LRESULT CALLBACK wnd_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         return 0;
     }
     case WM_APP_GAME_EXITED: on_game_exited(static_cast<DWORD>(wp)); return 0;
+    case WM_APP_ONLINE: {
+        std::unique_ptr<OnlineResult> r(reinterpret_cast<OnlineResult*>(lp));
+        g.online_busy = false;
+        g.online_status = r->status;
+        if (r->mapped) { g.ports_mapped = true; g.igd = r->igd; }
+        if (!r->code.empty()) g.my_code = r->code;
+        log_line("online: " + r->status);
+        refresh_online_page();
+        return 0;
+    }
     case WM_CLOSE:
         if (g.running) {
             if (MessageBoxW(hwnd, L"The game is still running.\n\nClose the game and the launcher? (The game is asked to close normally.)", L"JStarsReborn",
@@ -1470,6 +1589,12 @@ LRESULT CALLBACK wnd_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         KillTimer(hwnd, TIMER_POLL);
         if (g.prep_thread.joinable()) { g.prep_thread.request_stop(); g.prep_thread.join(); }
         if (g.check_thread.joinable()) { g.check_thread.request_stop(); g.check_thread.join(); }
+        if (g.online_thread.joinable()) g.online_thread.join();
+        if (g.ports_mapped) {   // close the ports this launcher opened
+            std::string ignored;
+            online::igd_delete_udp_mapping(g.igd, online::kDirectoryPort, &ignored);
+            online::igd_delete_udp_mapping(g.igd, online::kGamePort, &ignored);
+        }
         PostQuitMessage(0);
         return 0;
     }
