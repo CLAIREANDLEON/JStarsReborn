@@ -629,12 +629,27 @@ static int GUEST_ABI net_shutdown(int s, int how) {
 static int GUEST_ABI net_socket_close(int s) {
     NetSocket* e = slot_of(s);
     if (!e) return fail(SCE_NET_EBADF);
+    // A P2P socket gives back its share of the UDP port and drops whatever is still queued for it. The group lock is
+    // taken first, as the receive path does, so no datagram is queued for this socket while it is being closed.
+    PortGroup* g = is_p2p(e) ? e->group : NULL;
+    if (g) pthread_mutex_lock(&g->mu);
     pthread_mutex_lock(&g_sock_lock);
-    rt_logf("sceNetSocketClose(socket %d '%s'): %" PRIu64 " datagrams sent, %" PRIu64 " received, %" PRIu64 " send errors, %" PRIu64 " receive errors",
-            s, e->name, e->sent, e->received, e->send_errors, e->recv_errors);
-    NET_CLOSE(e->h);
+    rt_logf("sceNetSocketClose(socket %d '%s'): %" PRIu64 " datagrams sent, %" PRIu64 " received, %" PRIu64 " send errors, %" PRIu64 " receive errors, %d still queued",
+            s, e->name, e->sent, e->received, e->send_errors, e->recv_errors, e->qcount);
+    if (e->h != NET_INVALID) NET_CLOSE(e->h);
+    QueuedDatagram* q = e->qhead;
+    e->qhead = e->qtail = NULL;
+    e->qcount = 0;
+    e->group = NULL;
     e->used = 0;
     pthread_mutex_unlock(&g_sock_lock);
+    if (g) pthread_mutex_unlock(&g->mu);
+    while (q) { QueuedDatagram* n = q->next; free(q); q = n; }
+    if (g) {
+        pthread_mutex_lock(&g_sock_lock);
+        group_release(g);
+        pthread_mutex_unlock(&g_sock_lock);
+    }
     return 0;
 }
 
