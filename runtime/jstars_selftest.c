@@ -539,6 +539,31 @@ int rt_selftest_host(const char* scratch_dir) {
               "m2: after Terminate the library reports NOT_INITIALIZED");
     }
 
+    // ---- NP Signaling contexts ------------------------------------------------------------------------------
+    {
+        int (GUEST_ABI * create)(const void*, void*, void*, int32_t*) = (int (GUEST_ABI*)(const void*, void*, void*, int32_t*))rt_find_host("sceNpSignalingCreateContext");
+        int (GUEST_ABI * del)(int32_t) = (int (GUEST_ABI*)(int32_t))rt_find_host("sceNpSignalingDeleteContext");
+        CHECK(create && del, "sig: the context functions are exported");
+        char npid[36]; memset(npid, 0, sizeof npid); memcpy(npid, "SelfTestPlayer", 14);
+        int32_t ids[9]; int marker = 0;
+        F(int, "sceNpSignalingTerminate", (void))();
+        CHECK(create(npid, NULL, &marker, &ids[0]) == (int)0x80552701, "sig: CreateContext before Initialize reports NOT_INITIALIZED");
+        F(int, "sceNpSignalingInitialize", (const void*))(NULL);
+        CHECK(create(NULL, NULL, NULL, &ids[0]) == (int)0x80552715 && create(npid, NULL, NULL, NULL) == (int)0x80552715,
+              "sig: a NULL NP id or id pointer reports INVALID_ARGUMENT");
+        int ok = 1;
+        for (int i = 0; i < 8; ++i) ok &= create(npid, (void*)m2_context_cb, &marker, &ids[i]) == 0 && ids[i] == i + 1;
+        CHECK(ok, "sig: eight contexts get the ids 1 to 8");
+        CHECK(create(npid, NULL, NULL, &ids[8]) == (int)0x80552704, "sig: a ninth reports CTXID_NOT_AVAILABLE");
+        CHECK(del(3) == 0 && create(npid, NULL, NULL, &ids[8]) == 0 && ids[8] == 3, "sig: a deleted id is handed out again");
+        CHECK(del(42) == 0, "sig: deleting an unknown id is not an error");
+        CHECK(F(int, "sceNpSignalingTerminate", (void))() == 0 && create(npid, NULL, NULL, &ids[0]) == (int)0x80552701,
+              "sig: after Terminate the library reports NOT_INITIALIZED");
+        F(int, "sceNpSignalingInitialize", (const void*))(NULL);
+        CHECK(create(npid, NULL, NULL, &ids[0]) == 0 && ids[0] == 1, "sig: after a new Initialize ids start at 1 again");
+        F(int, "sceNpSignalingTerminate", (void))();
+    }
+
     // ---- NP requests: the gate the game hits when it opens Online Battle -----------------------------------
     {
         rt_net_configure(1, 0);

@@ -540,8 +540,61 @@ static int GUEST_ABI m2_get_server_id(uint16_t ctx_id, uint16_t* server_id) {
     return 0;
 }
 
-static int GUEST_ABI sig_initialize(const void* param) { (void)param; g_np_sig_init = 1; return 0; }
-static int GUEST_ABI sig_terminate(void) { g_np_sig_init = 0; return 0; }
+// ---- libSceNpSignaling: contexts --------------------------------------------------------------------------------
+// Signaling is how the console finds a peer's address and keeps a connection to it alive. The game creates a
+// signaling context right after its Matching2 context (eboot.bin+0x2c90e8, function 0x2c9090, probe run
+// 20261102-005629) and destroys the Matching2 context again if this fails. Only the context lifetime exists here:
+// no connection can be activated yet, so the game's handler is stored and never called.
+// Error values and the id scheme (1..8, handed out round-robin) follow shadPS4's np_error.h and np_signaling_state.cpp.
+enum { SIG_ERR_NOT_INITIALIZED = (int)0x80552701, SIG_ERR_CTXID_NOT_AVAILABLE = (int)0x80552704,
+       SIG_ERR_INVALID_ARGUMENT = (int)0x80552715 };
+#define SIG_MAX_CTX 8
+static pthread_mutex_t g_sig_lock = PTHREAD_MUTEX_INITIALIZER;
+static struct { int used; char online_id[20]; void* handler; void* arg; } g_sig_ctx[SIG_MAX_CTX + 1];   // index = id
+static int g_sig_last_id;
+
+static int GUEST_ABI sig_initialize(const void* param) { (void)param; g_np_sig_init = 1; np_trace("sceNpSignalingInitialize"); return 0; }
+static int GUEST_ABI sig_terminate(void) {
+    pthread_mutex_lock(&g_sig_lock);
+    g_np_sig_init = 0;
+    memset(g_sig_ctx, 0, sizeof g_sig_ctx);
+    g_sig_last_id = 0;
+    pthread_mutex_unlock(&g_sig_lock);
+    np_trace("sceNpSignalingTerminate");
+    return 0;
+}
+static int GUEST_ABI sig_create_context(const void* np_id, void* handler, void* arg, int32_t* ctx_id) {
+    if (!g_np_sig_init) return SIG_ERR_NOT_INITIALIZED;
+    if (!np_id || !ctx_id) return SIG_ERR_INVALID_ARGUMENT;
+    pthread_mutex_lock(&g_sig_lock);
+    int id = g_sig_last_id >= SIG_MAX_CTX ? 1 : g_sig_last_id + 1;
+    for (int tried = 0; tried < SIG_MAX_CTX; ++tried, id = id >= SIG_MAX_CTX ? 1 : id + 1) {
+        if (g_sig_ctx[id].used) continue;
+        memset(&g_sig_ctx[id], 0, sizeof g_sig_ctx[id]);
+        g_sig_ctx[id].used = 1;
+        memcpy(g_sig_ctx[id].online_id, np_id, 16);
+        g_sig_ctx[id].handler = handler;
+        g_sig_ctx[id].arg = arg;
+        g_sig_last_id = id;
+        pthread_mutex_unlock(&g_sig_lock);
+        *ctx_id = id;
+        rt_logf("sceNpSignalingCreateContext(player '%.16s', handler %p) -> context %d (no connection can be made yet)", (const char*)np_id, handler, id);
+        return 0;
+    }
+    pthread_mutex_unlock(&g_sig_lock);
+    rt_logf("sceNpSignalingCreateContext: all %d contexts in use", SIG_MAX_CTX);
+    return SIG_ERR_CTXID_NOT_AVAILABLE;
+}
+// Like the reference, deleting an id that is not in use is not an error.
+static int GUEST_ABI sig_delete_context(int32_t ctx_id) {
+    if (!g_np_sig_init) return SIG_ERR_NOT_INITIALIZED;
+    pthread_mutex_lock(&g_sig_lock);
+    const int existed = ctx_id >= 1 && ctx_id <= SIG_MAX_CTX && g_sig_ctx[ctx_id].used;
+    if (existed) memset(&g_sig_ctx[ctx_id], 0, sizeof g_sig_ctx[ctx_id]);
+    pthread_mutex_unlock(&g_sig_lock);
+    np_trace("sceNpSignalingDeleteContext(context %d)%s", ctx_id, existed ? "" : ": no such context");
+    return 0;
+}
 
 // ---- libSceNpWebApi: library contexts only. No user context can be created (the local user is never signed in to the
 // network), so everything that would talk to a PlayStation Network service stays unimplemented and stops the run loudly.
@@ -971,6 +1024,8 @@ const HostSymbol platform_symbols[] = {
     {"sceNpMatching2GetServerId", "libSceNpMatching2", (void*)m2_get_server_id, 0},
     {"sceNpSignalingInitialize", "libSceNpSignaling", (void*)sig_initialize, 0},
     {"sceNpSignalingTerminate", "libSceNpSignaling", (void*)sig_terminate, 0},
+    {"sceNpSignalingCreateContext", "libSceNpSignaling", (void*)sig_create_context, 0},
+    {"sceNpSignalingDeleteContext", "libSceNpSignaling", (void*)sig_delete_context, 0},
     {"sceSharePlayInitialize", "libSceSharePlay", (void*)sp_initialize, 0},
     {"sceSharePlayTerminate", "libSceSharePlay", (void*)sp_terminate, 0},
     {"sceSharePlaySetProhibition", "libSceSharePlay", (void*)sp_set_prohibition, 0},
