@@ -328,10 +328,218 @@ static int GUEST_ABI ss_enable(void) { g_screenshot_enabled = 1; return 0; }
 static int GUEST_ABI ss_disable(void) { g_screenshot_enabled = 0; return 0; }
 static int GUEST_ABI ss_overlay(const char* path, int32_t x, int32_t y) { rt_logf("sceScreenShotSetOverlayImage('%s', %d, %d): remembered, not drawn (no screenshot service)", path ? path : "(null)", x, y); return 0; }
 
-// ---- libSceNpMatching2 / libSceNpSignaling: library lifetime only (no network, no sign-in => no contexts can be used) -----
+// ---- libSceNpMatching2: contexts ------------------------------------------------------------------------------
+// Matching2 is the console's room system: a context is a session with a matching service, and every room
+// operation is asynchronous, answered through callbacks the game registers.
+//
+// Evidence for this step (probe run 20261101-204539, with the sign-in path complete): the game reaches
+// sceNpMatching2CreateContext (return address eboot.bin+0x2bfce7, inside function 0x2bfc40) and, when it fails, shows "A communication error has
+// occurred." over the main menu. That capture is in the run's own captures folder.
+//
+// What exists here is the context lifetime and the callback machinery. There is no room directory yet, so the
+// context starts and reports itself started, and nothing can be searched or joined; those entries are still
+// unimplemented and stop the run (or, with --experiment online-probe, report an error).
+enum {
+    M2_EVENT_CONTEXT_STARTED = 0x6F02,
+    M2_EVENT_CONTEXT_STOPPED = 0x6F03,
+    M2_CAUSE_CONTEXT_ACTION = 11,
+};
+// Error values: shadPS4 src/core/libraries/np/np_error.h (a reference implementation, not the console itself).
+enum { M2_ERR_OUT_OF_MEMORY = (int)0x80550C01, M2_ERR_NOT_INITIALIZED = (int)0x80550C03,
+       M2_ERR_CONTEXT_MAX = (int)0x80550C04, M2_ERR_CONTEXT_ALREADY_STARTED = (int)0x80550C07,
+       M2_ERR_CONTEXT_NOT_STARTED = (int)0x80550C08, M2_ERR_INVALID_ARGUMENT = (int)0x80550C0A,
+       M2_ERR_INVALID_CONTEXT_ID = (int)0x80550C0B, M2_ERR_ABORTED = (int)0x80550C2A };
+
+typedef void (GUEST_ABI* M2ContextCb)(uint16_t ctx_id, uint16_t event, uint8_t cause, int error_code, void* userdata);
+typedef void (GUEST_ABI* M2RoomEventCb)(uint16_t ctx_id, uint64_t room_id, uint16_t event, const void* data, void* userdata);
+
+#define M2_MAX_CTX 4
+#define M2_SERVER_ID 1
+#define M2_START_DELAY_MS 30
 static int g_np_m2_init, g_np_sig_init;
+// One lock for the whole table. The game's callbacks are always called with it released, so a callback may call
+// back into this library (destroy the context, start it again) without deadlocking.
+static pthread_mutex_t g_m2_lock = PTHREAD_MUTEX_INITIALIZER;
+static M2ContextCb g_m2_context_cb;
+static void* g_m2_context_userdata;
+static struct {
+    int used, started, starting, aborted;
+    uint32_t generation;       // bumped whenever the slot is created or destroyed, so a late start thread can tell
+    char online_id[20];
+    uint32_t service_label;
+    M2RoomEventCb room_cb;
+    void* room_userdata;
+} g_m2_ctx[M2_MAX_CTX];
+static uint32_t g_m2_generation;
+
+// Callers hold g_m2_lock.
+static int m2_ctx_index(uint16_t id) { const int i = (int)id - 1; return (i >= 0 && i < M2_MAX_CTX && g_m2_ctx[i].used) ? i : -1; }
+
 static int GUEST_ABI m2_initialize(const void* param) { (void)param; g_np_m2_init = 1; np_trace("sceNpMatching2Initialize"); return 0; }
-static int GUEST_ABI m2_terminate(void) { g_np_m2_init = 0; return 0; }
+static int GUEST_ABI m2_terminate(void) {
+    pthread_mutex_lock(&g_m2_lock);
+    g_np_m2_init = 0;
+    for (int i = 0; i < M2_MAX_CTX; ++i) { const uint32_t gen = ++g_m2_generation; memset(&g_m2_ctx[i], 0, sizeof g_m2_ctx[i]); g_m2_ctx[i].generation = gen; }
+    g_m2_context_cb = NULL;
+    g_m2_context_userdata = NULL;
+    pthread_mutex_unlock(&g_m2_lock);
+    np_trace("sceNpMatching2Terminate");
+    return 0;
+}
+
+// SceNpMatching2CreateContextParameter is 0x28 bytes: { SceNpId* npId; void* communicationId; void* passphrase;
+// SceNpServiceLabel serviceLabel; (4 bytes of padding) size_t size; } (layout as in shadPS4's np_types2.h, which
+// asserts the size). The passphrase is a title secret and is never read or logged.
+static int GUEST_ABI m2_create_context(const void* param, uint16_t* ctx_id) {
+    if (!g_np_m2_init) return M2_ERR_NOT_INITIALIZED;
+    if (!param || !ctx_id) return M2_ERR_INVALID_ARGUMENT;
+    const uint8_t* p = (const uint8_t*)param;
+    const void* np_id = *(void* const*)(p + 0);
+    uint32_t service_label;
+    memcpy(&service_label, p + 24, 4);
+    pthread_mutex_lock(&g_m2_lock);
+    for (int i = 0; i < M2_MAX_CTX; ++i) {
+        if (g_m2_ctx[i].used) continue;
+        memset(&g_m2_ctx[i], 0, sizeof g_m2_ctx[i]);
+        g_m2_ctx[i].used = 1;
+        g_m2_ctx[i].generation = ++g_m2_generation;
+        g_m2_ctx[i].service_label = service_label;
+        if (np_id) memcpy(g_m2_ctx[i].online_id, np_id, 16);
+        else local_online_id(g_m2_ctx[i].online_id);
+        *ctx_id = (uint16_t)(i + 1);
+        char who[20]; memcpy(who, g_m2_ctx[i].online_id, sizeof who);
+        pthread_mutex_unlock(&g_m2_lock);
+        rt_logf("sceNpMatching2CreateContext(player '%.16s', service label %u) -> context %u", who, service_label, *ctx_id);
+        return 0;
+    }
+    pthread_mutex_unlock(&g_m2_lock);
+    rt_logf("sceNpMatching2CreateContext: all %d contexts in use -> CONTEXT_MAX", M2_MAX_CTX);
+    return M2_ERR_CONTEXT_MAX;
+}
+static int GUEST_ABI m2_destroy_context(uint16_t ctx_id) {
+    if (!g_np_m2_init) return M2_ERR_NOT_INITIALIZED;
+    pthread_mutex_lock(&g_m2_lock);
+    const int i = m2_ctx_index(ctx_id);
+    if (i < 0) { pthread_mutex_unlock(&g_m2_lock); return M2_ERR_INVALID_CONTEXT_ID; }
+    const uint32_t gen = ++g_m2_generation;     // a start still pending for this slot finds a new generation and gives up
+    memset(&g_m2_ctx[i], 0, sizeof g_m2_ctx[i]);
+    g_m2_ctx[i].generation = gen;
+    pthread_mutex_unlock(&g_m2_lock);
+    np_trace("sceNpMatching2DestroyContext(context %u)", ctx_id);
+    return 0;
+}
+static int GUEST_ABI m2_register_context_callback(void* cb, void* userdata) {
+    if (!g_np_m2_init) return M2_ERR_NOT_INITIALIZED;
+    pthread_mutex_lock(&g_m2_lock);
+    g_m2_context_cb = (M2ContextCb)cb;
+    g_m2_context_userdata = userdata;
+    pthread_mutex_unlock(&g_m2_lock);
+    rt_logf("sceNpMatching2RegisterContextCallback(callback %p, userdata %p)", cb, userdata);
+    return 0;
+}
+static int GUEST_ABI m2_register_room_event_callback(uint16_t ctx_id, void* cb, void* userdata) {
+    if (!g_np_m2_init) return M2_ERR_NOT_INITIALIZED;
+    pthread_mutex_lock(&g_m2_lock);
+    const int i = m2_ctx_index(ctx_id);
+    if (i >= 0) { g_m2_ctx[i].room_cb = (M2RoomEventCb)cb; g_m2_ctx[i].room_userdata = userdata; }
+    pthread_mutex_unlock(&g_m2_lock);
+    if (i < 0) return M2_ERR_INVALID_CONTEXT_ID;
+    np_trace("sceNpMatching2RegisterRoomEventCallback(context %u, callback %p)", ctx_id, cb);
+    return 0;
+}
+
+// The console starts a context asynchronously and reports the result through the context callback, so the
+// callback runs on a thread of this library's own rather than inside the call the game made. The delay is ours
+// (nothing is contacted); it only keeps the report from arriving before ContextStart has returned.
+static void* GUEST_ABI m2_start_thread(void* arg) {
+    const uintptr_t a = (uintptr_t)arg;
+    const uint16_t ctx_id = (uint16_t)(a & 0xFFFF);
+    const uint32_t gen = (uint32_t)(a >> 16);
+    struct timespec ts = {0, M2_START_DELAY_MS * 1000 * 1000};
+    nanosleep(&ts, NULL);
+    pthread_mutex_lock(&g_m2_lock);
+    const int i = m2_ctx_index(ctx_id);
+    if (i < 0 || g_m2_ctx[i].generation != gen || !g_m2_ctx[i].starting) {
+        pthread_mutex_unlock(&g_m2_lock);
+        rt_logf("sceNpMatching2ContextStart(context %u): the context was destroyed before the start completed; nothing reported", ctx_id);
+        return NULL;
+    }
+    g_m2_ctx[i].starting = 0;
+    const int aborted = g_m2_ctx[i].aborted;
+    g_m2_ctx[i].aborted = 0;
+    if (!aborted) g_m2_ctx[i].started = 1;
+    const M2ContextCb cb = g_m2_context_cb;
+    void* const ud = g_m2_context_userdata;
+    pthread_mutex_unlock(&g_m2_lock);
+    if (aborted) {
+        rt_logf("sceNpMatching2ContextStart(context %u): aborted by the game; reporting STOPPED/ABORTED to callback %p", ctx_id, (void*)cb);
+        if (cb) cb(ctx_id, M2_EVENT_CONTEXT_STOPPED, M2_CAUSE_CONTEXT_ACTION, M2_ERR_ABORTED, ud);
+        return NULL;
+    }
+    rt_logf("sceNpMatching2ContextStart(context %u): reporting the context as started to the game's callback %p", ctx_id, (void*)cb);
+    if (cb) cb(ctx_id, M2_EVENT_CONTEXT_STARTED, M2_CAUSE_CONTEXT_ACTION, 0, ud);
+    rt_logf("sceNpMatching2ContextStart(context %u): the game's context callback returned", ctx_id);
+    return NULL;
+}
+static int GUEST_ABI m2_context_start(uint16_t ctx_id, uint64_t timeout) {
+    if (!g_np_m2_init) return M2_ERR_NOT_INITIALIZED;
+    pthread_mutex_lock(&g_m2_lock);
+    const int i = m2_ctx_index(ctx_id);
+    if (i < 0) { pthread_mutex_unlock(&g_m2_lock); return M2_ERR_INVALID_CONTEXT_ID; }
+    if (g_m2_ctx[i].started || g_m2_ctx[i].starting) { pthread_mutex_unlock(&g_m2_lock); return M2_ERR_CONTEXT_ALREADY_STARTED; }
+    g_m2_ctx[i].starting = 1;
+    g_m2_ctx[i].aborted = 0;
+    const uint32_t gen = g_m2_ctx[i].generation;
+    pthread_mutex_unlock(&g_m2_lock);
+    np_trace("sceNpMatching2ContextStart(context %u, timeout %llu us)", ctx_id, (unsigned long long)timeout);
+    if (rt_spawn_guest_thread(m2_start_thread, (void*)(((uintptr_t)gen << 16) | ctx_id), "NpMatching2")) {
+        pthread_mutex_lock(&g_m2_lock);
+        if (g_m2_ctx[i].generation == gen) g_m2_ctx[i].starting = 0;
+        pthread_mutex_unlock(&g_m2_lock);
+        return M2_ERR_OUT_OF_MEMORY;
+    }
+    return 0;
+}
+// The game's import takes the context id; anything after it is ignored.
+static int GUEST_ABI m2_abort_context_start(uint16_t ctx_id) {
+    if (!g_np_m2_init) return M2_ERR_NOT_INITIALIZED;
+    pthread_mutex_lock(&g_m2_lock);
+    const int i = m2_ctx_index(ctx_id);
+    int rc = 0;
+    if (i < 0) rc = M2_ERR_INVALID_CONTEXT_ID;
+    else if (!g_m2_ctx[i].starting) rc = M2_ERR_CONTEXT_NOT_STARTED;
+    else g_m2_ctx[i].aborted = 1;
+    pthread_mutex_unlock(&g_m2_lock);
+    np_trace("sceNpMatching2AbortContextStart(context %u) -> 0x%08x", ctx_id, (unsigned)rc);
+    return rc;
+}
+static int GUEST_ABI m2_context_stop(uint16_t ctx_id) {
+    if (!g_np_m2_init) return M2_ERR_NOT_INITIALIZED;
+    pthread_mutex_lock(&g_m2_lock);
+    const int i = m2_ctx_index(ctx_id);
+    if (i < 0) { pthread_mutex_unlock(&g_m2_lock); return M2_ERR_INVALID_CONTEXT_ID; }
+    if (!g_m2_ctx[i].started) { pthread_mutex_unlock(&g_m2_lock); return M2_ERR_CONTEXT_NOT_STARTED; }
+    g_m2_ctx[i].started = 0;
+    const M2ContextCb cb = g_m2_context_cb;
+    void* const ud = g_m2_context_userdata;
+    pthread_mutex_unlock(&g_m2_lock);
+    np_trace("sceNpMatching2ContextStop(context %u)", ctx_id);
+    if (cb) cb(ctx_id, M2_EVENT_CONTEXT_STOPPED, M2_CAUSE_CONTEXT_ACTION, 0, ud);
+    return 0;
+}
+// There is one matching service here, this machine, so it has one server id.
+static int GUEST_ABI m2_get_server_id(uint16_t ctx_id, uint16_t* server_id) {
+    if (!g_np_m2_init) return M2_ERR_NOT_INITIALIZED;
+    if (!server_id) return M2_ERR_INVALID_ARGUMENT;
+    pthread_mutex_lock(&g_m2_lock);
+    const int i = m2_ctx_index(ctx_id);
+    pthread_mutex_unlock(&g_m2_lock);
+    if (i < 0) return M2_ERR_INVALID_CONTEXT_ID;
+    *server_id = M2_SERVER_ID;
+    np_trace("sceNpMatching2GetServerId(context %u) -> server %u", ctx_id, *server_id);
+    return 0;
+}
+
 static int GUEST_ABI sig_initialize(const void* param) { (void)param; g_np_sig_init = 1; return 0; }
 static int GUEST_ABI sig_terminate(void) { g_np_sig_init = 0; return 0; }
 
@@ -753,6 +961,14 @@ const HostSymbol platform_symbols[] = {
     {"sceScreenShotSetOverlayImage", "libSceScreenShot", (void*)ss_overlay, 0},
     {"sceNpMatching2Initialize", "libSceNpMatching2", (void*)m2_initialize, 0},
     {"sceNpMatching2Terminate", "libSceNpMatching2", (void*)m2_terminate, 0},
+    {"sceNpMatching2CreateContext", "libSceNpMatching2", (void*)m2_create_context, 0},
+    {"sceNpMatching2DestroyContext", "libSceNpMatching2", (void*)m2_destroy_context, 0},
+    {"sceNpMatching2RegisterContextCallback", "libSceNpMatching2", (void*)m2_register_context_callback, 0},
+    {"sceNpMatching2RegisterRoomEventCallback", "libSceNpMatching2", (void*)m2_register_room_event_callback, 0},
+    {"sceNpMatching2ContextStart", "libSceNpMatching2", (void*)m2_context_start, 0},
+    {"sceNpMatching2ContextStop", "libSceNpMatching2", (void*)m2_context_stop, 0},
+    {"sceNpMatching2AbortContextStart", "libSceNpMatching2", (void*)m2_abort_context_start, 0},
+    {"sceNpMatching2GetServerId", "libSceNpMatching2", (void*)m2_get_server_id, 0},
     {"sceNpSignalingInitialize", "libSceNpSignaling", (void*)sig_initialize, 0},
     {"sceNpSignalingTerminate", "libSceNpSignaling", (void*)sig_terminate, 0},
     {"sceSharePlayInitialize", "libSceSharePlay", (void*)sp_initialize, 0},

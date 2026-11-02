@@ -22,6 +22,17 @@ static void GUEST_ABI np_state_cb(int user_id, uint32_t state, void* np_id, void
     ++np_cb_calls; np_cb_user_id = user_id; np_cb_state = (int)state; np_cb_userdata = userdata;
     if (np_id) memcpy(np_cb_name, np_id, sizeof np_cb_name);
 }
+// Matching2 context callback: runs on the library's own thread, so the fields are read after polling.
+static volatile int m2_cb_calls, m2_cb_ctx, m2_cb_event, m2_cb_cause, m2_cb_error;
+static void* volatile m2_cb_userdata;
+static void GUEST_ABI m2_context_cb(uint16_t ctx_id, uint16_t event, uint8_t cause, int error_code, void* userdata) {
+    m2_cb_ctx = ctx_id; m2_cb_event = event; m2_cb_cause = cause; m2_cb_error = error_code; m2_cb_userdata = userdata;
+    __atomic_add_fetch(&m2_cb_calls, 1, __ATOMIC_SEQ_CST);
+}
+static int m2_wait_calls(int n) {   // up to 2 s
+    for (int i = 0; i < 200 && __atomic_load_n(&m2_cb_calls, __ATOMIC_SEQ_CST) < n; ++i) rt_sleep_ms_for_selftest(10);
+    return __atomic_load_n(&m2_cb_calls, __ATOMIC_SEQ_CST);
+}
 typedef struct { uint16_t year, month, day, hour, minute, second; uint32_t microsecond; } RtcDateTime;
 
 static void* g_cm; static void* g_cc; static volatile int g_flag, g_woken;
@@ -402,8 +413,23 @@ int rt_selftest_host(const char* scratch_dir) {
             } else {
                 rt_logf("selftest: UDP port %u could not be bound on this host; the virtual-port checks were skipped", (unsigned)REAL_PORT);
             }
+            // Leave one datagram unread on a1, then close both: the shared UDP port must really be given back.
+            if (ba == 0 && bb == 0) {
+                const char to_a[] = "left-unread";
+                F(int, "sceNetSendto", (int, const void*, size_t, int, const void*, int))(b1, to_a, sizeof to_a, 0, &pa, sizeof pa);
+                rt_sleep_ms_for_selftest(20);
+            }
             F(int, "sceNetSocketClose", (int))(a1);
             F(int, "sceNetSocketClose", (int))(b1);
+            if (ba == 0 && bb == 0) {
+                int plain = F(int, "sceNetSocket", (const char*, int, int, int))("after-p2p", 2, 2, 0);
+                struct GuestAddr pp;
+                memcpy(&pp, &pa, sizeof pp);
+                pp.vport = 0;
+                CHECK(plain >= 1 && F(int, "sceNetBind", (int, const void*, int))(plain, &pp, sizeof pp) == 0,
+                      "net: closing the last P2P socket on a UDP port releases the real port");
+                F(int, "sceNetSocketClose", (int))(plain);
+            }
         }
         rt_net_configure(0, 0);
     }
@@ -439,6 +465,78 @@ int rt_selftest_host(const char* scratch_dir) {
         rt_net_configure(0, 0);
         CHECK(F(int, "sceNpGetState", (int, int*))(1, &st2) == 0 && st2 == 1, "np: offline, sceNpGetState reports SIGNED_OUT");
         CHECK(F(int, "sceNpGetOnlineId", (int, void*))(1, online_id) == (int)0x80550006, "np: offline, the online id reports SIGNED_OUT");
+    }
+
+    // ---- NP Matching2 contexts: lifetime and the asynchronous start report -----------------------------------
+    // Error values follow shadPS4's np_error.h (a reference, not the console). Nothing here is a room or a
+    // server: the checks cover only what the context functions themselves promise.
+    {
+        typedef int (GUEST_ABI * CreateFn)(const void*, uint16_t*);
+        typedef int (GUEST_ABI * IdFn)(uint16_t);
+        CreateFn create = (CreateFn)rt_find_host("sceNpMatching2CreateContext");
+        int (GUEST_ABI * start)(uint16_t, uint64_t) = (int (GUEST_ABI*)(uint16_t, uint64_t))rt_find_host("sceNpMatching2ContextStart");
+        IdFn stop = (IdFn)rt_find_host("sceNpMatching2ContextStop");
+        IdFn abort_start = (IdFn)rt_find_host("sceNpMatching2AbortContextStart");
+        IdFn destroy = (IdFn)rt_find_host("sceNpMatching2DestroyContext");
+        int (GUEST_ABI * server)(uint16_t, uint16_t*) = (int (GUEST_ABI*)(uint16_t, uint16_t*))rt_find_host("sceNpMatching2GetServerId");
+        int (GUEST_ABI * reg_room)(uint16_t, void*, void*) = (int (GUEST_ABI*)(uint16_t, void*, void*))rt_find_host("sceNpMatching2RegisterRoomEventCallback");
+        CHECK(create && start && stop && abort_start && destroy && server && reg_room, "m2: the context functions are exported");
+        uint8_t param[0x28];
+        memset(param, 0, sizeof param);
+        const uint32_t label = 0;
+        memcpy(param + 24, &label, 4);
+        const uint64_t psize = sizeof param;
+        memcpy(param + 32, &psize, 8);
+        uint16_t ctx = 0, ctx2 = 0, sid = 0;
+        F(int, "sceNpMatching2Terminate", (void))();
+        CHECK(create(param, &ctx) == (int)0x80550C03, "m2: CreateContext before Initialize reports NOT_INITIALIZED");
+        CHECK(F(int, "sceNpMatching2Initialize", (const void*))(NULL) == 0, "m2: Initialize");
+        CHECK(create(NULL, &ctx) == (int)0x80550C0A && create(param, NULL) == (int)0x80550C0A,
+              "m2: CreateContext with a NULL parameter or id pointer reports INVALID_ARGUMENT");
+        CHECK(create(param, &ctx) == 0 && ctx >= 1, "m2: CreateContext returns a context id from 1");
+        CHECK(create(param, &ctx2) == 0 && ctx2 != ctx, "m2: a second context gets a different id");
+        CHECK(server(ctx, &sid) == 0 && sid == 1, "m2: GetServerId reports the one local server");
+        CHECK(server(999, &sid) == (int)0x80550C0B, "m2: an unknown context id reports INVALID_CONTEXT_ID");
+        CHECK(reg_room(ctx, (void*)m2_context_cb, NULL) == 0 && reg_room(77, NULL, NULL) == (int)0x80550C0B,
+              "m2: a room event callback is accepted for a real context only");
+        CHECK(stop(ctx) == (int)0x80550C08, "m2: stopping a context that never started reports CONTEXT_NOT_STARTED");
+        CHECK(abort_start(ctx) == (int)0x80550C08, "m2: aborting a start that is not pending reports CONTEXT_NOT_STARTED");
+        int marker = 0;
+        CHECK(F(int, "sceNpMatching2RegisterContextCallback", (void*, void*))((void*)m2_context_cb, &marker) == 0,
+              "m2: the context callback is registered");
+        m2_cb_calls = 0;
+        CHECK(start(ctx, 10 * 1000 * 1000) == 0, "m2: ContextStart is accepted");
+        CHECK(m2_cb_calls == 0, "m2: the start is reported asynchronously, not inside ContextStart");
+        CHECK(start(ctx, 0) == (int)0x80550C07, "m2: a second ContextStart while one is pending reports CONTEXT_ALREADY_STARTED");
+        CHECK(m2_wait_calls(1) == 1, "m2: the start report arrives once");
+        CHECK(m2_cb_ctx == ctx && m2_cb_event == 0x6F02 && m2_cb_cause == 11 && m2_cb_error == 0 && m2_cb_userdata == &marker,
+              "m2: the report is CONTEXT_STARTED, cause CONTEXT_ACTION, no error, with the game's userdata");
+        CHECK(start(ctx, 0) == (int)0x80550C07, "m2: starting a started context reports CONTEXT_ALREADY_STARTED");
+        CHECK(stop(ctx) == 0 && m2_cb_calls == 2 && m2_cb_event == 0x6F03 && m2_cb_error == 0,
+              "m2: ContextStop reports CONTEXT_STOPPED");
+        CHECK(stop(ctx) == (int)0x80550C08, "m2: stopping it again reports CONTEXT_NOT_STARTED");
+        // Abort while the start is pending: the report is STOPPED with ABORTED, and the context is not started.
+        m2_cb_calls = 0;
+        CHECK(start(ctx2, 0) == 0 && abort_start(ctx2) == 0, "m2: a pending start can be aborted");
+        CHECK(m2_wait_calls(1) == 1 && m2_cb_ctx == ctx2 && m2_cb_event == 0x6F03 && m2_cb_error == (int)0x80550C2A,
+              "m2: an aborted start reports CONTEXT_STOPPED with ABORTED");
+        CHECK(stop(ctx2) == (int)0x80550C08, "m2: an aborted context is not started");
+        // Destroy while the start is pending: nothing may be reported for the dead context.
+        m2_cb_calls = 0;
+        CHECK(start(ctx2, 0) == 0 && destroy(ctx2) == 0, "m2: a context can be destroyed while its start is pending");
+        uint16_t ctx3 = 0;
+        CHECK(create(param, &ctx3) == 0 && ctx3 == ctx2, "m2: the freed slot is reused at once");
+        rt_sleep_ms_for_selftest(150);
+        CHECK(m2_cb_calls == 0, "m2: the destroyed context's start is never reported, even though its id was reused");
+        CHECK(stop(ctx3) == (int)0x80550C08, "m2: the new context in the reused slot is not started");
+        CHECK(destroy(ctx3) == 0 && destroy(ctx3) == (int)0x80550C0B, "m2: destroying twice reports INVALID_CONTEXT_ID");
+        uint16_t more[4]; int made = 0, rc = 0;
+        for (int i = 0; i < 4; ++i) { rc = create(param, &more[i]); if (rc == 0) ++made; else break; }
+        CHECK(made == 3 && rc == (int)0x80550C04, "m2: the fifth context reports CONTEXT_MAX");
+        for (int i = 0; i < made; ++i) destroy(more[i]);
+        CHECK(destroy(ctx) == 0, "m2: the first context is destroyed");
+        CHECK(F(int, "sceNpMatching2Terminate", (void))() == 0 && server(ctx, &sid) == (int)0x80550C03,
+              "m2: after Terminate the library reports NOT_INITIALIZED");
     }
 
     // ---- NP requests: the gate the game hits when it opens Online Battle -----------------------------------
