@@ -17,5 +17,6 @@ decrypted by this port, so there is no trophy data to register; no trophy can un
 | Switch | Effect |
 |---|---|
 | `--online` | Real host UDP sockets and the signed-in local identity. Off by default. Nothing contacts PlayStation Network. |
+| `--lobby-port n`, `--lobby-peer ip[,ip]` | The LAN room directory's UDP port (default 47391) and extra addresses to announce rooms to when broadcast does not reach the other PC. Only with `--online`. |
 | `--trace-net` | Every socket call and its result, bounded to 4,000 lines. |
 | `--trace-np` | Every NP / WebApi / Score / Matching2 / Signaling call and its answer, bounded to 20,000 lines. Found the wrong `sceNpGetAccountLanguage` signature (run 20261101-204539). |

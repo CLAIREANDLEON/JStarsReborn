@@ -816,6 +816,27 @@ int rt_selftest_host(const char* scratch_dir) {
             CHECK(chunk == 0 && got_total > 0 && strstr(body, "\"blockList\":[]") != NULL,
                   "webapi: the body reads back in pieces and ends with 0, and the block list is empty");
             F(int, "sceNpWebApiDeleteRequest", (int64_t))(bid);
+            // Game sessions: created on this machine, and deleted again.
+            {
+                typedef int (GUEST_ABI * Create)(int, const char*, const char*, int, const void*, int64_t*);
+                typedef int (GUEST_ABI * Send)(int64_t, const void*, uint64_t, void*);
+                Create cr = (Create)rt_find_host("sceNpWebApiCreateRequest"); Send sd = (Send)rt_find_host("sceNpWebApiSendRequest");
+                int64_t sid = 0, did = 0, xid = 0; char sb[128]; memset(sb, 0, sizeof sb); int sl = 0, ch;
+                CHECK(cr(uc, "sessionInvitation", "/v1/sessions", 1, NULL, &sid) == 0 && sd(sid, NULL, 0, NULL) == 0,
+                      "webapi: POST /v1/sessions creates a session on this machine");
+                while ((ch = F(int, "sceNpWebApiReadData", (int64_t, void*, uint64_t))(sid, sb + sl, 16)) > 0) sl += ch;
+                const char* idp = strstr(sb, "\"sessionId\":\"");
+                CHECK(F(int, "sceNpWebApiGetHttpStatusCode", (int64_t, int*))(sid, &http) == 0 && http == 200 && idp && strlen(idp) > 16,
+                      "webapi: the answer is HTTP 200 with a sessionId");
+                char path[96] = "/v1/sessions/";
+                if (idp) { const char* v = idp + 13; const char* e = strchr(v, '"'); if (e && e - v < 60) strncat(path, v, (size_t)(e - v)); }
+                CHECK(cr(uc, "sessionInvitation", path, 3, NULL, &did) == 0 && sd(did, NULL, 0, NULL) == 0 &&
+                      F(int, "sceNpWebApiGetHttpStatusCode", (int64_t, int*))(did, &http) == 0 && http == 204,
+                      "webapi: DELETE of that session answers 204");
+                CHECK(cr(uc, "sessionInvitation", path, 3, NULL, &xid) == 0 && sd(xid, NULL, 0, NULL) == (int)0x80552907,
+                      "webapi: a session that does not exist here has no local answer");
+                F(int, "sceNpWebApiDeleteRequest", (int64_t))(sid); F(int, "sceNpWebApiDeleteRequest", (int64_t))(did); F(int, "sceNpWebApiDeleteRequest", (int64_t))(xid);
+            }
             CHECK(F(int, "sceNpWebApiDeleteRequest", (int64_t))(rid) == 0, "webapi: a request is deleted");
             CHECK(F(int, "sceNpWebApiDeleteRequest", (int64_t))(rid) == (int)0x80552906, "webapi: deleting it twice reports REQUEST_NOT_FOUND");
             char parsed[36];

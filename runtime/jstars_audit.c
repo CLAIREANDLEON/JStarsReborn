@@ -243,7 +243,7 @@ static const AuditRow rows[] = {
     {"sceNpWebApiCreateContext", "partial", "user context bookkeeping for the local user; selftest-host"},
     {"sceNpWebApiDeleteContext", "partial", "bookkeeping; selftest-host"},
     {"sceNpWebApiCreateRequest", "partial", "records the API group, method and path; selftest-host"},
-    {"sceNpWebApiSendRequest", "partial", "the player's own block list is answered locally (empty); every other path reports NOT_SIGNED_IN (no PSN is contacted); selftest-host"},
+    {"sceNpWebApiSendRequest", "partial", "local answers only: the player's own block list (empty) and game sessions created on this machine (POST /v1/sessions -> sessionId, DELETE -> 204); every other path NOT_SIGNED_IN (no PSN is contacted); selftest-host"},
     {"sceNpWebApiReadData", "partial", "returns the locally answered body; selftest-host"},
     {"sceNpWebApiAbortRequest", "partial", "bookkeeping"},
     {"sceNpWebApiDeleteRequest", "partial", "bookkeeping; selftest-host"},

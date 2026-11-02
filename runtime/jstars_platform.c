@@ -987,6 +987,7 @@ static struct {
     char path[160];
     char body[WEBAPI_BODY_MAX];
     uint32_t body_len, body_read;
+    int method, local, local_status;
 } g_webapi_req[WEBAPI_MAX_REQUEST];
 static int64_t g_webapi_next_req = 1;
 static __thread int t_webapi_error;
@@ -1003,8 +1004,40 @@ static __thread int t_webapi_error;
 // 'userProfile' '/v1/users/<online id>/blockList' and, when the request fails, shows an error and starts the
 // whole sign-in sequence again. The empty list lets it carry on to what this project actually needs to
 // implement, which is matching.
-static int webapi_local_answer(const char* path, char* out, uint32_t cap, uint32_t* len) {
+// Game sessions (probe run 20261102-013701): right after CreateJoinRoom the game POSTs 'sessionInvitation' '/v1/sessions'
+// to create the session that invitations point at, and leaves its room when that fails. A session created here is a
+// record on this machine, tied to the room this instance announces; its id is this machine's, not PlayStation Network's.
+#define WEBAPI_MAX_SESSIONS 4
+static char g_webapi_sessions[WEBAPI_MAX_SESSIONS][40];
+static int webapi_session_answer(const char* path, int method, char* out, uint32_t cap, uint32_t* len, int* status) {
+    if (strncmp(path, "/v1/sessions", 12) != 0) return 0;
+    const char* rest = path + 12;
+    if (method == 1 && *rest == 0) {                                   // POST /v1/sessions: create
+        for (int s = 0; s < WEBAPI_MAX_SESSIONS; ++s) {
+            if (g_webapi_sessions[s][0]) continue;
+            const uint64_t a = rt_rooms_new_id(), b = rt_rooms_new_id();
+            snprintf(g_webapi_sessions[s], sizeof g_webapi_sessions[s], "%08x-%04x-%04x-%04x-%012llx", (unsigned)(a >> 32), (unsigned)(a >> 16) & 0xffff,
+                     (unsigned)a & 0xffff, (unsigned)(b >> 48), (unsigned long long)(b & 0xffffffffffffull));
+            const int n = snprintf(out, cap, "{\"sessionId\":\"%s\"}", g_webapi_sessions[s]);
+            if (n < 0 || (uint32_t)n >= cap) return 0;
+            *len = (uint32_t)n; *status = 200;
+            return 1;
+        }
+        return 0;
+    }
+    if (*rest != '/') return 0;
+    for (int s = 0; s < WEBAPI_MAX_SESSIONS; ++s) {                   // requests on a session created here
+        const size_t k = strlen(g_webapi_sessions[s]);
+        if (!k || strncmp(rest + 1, g_webapi_sessions[s], k) != 0 || (rest[1 + k] != 0 && rest[1 + k] != '/' && rest[1 + k] != '?')) continue;
+        if (method == 3 && rest[1 + k] == 0) { g_webapi_sessions[s][0] = 0; *len = 0; *status = 204; return 1; }   // DELETE: gone
+        return 0;
+    }
+    return 0;
+}
+static int webapi_local_answer(const char* path, int method, char* out, uint32_t cap, uint32_t* len, int* status) {
     if (!path) return 0;
+    *status = 200;
+    if (webapi_session_answer(path, method, out, cap, len, status)) return 1;
     const char* tail = strrchr(path, '/');
     if (!tail || strcmp(tail, "/blockList") != 0) return 0;
     const char* body = "{\"start\":0,\"size\":0,\"totalResults\":0,\"blockList\":[]}";
@@ -1056,7 +1089,9 @@ static int GUEST_ABI webapi_create_request(int user_ctx, const char* api_group, 
             g_webapi_req[i].body_len = g_webapi_req[i].body_read = 0;
             snprintf(g_webapi_req[i].path, sizeof g_webapi_req[i].path, "%s", path ? path : "");
             *request_id = g_webapi_req[i].id;
-            const int local = webapi_local_answer(g_webapi_req[i].path, g_webapi_req[i].body, WEBAPI_BODY_MAX, &g_webapi_req[i].body_len);
+            g_webapi_req[i].method = method;
+            const int local = webapi_local_answer(g_webapi_req[i].path, method, g_webapi_req[i].body, WEBAPI_BODY_MAX, &g_webapi_req[i].body_len, &g_webapi_req[i].local_status);
+            g_webapi_req[i].local = local;
             rt_logf("sceNpWebApiCreateRequest(user context %d, '%s' '%s', method %d) -> request %lld (%s)", user_ctx,
                     api_group ? api_group : "", g_webapi_req[i].path, method, (long long)*request_id,
                     local ? "answered locally; no service is contacted" : "it cannot be sent: there is no PlayStation Network session on this machine");
@@ -1076,8 +1111,8 @@ static int GUEST_ABI webapi_send_request(int64_t request_id, const void* data, u
     const int i = webapi_req_index(request_id);
     if (i < 0) return WEBAPI_ERR_REQUEST_NOT_FOUND;
     if (g_webapi_req[i].aborted) { t_webapi_error = WEBAPI_ERR_ABORTED; return WEBAPI_ERR_ABORTED; }
-    if (g_webapi_req[i].body_len) {
-        g_webapi_req[i].http_status = 200;
+    if (g_webapi_req[i].local) {
+        g_webapi_req[i].http_status = g_webapi_req[i].local_status;
         g_webapi_req[i].body_read = 0;
         t_webapi_error = 0;
         rt_logf("sceNpWebApiSendRequest(request %lld '%s') -> answered on this machine: %s",
@@ -1085,6 +1120,8 @@ static int GUEST_ABI webapi_send_request(int64_t request_id, const void* data, u
         return 0;
     }
     t_webapi_error = WEBAPI_ERR_NOT_SIGNED_IN;
+    np_trace("sceNpWebApiSendRequest(request %lld '%s', method %d) -> NOT_SIGNED_IN (no local answer; no PlayStation Network is contacted)",
+             (long long)request_id, g_webapi_req[i].path, g_webapi_req[i].method);
     return WEBAPI_ERR_NOT_SIGNED_IN;
 }
 // Reads the response body in pieces, exactly as the console does: the number of bytes copied, then 0 at the end.
