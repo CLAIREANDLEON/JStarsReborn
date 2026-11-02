@@ -1503,8 +1503,23 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int show_cmd) {
     HANDLE mutex = CreateMutexW(nullptr, TRUE, kMutexName);
     if (mutex && GetLastError() == ERROR_ALREADY_EXISTS) {
         if (HWND other = FindWindowW(kWindowClass, nullptr)) {
+            // A launcher from another folder (for example an older version) is open: say so, rather than silently
+            // bringing that one forward, so the player does not end up playing with the other version.
+            wchar_t mine[MAX_PATH * 2] = L"", theirs[MAX_PATH * 2] = L"";
+            GetModuleFileNameW(nullptr, mine, MAX_PATH * 2);
+            DWORD pid = 0, n = MAX_PATH * 2;
+            GetWindowThreadProcessId(other, &pid);
+            if (HANDLE proc = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid)) {
+                if (!QueryFullProcessImageNameW(proc, 0, theirs, &n)) theirs[0] = 0;
+                CloseHandle(proc);
+            }
             ShowWindow(other, SW_RESTORE);
             SetForegroundWindow(other);
+            if (theirs[0] && lstrcmpiW(mine, theirs) != 0) {
+                const std::wstring msg = std::wstring(L"Another JStarsReborn launcher is already open:\n") + theirs +
+                    L"\n\nOnly one launcher can run at a time. Close that one, then start this one (JStarsReborn " + W(launcher_version) + L") again.";
+                MessageBoxW(other, msg.c_str(), L"JStarsReborn", MB_ICONINFORMATION | MB_SETFOREGROUND);
+            }
         }
         return 0;
     }
