@@ -16,6 +16,10 @@ struct Resolver;
 } // namespace Libraries::Net
 
 namespace Core::FileSys {
+// JStarsReborn: an inline namespace gives these classes their own symbol names. The renderer has a different
+// Core::FileSys::HandleTable (gpu/shim/core/file_sys/fs.h); with identical names the linker merged their inline members and
+// singleton, and the renderer's sceKernelCreateEqueue ran this table's GetFile (crash, smoke run 2026-11-03 21:17 UTC).
+inline namespace jsnet {
 
 enum class FileType { Regular, Directory, Device, Socket, Epoll, Resolver, Equeue };
 
@@ -71,4 +75,5 @@ private:
     std::mutex m_mutex;
 };
 
+} // inline namespace jsnet
 } // namespace Core::FileSys
