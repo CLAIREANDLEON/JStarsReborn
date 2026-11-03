@@ -1,0 +1,31 @@
+# Test build of the Windows release (fork only; not part of any pull request).
+name: testbuild
+on:
+  push:
+    branches: [dualsense-testbuild]
+  workflow_dispatch:
+jobs:
+  win64:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends g++-mingw-w64-x86-64-posix gcc-mingw-w64-x86-64-posix \
+            binutils-mingw-w64-x86-64 clang-18 cmake ninja-build glslang-tools libboost-dev python3
+          mkdir -p "$RUNNER_TEMP/boostinc" && ln -s /usr/include/boost "$RUNNER_TEMP/boostinc/boost"
+      - name: GPU library
+        run: |
+          cmake -S gpu -B build-gpu-win -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE=$PWD/gpu/cmake/mingw-w64-x86_64.cmake -DJGPU_BOOST_INCLUDE=$RUNNER_TEMP/boostinc
+          ninja -C build-gpu-win
+      - name: Release folder
+        run: |
+          tools/build_release.sh build-gpu-win/libjstars_gpu.a build/release || { cat build/release/runtime-link.log | tail -50; exit 1; }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: JStarsReborn-dualsense-test
+          path: build/release/JStarsReborn-*/
+          retention-days: 7
