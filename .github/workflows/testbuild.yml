@@ -23,6 +23,7 @@ jobs:
           ninja -C build-gpu-win
       - name: Release folder
         run: |
+          chmod +x tools/*.sh gpu/tools/*.sh 2>/dev/null || true
           tools/build_release.sh build-gpu-win/libjstars_gpu.a build/release || { cat build/release/runtime-link.log | tail -50; exit 1; }
       - uses: actions/upload-artifact@v4
         with:
