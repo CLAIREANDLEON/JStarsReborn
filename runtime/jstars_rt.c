@@ -114,6 +114,7 @@ void* rt_resolve(const char* nid_lib, const char* name, int is_data) {
     // diagnostic stubs of jstars_av.c when it is active.
     g_origin = "runtime";
     g_resolved_name = "";
+    { void* n = rt_jsnet_resolve(nid_lib); if (n) { g_origin = "shadnet"; return n; } }
     if (!is_data) { void* g = rt_gpu_resolve(nid_lib); if (g) { g_origin = "gpu"; g_resolved_name = rt_gpu_symbol_name(nid_lib); return g; } }
     const char* hash = strchr(nid_lib, '#');
     if (!hash) return NULL;

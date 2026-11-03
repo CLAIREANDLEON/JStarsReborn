@@ -161,6 +161,23 @@ int rt_spawn_guest_thread(void* (GUEST_ABI* entry)(void*), void* arg, const char
     k_attr_destroy(&at);
     return r;
 }
+// Hooks for the online libraries (gpu/jsnet/jsnet_glue.cpp): their threads call back into the game (Matching2/Signaling
+// callbacks), so they are created as guest-visible threads like scePthreadCreate's (guest TCB/TLS, scePthreadExit support).
+static int GUEST_ABI k_pthread_join(GuestThread* t, void** ret);
+static void GUEST_ABI k_pthread_exit(void* v);
+int runtime_thread_spawn(void** out, void* (GUEST_ABI* entry)(void*), void* arg, uint64_t stack, const char* name) {
+    if (!out || !entry) return SCE_KERNEL_ERROR_EINVAL;
+    GuestAttr* at = NULL;
+    k_attr_init(&at);
+    if (stack) at->stack = stack < 65536 ? 65536 : stack;
+    GuestThread* t = NULL;
+    const int r = k_pthread_create(&t, &at, entry, arg, name ? name : "net");
+    k_attr_destroy(&at);
+    if (!r) *out = t;
+    return r;
+}
+int runtime_thread_join_spawned(void* thread, void** result) { return thread ? k_pthread_join(thread, result) : SCE_KERNEL_ERROR_EINVAL; }
+void runtime_thread_exit(void* value) { k_pthread_exit(value); __builtin_unreachable(); }
 static GuestThread* GUEST_ABI k_pthread_self(void) { return t_self; }
 static int GUEST_ABI k_pthread_join(GuestThread* t, void** ret) { int r = pthread_join(t->host, ret); return r ? SCE_ERR(r) : 0; }
 static int GUEST_ABI k_pthread_detach(GuestThread* t) { int r = pthread_detach(t->host); return r ? SCE_ERR(r) : 0; }
@@ -405,7 +422,10 @@ uint64_t rt_read_tsc(void) { return k_readtsc(); }
 uint64_t rt_tsc_frequency(void) { return k_tscfreq(); }
 uint64_t rt_process_time_us(void) { return k_getprocesstime(); }
 // The SDK version the game was built against: sce_process_param { u64 size; u32 magic 'ORBI'; u32 count; u32 sdk_version }.
+static int g_sdk_version_test = -1; // self-test only: there is no game image (rt_set_test_sdk_version)
+void rt_set_test_sdk_version(int v) { g_sdk_version_test = v; }
 int rt_compiled_sdk_version(void) {
+    if (g_sdk_version_test >= 0) return g_sdk_version_test;
     const uint8_t* pp = (const uint8_t*)rt_procparam();
     if (!pp) return -1;
     uint32_t magic, sdk;

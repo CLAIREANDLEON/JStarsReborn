@@ -112,6 +112,31 @@ static void* GUEST_ABI evf_waiter(void* arg) {
     return NULL;
 }
 
+static void selftest_jsnet(const char* scratch_dir) {
+    // Online libraries (gpu/jsnet, --shadnet): registration only (no network). Runs in builds that contain them.
+    if (rt_jsnet_available()) {
+        extern void rt_set_test_sdk_version(int);
+        rt_set_test_sdk_version(0x05050001); // no game image in the self-test; libSceNpScore's registration reads this value
+        rt_jsnet_setup(scratch_dir); // no sce_sys here: identity stays empty, which is what this check expects
+        static const char* const want[][2] = {{"sceNpMatching2JoinRoom", "libSceNpMatching2"}, {"sceNpMatching2CreateJoinRoom", "libSceNpMatching2"},
+            {"sceNpMatching2SearchRoom", "libSceNpMatching2"}, {"sceNpSignalingCreateContext", "libSceNpSignaling"},
+            {"sceNpSignalingGetConnectionStatus", "libSceNpSignaling"}, {"sceNetSocket", "libSceNet"}, {"sceNetCtlGetState", "libSceNetCtl"},
+            {"sceNpCheckNpAvailability", "libSceNpManager"}, {"sceNpWebApiCreateRequest", "libSceNpWebApi"}};
+        for (size_t i = 0; i < sizeof want / sizeof *want; ++i) {
+            char nid[12], key[64], what[128];
+            rt_nid(want[i][0], nid);
+            snprintf(key, sizeof key, "%s#%s", nid, want[i][1]);
+            snprintf(what, sizeof what, "shadNet libraries provide %s", want[i][0]);
+            CHECK(rt_jsnet_resolve(key) != NULL && rt_resolve(key, want[i][0], 0) == rt_jsnet_resolve(key), what);
+        }
+    }
+}
+// Only the online-library checks (quick; used while integrating gpu/jsnet).
+int rt_selftest_jsnet(const char* scratch_dir) {
+    selftest_jsnet(scratch_dir);
+    rt_logf("selftest-jsnet: %d checks, %d failed", g_checks, g_fail);
+    return g_fail ? 1 : 0;
+}
 int rt_selftest_host(const char* scratch_dir) {
     rt_thread_attach_main();
 #define F(ret, name, args) ((ret(GUEST_ABI*) args)rt_find_host(name))
@@ -906,6 +931,7 @@ int rt_selftest_host(const char* scratch_dir) {
     }
 
     (void)fsbad;
+    selftest_jsnet(scratch_dir);
     rt_logf("selftest-host: %d checks, %d failed", g_checks, g_fail);
     return g_fail ? 1 : 0;
 }

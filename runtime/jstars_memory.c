@@ -131,3 +131,16 @@ const HostSymbol memory_symbols[] = {
     {"sceKernelMlock", "libkernel", (void*)k_mlock, 0},
 };
 const size_t memory_symbol_count = sizeof memory_symbols / sizeof *memory_symbols;
+
+// 1 if every page of [address, address+size) is readable guest/host memory (guest addresses are host addresses). Used by the
+// online libraries' diagnostics (Core::MemoryManager::IsValidMapping in gpu/shim/core/memory.h).
+int runtime_memory_is_mapped(uintptr_t address, uint64_t size) {
+    if (!address || address + size < address) return 0;
+    const uintptr_t end = address + (size ? size : 1);
+    for (uintptr_t a = address & ~(uintptr_t)4095; a < end; a += 4096) {
+        unsigned char b;
+        const uintptr_t probe = a < address ? address : a;
+        if (os_safe_read(&b, (const void*)probe, 1) != 1) return 0;
+    }
+    return 1;
+}

@@ -7,6 +7,7 @@
 #include "core/address_space.h"
 
 namespace Vulkan { class Rasterizer; }
+extern "C" int runtime_memory_is_mapped(uintptr_t address, uint64_t size); // runtime/jstars_memory.c
 
 namespace Core {
 class MemoryManager {
@@ -17,6 +18,8 @@ public:
         // The PS4's GPU can only handle 40 bit addresses.
         return virtual_addr + size < 0x100'0000'0000ULL;
     }
+    /// Whether the whole range is readable memory (used by the online libraries, gpu/jsnet).
+    bool IsValidMapping(VAddr virtual_addr, u64 size) { return runtime_memory_is_mapped(virtual_addr, size) != 0; }
     u64 ClampRangeSize(VAddr virtual_addr, u64 size);
     /// Copies guest memory, zero-filling bytes that are not mapped.
     void CopySparseMemory(VAddr source, u8* dest, u64 size);

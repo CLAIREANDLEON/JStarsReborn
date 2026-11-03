@@ -254,6 +254,7 @@ static void* guest_main(void* arg) {
         rt_logf("module %" PRIu64 " initializer returned %d", m, r);
         if (r) fail("module initializer failed");
     }
+    rt_jsnet_start(); // the online session starts with the game (as in bbport)
     g_stage = 2;
     rt_logf("entering original x86-64 code at image+0x%" PRIx64, g_entry);
     typedef void(GUEST_ABI * Entry)(void*, void (*)(void));
@@ -281,7 +282,7 @@ int main(int argc, char** argv) {
     }
 #endif
     const char *boot = NULL, *logpath = "jstars-boot.log", *gpu_dir = NULL, *capture_dir = NULL, *game_root = NULL, *user_dir = NULL, *pad_script = NULL, *experiments = NULL;
-    int online = 0, trace_net = 0, trace_np = 0;
+    int online = 0, trace_net = 0, trace_np = 0, shadnet = 0;
     uint16_t lobby_port = 0;
     int frame_stats = 0, flip_rate = -1, flip_rate_after = 0, ffx_probe = 0;
     const char *vblank_hz = NULL, *present_mode = NULL;
@@ -294,6 +295,7 @@ int main(int argc, char** argv) {
         else if (!strcmp(argv[i], "--log") && i + 1 < argc) logpath = argv[++i];
         else if (!strcmp(argv[i], "--check-imports")) check_only = 1;
         else if (!strcmp(argv[i], "--selftest-host")) selftest = 1;
+        else if (!strcmp(argv[i], "--selftest-jsnet")) selftest = 2;
         else if (!strcmp(argv[i], "--audit-dump")) audit_dump = 1;
         // Diagnostic mode of checkpoint 0.2.2: no GPU library; the process stops (exit 3) at the first Gnm call.
         else if (!strcmp(argv[i], "--stop-at-first-gnm")) stop_at_gnm = 1;
@@ -313,6 +315,8 @@ int main(int argc, char** argv) {
         else if (!strcmp(argv[i], "--count-imports")) rt_thunk_set_counting(1);
         else if (!strcmp(argv[i], "--experiment") && i + 1 < argc) experiments = argv[++i];
         else if (!strcmp(argv[i], "--online")) online = 1;
+        else if (!strcmp(argv[i], "--shadnet")) shadnet = online = 1;
+        else if (!strcmp(argv[i], "--shadnet-server") && i + 1 < argc) { static char e[300]; snprintf(e, sizeof e, "JSTARS_SHADNET_SERVER=%s", argv[++i]); putenv(e); }
         else if (!strcmp(argv[i], "--frame-stats")) frame_stats = 1;
         else if (!strcmp(argv[i], "--ffx-probe")) ffx_probe = 1;
         else if (!strcmp(argv[i], "--flip-rate") && i + 1 < argc) flip_rate = atoi(argv[++i]);
@@ -329,10 +333,10 @@ int main(int argc, char** argv) {
         else if (!strcmp(argv[i], "--capture-max") && i + 1 < argc) g_capture_max = atoi(argv[++i]);
         else { fprintf(stderr, "usage: %s --boot boot-linked.bin [--log file] [--check-imports] [--stop-at-first-gnm] [--selftest-host] [--audit-dump]\n"
                                "       [--game-root dir] [--user-dir dir] [--gpu-dir dir] [--capture-dir dir] [--window WxH] [--max-seconds n] [--capture-flips n]\n"
-                               "       [--capture-interval flips] [--capture-max n] [--pad-script file] [--no-keyboard] [--no-audio] [--volume 0-100] [--dump-audio prefix] [--pad-none] [--sample-threads seconds] [--count-imports] [--trace-draws first,count] [--experiment names] [--frame-stats] [--ffx-probe] [--flip-rate n] [--flip-rate-after s] [--vblank-hz n] [--present-mode Fifo|Mailbox|Immediate] [--online] [--lobby-port n] [--lobby-peer ip[,ip]] [--trace-net] [--trace-np]\n", argv[0]); return 1; }
+                               "       [--capture-interval flips] [--capture-max n] [--pad-script file] [--no-keyboard] [--no-audio] [--volume 0-100] [--dump-audio prefix] [--pad-none] [--sample-threads seconds] [--count-imports] [--trace-draws first,count] [--experiment names] [--frame-stats] [--ffx-probe] [--flip-rate n] [--flip-rate-after s] [--vblank-hz n] [--present-mode Fifo|Mailbox|Immediate] [--online] [--shadnet] [--shadnet-server host[:port]] [--lobby-port n] [--lobby-peer ip[,ip]] [--trace-net] [--trace-np]\n", argv[0]); return 1; }
     }
     if (audit_dump) { extern void rt_audit_dump(void*); rt_audit_dump(stdout); return 0; }
-    if (selftest) { rt_log_open(logpath); extern int rt_selftest_host(const char*); char sd[4096]; snprintf(sd, sizeof sd, "%s.selftest", logpath); return rt_selftest_host(sd); }
+    if (selftest) { rt_log_open(logpath); extern int rt_selftest_host(const char*); char sd[4096]; snprintf(sd, sizeof sd, "%s.selftest", logpath); if (selftest == 2) { extern int rt_selftest_jsnet(const char*); return rt_selftest_jsnet(sd); } return rt_selftest_host(sd); }
     if (!boot) { fprintf(stderr, "--boot is required\n"); return 1; }
     rt_log_open(logpath);
     rt_logf("JStarsReborn runtime %s", JSTARS_RUNTIME_VERSION);
@@ -346,12 +350,15 @@ int main(int argc, char** argv) {
     if (vblank_hz) { static char e1[64]; snprintf(e1, sizeof e1, "JSTARS_VBLANK_HZ=%s", vblank_hz); putenv(e1); rt_logf("experiment: vblank %s Hz", vblank_hz); }
     if (present_mode) { static char e2[64]; snprintf(e2, sizeof e2, "JSTARS_PRESENT_MODE=%s", present_mode); putenv(e2); rt_logf("experiment: present mode %s", present_mode); }
     if (flip_rate >= 0) rt_logf("experiment: --flip-rate %d replaces the flip rate the game asks for%s", flip_rate, flip_rate_after > 0 ? " (from --flip-rate-after seconds on)" : "");
-    if (online) rt_logf("--online: the network layer is active. The game gets real UDP sockets on this host; "
+    if (shadnet) rt_logf("--shadnet: online through a shadNet server (%s); matches are peer-to-peer. No PlayStation Network service is contacted.",
+                         getenv("JSTARS_SHADNET_SERVER") && *getenv("JSTARS_SHADNET_SERVER") ? getenv("JSTARS_SHADNET_SERVER") : "no server set");
+    else if (online) rt_logf("--online: the network layer is active. The game gets real UDP sockets on this host; "
                         "no PlayStation Network service is contacted and no account is used.");
     {
         char udir[4096];
         if (!user_dir) { snprintf(udir, sizeof udir, "%s.user", logpath); user_dir = udir; }
         rt_fs_configure(game_root, user_dir);
+        if (shadnet) putenv("JSTARS_ONLINE=1");
     }
     // Guest-visible memory is placed inside the console's 40-bit user space (see jstars_os.c): GPU shader/descriptor
     // addresses are 40-bit and the SDK code requires the high half of a shader address to be zero. This must happen
@@ -474,6 +481,9 @@ int main(int argc, char** argv) {
         }
         if (ffx_probe) rt_gpu_fsr_probe();
     }
+    // Online libraries (--shadnet): registered after the GPU library (their kernel calls go through its shim) and once the
+    // image is loaded (they read the game's compiled SDK version), before imports are bound so they take precedence.
+    if (shadnet && !check_only) rt_jsnet_setup(game_root);
 
     uint64_t n_host = 0, n_module = 0, n_trap = 0;
     uint8_t* seen = calloc(import_count + 1, 1);

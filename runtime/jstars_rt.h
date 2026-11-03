@@ -87,6 +87,11 @@ void rt_audio_set_volume(int percent);       // --volume 0..100: output gain app
 void rt_audio_set_dump(const char* prefix);  // --dump-audio: per-port stereo S16 WAV of what the game submitted
 // Network layer (jstars_net.c). Off by default: without --online the game gets the offline answers.
 void rt_net_configure(int online, int trace);
+// shadPS4 v0.20.0 network/NP/shadNet libraries (gpu/jsnet; --shadnet). Stubs when the build has none.
+int rt_jsnet_available(void);
+void rt_jsnet_setup(const char* game_root);
+void* rt_jsnet_resolve(const char* nid_lib);
+void rt_jsnet_start(void);
 int rt_net_online(void);
 
 // LAN room directory (jstars_rooms.c; docs/ADR-007-online.md addendum)

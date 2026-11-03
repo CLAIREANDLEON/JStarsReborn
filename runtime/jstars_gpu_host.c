@@ -137,10 +137,15 @@ static int fault_prehook(const OsFault* f) {
     return jgpu_handle_fault(f->native, f->address);
 }
 
-int rt_gpu_start(const char* title, const char* data_dir, const char* capture_dir, int width, int height) {
-    JgpuHost host = {host_log, host_fatal, host_protect, host_safe_read, rt_fd_alloc, rt_fd_free, host_window_closed,
-                   rt_errno_cell, rt_read_tsc, rt_tsc_frequency, rt_process_time_us, rt_compiled_sdk_version, host_is_neo};
+// The callbacks the GPU library's shims use (logging, kernel time, SDK version...). The online libraries (gpu/jsnet) use the
+// same shims, so they are installed by whichever starts first.
+static void install_gpu_host(void) {
+    static const JgpuHost host = {host_log, host_fatal, host_protect, host_safe_read, rt_fd_alloc, rt_fd_free, host_window_closed,
+                                  rt_errno_cell, rt_read_tsc, rt_tsc_frequency, rt_process_time_us, rt_compiled_sdk_version, host_is_neo};
     jgpu_set_host(&host);
+}
+int rt_gpu_start(const char* title, const char* data_dir, const char* capture_dir, int width, int height) {
+    install_gpu_host();
     JgpuConfig cfg = {title, data_dir, capture_dir, width, height, 0};
     rt_logf("GPU library: starting (window %dx%d, data %s, captures %s)", width, height, data_dir, capture_dir);
     if (jgpu_init(&cfg)) { rt_logf("GPU library: initialization failed"); return 1; }
@@ -169,4 +174,56 @@ void rt_gpu_stats(uint64_t out[5]) { memset(out, 0, 5 * sizeof *out); }
 void rt_gpu_timing_configure(int frame_stats, int flip_rate_override, int flip_rate_after) { (void)frame_stats; (void)flip_rate_override; (void)flip_rate_after; }
 void rt_gpu_timing_tick(int sec) { (void)sec; }
 void rt_gpu_fsr_probe(void) {}
+#endif
+
+// ---------------------------------------------------------------- online libraries (gpu/jsnet, --shadnet; docs/ADR-008-online-shadnet.md)
+#ifdef JSTARS_JSNET
+void jsnet_configure(const char* app0, const char* serial, const char* title, const char* app_ver);
+void jsnet_register(void);
+void jsnet_initialize(void);
+void* jsnet_resolve(const char* nid_lib);
+unsigned jsnet_symbol_count(void);
+static int g_jsnet_on;
+// param.sfo: "\0PSF" header, key table at +8, data table at +12, entry count at +16, 16-byte entries from +0x14.
+static int sfo_value(const char* path, const char* key, char* out, size_t cap) {
+    out[0] = 0;
+    FILE* f = os_fopen(path, "rb");
+    if (!f) return -1;
+    static unsigned char b[65536];
+    const size_t n = fread(b, 1, sizeof b, f);
+    fclose(f);
+    if (n < 0x14 || memcmp(b, "\0PSF", 4)) return -1;
+    const uint32_t kt = b[8] | b[9] << 8 | b[10] << 16 | (uint32_t)b[11] << 24, dt = b[12] | b[13] << 8 | b[14] << 16 | (uint32_t)b[15] << 24;
+    const uint32_t cnt = b[16] | b[17] << 8 | b[18] << 16 | (uint32_t)b[19] << 24;
+    for (uint32_t i = 0; i < cnt && 0x14 + (i + 1) * 16 <= n; ++i) {
+        const unsigned char* e = b + 0x14 + i * 16;
+        const uint32_t ko = e[0] | e[1] << 8, len = e[4] | e[5] << 8 | e[6] << 16 | (uint32_t)e[7] << 24;
+        const uint32_t dof = e[12] | e[13] << 8 | e[14] << 16 | (uint32_t)e[15] << 24;
+        if (kt + ko >= n || strcmp((const char*)b + kt + ko, key) || dt + dof + len > n) continue;
+        snprintf(out, cap, "%.*s", (int)len, (const char*)b + dt + dof);
+        return 0;
+    }
+    return -1;
+}
+int rt_jsnet_available(void) { return 1; }
+void rt_jsnet_setup(const char* game_root) {
+    char sfo[4096], serial[16], title[128], ver[16];
+    snprintf(sfo, sizeof sfo, "%s/sce_sys/param.sfo", game_root ? game_root : ".");
+    sfo_value(sfo, "TITLE_ID", serial, sizeof serial);
+    sfo_value(sfo, "TITLE", title, sizeof title);
+    sfo_value(sfo, "APP_VER", ver, sizeof ver);
+    if (!g_gpu_on) install_gpu_host();
+    jsnet_configure(game_root ? game_root : ".", serial, title, ver);
+    jsnet_register();
+    g_jsnet_on = 1;
+    rt_logf("shadNet: %u network/NP functions from shadPS4 v0.20.0 (gpu/jsnet) replace the runtime's own; game %s %s v%s",
+            jsnet_symbol_count(), serial[0] ? serial : "?", title, ver);
+}
+void* rt_jsnet_resolve(const char* nid_lib) { return g_jsnet_on ? jsnet_resolve(nid_lib) : NULL; }
+void rt_jsnet_start(void) { if (g_jsnet_on) { rt_logf("shadNet: starting the online session"); jsnet_initialize(); } }
+#else
+int rt_jsnet_available(void) { return 0; }
+void rt_jsnet_setup(const char* game_root) { (void)game_root; rt_logf("--shadnet: this build has no online libraries (gpu/jsnet)"); }
+void* rt_jsnet_resolve(const char* nid_lib) { (void)nid_lib; return NULL; }
+void rt_jsnet_start(void) {}
 #endif

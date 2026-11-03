@@ -30,9 +30,15 @@ WIN_CC ?= x86_64-w64-mingw32-gcc-posix
 WIN_CXX ?= x86_64-w64-mingw32-g++-posix
 # --allow-multiple-definition: clang- and GCC-built objects emit the same C++ inline/template statics (guard variables,
 # Singleton instances) in differently-typed COMDAT sections, which ld reports as duplicates; all 15 are of that kind.
+# Online libraries (gpu/jsnet, --shadnet): set JSNET_LIB_WIN (tools/build_jsnet.sh output) and JSNET_DEPS (mingw protobuf/OpenSSL/
+# miniupnpc prefix). Without them the runtime builds as before and --shadnet reports that it is unavailable.
+ifneq ($(JSNET_LIB_WIN),)
+JSNET_CFLAGS = -DJSTARS_JSNET
+JSNET_LIBS = $(JSNET_LIB_WIN) -L$(JSNET_DEPS)/lib -lprotobuf -lminiupnpc -lssl -lcrypto -lz -liphlpapi -lcrypt32
+endif
 jstars-boot-gpu.exe: $(SRC) jstars_rt.h jstars_os.h $(GPU_LIB_WIN)
-	mkdir -p obj-win && $(WIN_CC) $(CFLAGS) -DJSTARS_GPU -I../gpu -c $(filter %.c,$(SRC)) && mv *.o obj-win/ && \
-	$(WIN_CXX) -static -static-libgcc -static-libstdc++ -Wl,--allow-multiple-definition -o $@ $(addprefix obj-win/,$(patsubst %.c,%.o,$(filter %.c,$(SRC)))) $(GPU_LIB_WIN) \
+	mkdir -p obj-win && $(WIN_CC) $(CFLAGS) -DJSTARS_GPU $(JSNET_CFLAGS) -I../gpu -c $(filter %.c,$(SRC)) && mv *.o obj-win/ && \
+	$(WIN_CXX) -static -static-libgcc -static-libstdc++ -Wl,--allow-multiple-definition -o $@ $(addprefix obj-win/,$(patsubst %.c,%.o,$(filter %.c,$(SRC)))) $(JSNET_LIBS) $(GPU_LIB_WIN) \
 	  -lws2_32 -lmswsock -luser32 -lgdi32 -ldbghelp -lbcrypt -lole32 -lshell32 -lshlwapi -ladvapi32 -lwinmm -lntdll -lpthread
 	rm -rf obj-win
 

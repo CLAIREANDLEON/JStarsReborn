@@ -35,3 +35,11 @@ PKG field documentation references LibOrbisPkg for limited outer-header facts. N
 Third-party libraries under `gpu/vendor/externals/` (revisions and licenses in `gpu/VENDOR.md`): Vulkan-Headers (Apache-2.0/MIT), VulkanMemoryAllocator (MIT), sirit + SPIRV-Headers (BSD-2-Clause/MIT), fmt (MIT), robin-map (MIT), xbyak (BSD-3-Clause), magic_enum (MIT), half (MIT), xxHash (BSD-2-Clause), Zydis + Zycore (MIT), stb_image_write (MIT/public domain), renderdoc_app.h (MIT), the AMD FSR SDK 2.4.0 C API headers (MIT; AMD's signed FidelityFX DLLs are not included and are loaded only if the user places them next to the runtime). Boost (ICL, Asio; header-only) is used under BSL-1.0. glslang's `glslangValidator` (BSD-3-Clause) is a build tool and is not shipped. The full license texts of these components are those in the upstream trees under `gpu/vendor/`; they must accompany any distribution of a binary that links them.
 
 The Windows audio path uses WASAPI (shared mode) and the video path uses the Vulkan loader supplied by the GPU driver; neither is redistributed. Because this runtime links the GPL-2.0-or-later renderer, the combined runtime executable is GPL-2.0-or-later. No game code, game asset, key or firmware is included.
+
+## Online libraries (`gpu/jsnet/`, GPL-2.0-or-later)
+
+shadPS4 v0.20.0's network, NP and shadNet client sources (GPL-2.0-or-later), as vendored and fixed by the Bloodborne PC port (bbport,
+github.com/Supermedo/bloodborne_pc, GPL-2.0-or-later parts only), with bbport's glue adapted. cpp-httplib (MIT) and wepoll (BSD-2-Clause) with
+their notices in `gpu/jsnet/third_party/`. Linked when built with them, not vendored: protobuf 3.21.12 (BSD-3-Clause), OpenSSL 3.0 (Apache-2.0),
+miniupnpc (BSD-3-Clause), nlohmann_json (MIT), zlib (zlib licence). Their licence texts must accompany a binary that contains them.
+See gpu/jsnet/README.md.
