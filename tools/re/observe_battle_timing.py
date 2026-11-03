@@ -7,6 +7,7 @@ is reported as null. This diagnostic is not a framerate patch.
 import argparse
 import ctypes as c
 import json
+import math
 import pathlib
 import struct
 import time
@@ -74,6 +75,21 @@ class Observer:
                 'frame_counter':frames,'tick_counter':ticks,'last_step':step,'battle':battle}
 
 
+def sample_rows(obs, seconds, interval):
+    """Include the initial sample, then stop without sleeping past the deadline."""
+    if not math.isfinite(seconds) or seconds < 0:
+        raise ValueError('duration must be finite and nonnegative')
+    if not math.isfinite(interval) or interval <= 0:
+        raise ValueError('interval must be finite and positive')
+    start = time.monotonic()
+    while True:
+        yield {'wall_seconds': round(time.monotonic()-start, 6), **obs.snapshot()}
+        remaining = seconds - (time.monotonic()-start)
+        if remaining <= 0:
+            return
+        time.sleep(min(interval, remaining))
+
+
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--pid',type=int,required=True)
@@ -82,19 +98,14 @@ def main():
     p.add_argument('--interval',type=float,default=1)
     p.add_argument('--out',type=pathlib.Path,required=True)
     args=p.parse_args()
-    if args.seconds<0 or args.interval<=0:
-        p.error('duration must be nonnegative and interval positive')
+    if not math.isfinite(args.seconds) or args.seconds<0 or not math.isfinite(args.interval) or args.interval<=0:
+        p.error('duration must be finite and nonnegative and interval finite and positive')
     obs=Observer(args.pid,args.base)
-    start=time.monotonic()
     try:
         with args.out.open('x',encoding='utf-8') as out:
-            while True:
-                row={'wall_seconds':round(time.monotonic()-start,6),**obs.snapshot()}
+            for row in sample_rows(obs, args.seconds, args.interval):
                 out.write(json.dumps(row)+'\n');out.flush()
                 print(json.dumps(row),flush=True)
-                if time.monotonic()-start>=args.seconds:
-                    break
-                time.sleep(min(args.interval,args.seconds-(time.monotonic()-start)))
     finally:
         obs.close()
 

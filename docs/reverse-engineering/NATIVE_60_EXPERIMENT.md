@@ -107,6 +107,47 @@ redistribute the generated boot image, which contains game data.
 
 ## Remaining validation
 
+The follow-up static rate-consumer audit found integer clocks that advance by
+`300 / engine_rate` units per update, using truncated integer division. At 60 Hz
+this is exactly five units per update. At 120 Hz it is two, giving 240 units per
+second instead of 300: these clocks would run 20% slow at sustained 120 updates/s.
+Rates dividing 300 avoid this particular truncation; that alone does not make
+them supported. The experiment deliberately accepts only 30 and 60.
+
+The highest-priority unclassified fixed-step lead is `0x2f8d70`: the multiply at
+`0x2fa15c` uses `1/30`, accumulating into object field `+0x160` and clamping to
+`+0x34`. Its playback-like structure does not establish that it controls character
+animation. Capture a live object and callers before patching it. Fade/blend leads
+at `0x255120` / `0x255180` and `0x1ee120` / `0x1ee180` also use fixed 30 Hz
+scaling. Authored animation sample rates and unrelated constants must be preserved.
+
+See [the pinned Bloodborne source comparison](BLOODBORNE_REFERENCE.md) for
+subsystem timing and temporal-rendering methods, and their limits.
+
+### Follow-up live trace, 2026-11-03
+
+A second muted native60 run reached Free Battle. A one-hit hardware execution
+breakpoint at `0x2fa15c` captured input scale `xmm0 = 1.0`, object vtable RVA
+`0x7b0f30`, clock zero, duration 0.25, and active flag 1. The captured stack
+included return sites `0x43c67` and `0x79b0c`, consistent with the static caller.
+Thus the fixed-step path executes in battle and this invocation was not supplied
+half-speed input. This does not establish the object's update frequency or prove
+that it governs character animation. No new gameplay patch was applied.
+
+The caller obtains its scale through `0x3c2d0` / `0x8a640`; the latter returns
+object field `+0x10` when its pause-like field `+0xc` is zero, otherwise zero.
+A later 35-second read-only sample of the captured object found its clock
+unchanged while guest frames continued. That inactive interval cannot measure
+playback speed. Next: sample immediately on an active transition, establish the
+owning subsystem, and compare its duration at 30 and 60 FPS.
+
+The battle observer completed its 45-second report with the repaired deadline
+handling. Its uninterrupted 10-to-45-second interval advanced 2,098 battle and
+guest frames over 35 real seconds: 34.9667 game seconds at rate60, approximately
+0.99905x. Earlier samples included stopped battle time and are excluded. Debugger
+attachment can perturb timing, so this remains diagnostic evidence, not a
+performance benchmark or full gameplay-parity result.
+
 Compare movement distance, jump duration, attack/recovery timing, hit windows,
 projectiles, AI, camera and effects against 30 FPS. Repeat with multiple
 characters/stages, pause/resume, low-framerate stalls, cutscenes and match
