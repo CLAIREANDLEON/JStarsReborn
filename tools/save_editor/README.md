@@ -1,5 +1,8 @@
 # Save editor
 
+> Since 0.5.3 the launcher's **Saves** page does this without PowerShell (Unlock every character, import, backups and restore,
+> `src/launcher/saves.cpp`). This script stays for advanced use (`gauges`, custom values).
+
 `jstars-save.ps1` edits the save that JStarsReborn writes, so you can play every character without clearing Story mode
 first. It only touches your own local save; no game files are read or changed.
 

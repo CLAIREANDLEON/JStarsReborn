@@ -1,5 +1,16 @@
 # Change log
 
+## 0.5.3 playtest preview (pre-release)
+
+- **Launcher: new Saves page.** Import a save (a SAVE-DATA.DAT, or a folder that contains one: another JStarsReborn install, a shadPS4
+  user folder, a decrypted PS4 save), **Unlock every character** (all characters unlocked and owned, J-Points 999,999), and restore any
+  earlier save. Every change backs up the current save first (`%LOCALAPPDATA%\JStarsReborn\save-backups`). The save is checked (size and
+  checksum) before it is used; encrypted PS4 saves are recognised and explained. Read-only saves (copied from a USB stick or a ZIP) work.
+- The save format (checksum, character and J-Point offsets) is from CLAIREANDLEON's save editor (`tools/save_editor`, PR #3), checked
+  against saves the game wrote in our test runs.
+- Runtime unchanged from 0.5.2 apart from its version number.
+
+
 ## 0.5.2 playtest preview (pre-release)
 
 From the 0.5.1 playtest reports (recomplauncher.com):

@@ -15,7 +15,7 @@
 namespace reborn::launcher {
 namespace fs = std::filesystem;
 
-inline constexpr const char* launcher_version = "0.5.2";
+inline constexpr const char* launcher_version = "0.5.3";
 
 // ---- settings (launcher.ini, UTF-8 key=value) ---------------------------------------------------------------------
 struct Settings {

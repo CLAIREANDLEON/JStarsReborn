@@ -40,6 +40,8 @@ file, target `JStarsReborn`).
 tools/prepare_native_check.sh <game-folder> <shadPS4 aerolib.inl>   # native preparation == Python reference tools, byte for byte
 g++ -std=c++20 -Iinclude -Isrc/prepare -Isrc/launcher tests/launcher_core_tests.cpp src/launcher/launcher_core.cpp \
     src/prepare/prepare.cpp src/setup/sha256.cpp src/setup/game_validate.cpp -o launcher_core_tests && ./launcher_core_tests /tmp/lct <game-folder>
+# save page logic (synthetic saves; optionally a real SAVE-DATA.DAT as argument)
+g++ -std=c++20 -Isrc/launcher tests/saves_tests.cpp src/launcher/saves.cpp -o saves_tests && ./saves_tests
 make -C runtime jstars-boot && runtime/jstars-boot --selftest-host --log /tmp/selftest.log
 ```
 

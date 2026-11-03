@@ -1,4 +1,4 @@
-JStarsReborn 0.5.2 (playtest preview) - unofficial Windows PC port runtime for J-Stars Victory VS+ (PS4, CUSA01593 version 01.02)
+JStarsReborn 0.5.3 (playtest preview) - unofficial Windows PC port runtime for J-Stars Victory VS+ (PS4, CUSA01593 version 01.02)
 ====================================================================================================
 
 Legal (read DISCLAIMER.txt)
@@ -33,6 +33,11 @@ Where your data goes
 Problems
   Troubleshooting page: open the latest session logs or create a diagnostic report (a ZIP you save yourself;
   it is never uploaded and contains no game files, saves or prepared data).
+
+Saves
+  The launcher's Saves page imports a save (a SAVE-DATA.DAT, or a folder with one: another JStarsReborn install, a shadPS4 user
+  folder, a decrypted PS4 save), unlocks every character in one click, and restores earlier saves. Every change backs up the
+  current save first (%LOCALAPPDATA%\JStarsReborn\save-backups). Start the game once to create its save, and close the game first.
 
 60 fps (experimental, off by default)
   Settings > "60 fps (experimental)". The game runs its own engine at 60 instead of 30; it is applied only after the runtime

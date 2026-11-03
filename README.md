@@ -11,11 +11,13 @@ No game files, keys, firmware or decryption tools are included or downloaded. Th
 > Use only a dump you made yourself from a copy of the game you legally own. Piracy is not supported in any form.
 > Provided as is, without warranty. Read the full [DISCLAIMER.md](DISCLAIMER.md).
 
-**State (0.5.2, pre-release):** on the owner's Windows 11 PC the game boots, shows the title, creates and loads its own
+**State (0.5.3, pre-release):** on the owner's Windows 11 PC the game boots, shows the title, creates and loads its own
 save data, and runs the menus and Free Battle matches, driven by scripted test input and by a live controller. Movies are
 skipped (no decoder) and trophies are an empty set. Whether it plays well and sounds right has **not** been confirmed by a
 human tester yet. See [CHANGELOG.md](CHANGELOG.md) for the full list of known issues, and
-[docs/RELEASE_NOTES_0.5.2.md](docs/RELEASE_NOTES_0.5.2.md) for what changed after the 0.5.1 playtest.
+[docs/RELEASE_NOTES_0.5.3.md](docs/RELEASE_NOTES_0.5.3.md) and [0.5.2](docs/RELEASE_NOTES_0.5.2.md) for what changed after the 0.5.1 playtest.
+
+> **Saves:** the launcher's Saves page imports a save (file or folder), unlocks every character in one click, and restores backups.
 
 > **60 fps (experimental):** the launcher's Settings page has a "60 fps" option. It sets the game's own engine rate to 60 and its fixed
 > 30 Hz timing constants for 60, only after checking the game build. In a scripted 6-minute Free Battle the game held 60 fps and the battle
@@ -83,6 +85,7 @@ installed llvm-mingw C++ libraries remains unresolved.
 - 0.5.1 (pre-release): peer-to-peer room codes over the internet, UPnP, launcher Online page.
 - 0.5.2 (pre-release): fixes from the first public playtest (online room-search crash, audio feed priority, system error dialog) and
   an experimental 60 fps option ([release notes](docs/RELEASE_NOTES_0.5.2.md)).
+- 0.5.3 (pre-release): launcher Saves page: import, unlock every character, backups and restore ([release notes](docs/RELEASE_NOTES_0.5.3.md)).
 
 ## License
 

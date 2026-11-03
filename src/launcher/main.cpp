@@ -27,6 +27,9 @@
 
 #include "launcher_core.hpp"
 #include "online.hpp"
+#include "saves.hpp"
+#include <fstream>
+#include <iterator>
 #include <cstring>
 #include "reborn/paths.hpp"
 #include "reborn/sha256.hpp"
@@ -47,9 +50,9 @@ constexpr COLORREF kSidebar = RGB(30, 32, 40), kSidebarHover = RGB(44, 47, 58), 
                    kAccent = RGB(226, 72, 40), kAccentDark = RGB(186, 52, 24), kContentBg = RGB(246, 247, 249),
                    kText = RGB(28, 30, 36), kMuted = RGB(96, 100, 112), kGood = RGB(24, 128, 64), kBad = RGB(186, 36, 36);
 
-enum Page : int { PagePlay, PageFolder, PageSettings, PageOnline, PageControls, PageHelp, PageCount };
+enum Page : int { PagePlay, PageFolder, PageSettings, PageOnline, PageControls, PageSaves, PageHelp, PageCount };
 constexpr int kPages = PageCount;
-const wchar_t* kPageNames[PageCount] = {L"Play", L"Game folder", L"Settings", L"Online", L"Controls", L"Troubleshooting"};
+const wchar_t* kPageNames[PageCount] = {L"Play", L"Game folder", L"Settings", L"Online", L"Controls", L"Saves", L"Troubleshooting"};
 
 enum Id {
     IdNavFirst = 100, // + page
@@ -59,6 +62,7 @@ enum Id {
     IdLblConfirm, IdLblName, IdFrameRate60,
     IdOnline = 450, IdOnlineIntro, IdUpnp, IdLblMyCode, IdMyCode, IdFindCode, IdCopyCode, IdLblPeers, IdLobbyPeers, IdOnlineStatus, IdOnlineNote,
     IdControlsList = 500, IdControlsNote,
+    IdSavesInfo = 550, IdSaveImportFile, IdSaveImportFolder, IdSaveUnlock, IdSaveBackupList, IdSaveRestore, IdSaveOpenBackups, IdSavesStatus, IdSavesNote,
     IdOpenLatest = 600, IdOpenLogs, IdReport, IdDeletePrepared, IdOpenData, IdLicenses, IdHelpInfo, IdHelpText,
 };
 
@@ -168,6 +172,7 @@ struct App {
     int icon_w = 0, icon_h = 0;
 } g;
 void refresh_online_page();
+void refresh_saves_page();
 void start_online_setup();
 
 int S(int v) { return MulDiv(v, static_cast<int>(g.dpi), 96); }
@@ -308,6 +313,18 @@ void layout() {
         ListView_SetColumnWidth(lv, 1, c1);
         ListView_SetColumnWidth(lv, 2, std::max(S(160), cw - c0 - c1 - S(24)));
     }
+    // Saves
+    {
+        int sy = y + S(4);
+        place(IdSavesInfo, x0, sy, cw, S(66)); sy += S(74);
+        place(IdSaveImportFile, x0, sy, S(250), S(34)); place(IdSaveImportFolder, x0 + S(262), sy, S(250), S(34)); sy += S(46);
+        place(IdSaveUnlock, x0, sy, S(250), S(34)); sy += S(54);
+        place(IdSaveBackupList, x0, sy, std::min(cw - S(262), S(420)), S(300));
+        place(IdSaveRestore, x0 + std::min(cw - S(262), S(420)) + S(12), sy, S(250), S(34)); sy += S(46);
+        place(IdSaveOpenBackups, x0, sy, S(250), S(34)); sy += S(50);
+        place(IdSavesStatus, x0, sy, cw, S(70)); sy += S(78);
+        place(IdSavesNote, x0, sy, cw, std::max(S(60), H_ - sy - S(16)));
+    }
     // Troubleshooting
     {
         int hy = y + S(4);
@@ -332,6 +349,7 @@ void show_page(int p) {
         show(IdLastDetail, g.last.valid);
         show(IdOpenSessionLogs, g.last.valid);
     }
+    if (p == PageSaves) refresh_saves_page();
     for (int i = 0; i < PageCount; ++i) InvalidateRect(ctl(IdNavFirst + i), nullptr, TRUE);
     InvalidateRect(g.hwnd, nullptr, TRUE);
 }
@@ -1132,6 +1150,21 @@ void build_controls() {
         L"controller is connected, the keyboard is used (if enabled in Settings). Input reaches the game only while the game window is "
         L"active. Which button confirms in menus is set on the Settings page. These mappings are fixed in this version.",
         SS_LEFT | SS_NOPREFIX, IdControlsNote);
+    // Saves
+    add(PageSaves, L"STATIC", L"", SS_LEFT | SS_NOPREFIX, IdSavesInfo);
+    add(PageSaves, L"BUTTON", L"Import a save file\u2026", BS_OWNERDRAW | WS_TABSTOP, IdSaveImportFile);
+    add(PageSaves, L"BUTTON", L"Import from a folder\u2026", BS_OWNERDRAW | WS_TABSTOP, IdSaveImportFolder);
+    add(PageSaves, L"BUTTON", L"Unlock every character", BS_OWNERDRAW | WS_TABSTOP, IdSaveUnlock);
+    add(PageSaves, WC_COMBOBOXW, L"", CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP, IdSaveBackupList);
+    add(PageSaves, L"BUTTON", L"Restore this backup", BS_OWNERDRAW | WS_TABSTOP, IdSaveRestore);
+    add(PageSaves, L"BUTTON", L"Open backups folder", BS_OWNERDRAW | WS_TABSTOP, IdSaveOpenBackups);
+    add(PageSaves, L"STATIC", L"", SS_LEFT | SS_NOPREFIX, IdSavesStatus);
+    add(PageSaves, L"STATIC",
+        L"Import: choose a SAVE-DATA.DAT, or a folder that contains one (another JStarsReborn install, a shadPS4 user folder, or a "
+        L"decrypted PS4 save). Encrypted PS4 saves must be decrypted first (for example with Apollo Save Tool). Every change makes a backup "
+        L"of your current save first. Unlock every character uses the save format documented by CLAIREANDLEON (tools/save_editor): all "
+        L"characters unlocked and owned, J-Points 999,999. The game must be closed for any of this.",
+        SS_LEFT | SS_NOPREFIX, IdSavesNote);
     // Troubleshooting
     add(PageHelp, L"BUTTON", L"Open latest session logs", BS_OWNERDRAW | WS_TABSTOP, IdOpenLatest);
     add(PageHelp, L"BUTTON", L"Open log folder", BS_OWNERDRAW | WS_TABSTOP, IdOpenLogs);
@@ -1226,6 +1259,80 @@ void init_data() {
 // ---- online page ----------------------------------------------------------------------------------------------------------
 struct OnlineResult { std::string status, code; bool mapped = false; online::Igd igd; };
 
+// ---- Saves page (saves.hpp) --------------------------------------------------------------------------------------------------------
+fs::path backups_root() { return g.data_root / "save-backups"; }
+static std::vector<fs::path> g_save_backups;
+void refresh_saves_page() {
+    std::wstring info;
+    std::vector<std::uint8_t> b;
+    {
+        std::ifstream f(saves::save_file(g.user_dir), std::ios::binary);
+        if (f) b.assign(std::istreambuf_iterator<char>(f), {});
+    }
+    if (b.empty()) info = L"No save yet. Start the game once and let it create its save (choose Yes when it asks), then close it.";
+    else {
+        const saves::Info in = saves::inspect(b);
+        if (!in.valid) info = L"Your current save has a problem: " + W(in.problem) + L". You can restore a backup below.";
+        else info = L"Current save: " + std::to_wstring(in.jpoints) + L" J-Points, " + std::to_wstring(in.owned) + L" of " +
+                    std::to_wstring(saves::kOwned) + L" battle characters owned" + (in.all_unlocked ? L" (every character unlocked)." : L".");
+    }
+    if (g.running) info += L"\r\nClose the game to import, unlock or restore.";
+    set_text(IdSavesInfo, info);
+    for (int id : {IdSaveImportFile, IdSaveImportFolder, IdSaveUnlock, IdSaveRestore}) enable(id, !g.running);
+    g_save_backups = saves::list_backups(backups_root());
+    HWND cb = ctl(IdSaveBackupList);
+    SendMessageW(cb, CB_RESETCONTENT, 0, 0);
+    for (const auto& p : g_save_backups) SendMessageW(cb, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(p.filename().wstring().c_str()));
+    if (g_save_backups.empty()) SendMessageW(cb, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"(no backups yet)"));
+    SendMessageW(cb, CB_SETCURSEL, 0, 0);
+    enable(IdSaveRestore, !g.running && !g_save_backups.empty());
+}
+// File (folder=false) or folder picker; empty when cancelled.
+fs::path pick_path(bool folder, const wchar_t* title) {
+    IFileOpenDialog* dlg = nullptr;
+    if (FAILED(CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dlg)))) return {};
+    DWORD opts = 0;
+    dlg->GetOptions(&opts);
+    dlg->SetOptions(opts | FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST | (folder ? FOS_PICKFOLDERS : FOS_FILEMUSTEXIST));
+    dlg->SetTitle(title);
+    if (!folder) {
+        const COMDLG_FILTERSPEC filters[] = {{L"J-Stars save (SAVE-DATA.DAT)", L"SAVE-DATA.DAT;*.DAT"}, {L"All files", L"*.*"}};
+        dlg->SetFileTypes(2, filters);
+    }
+    fs::path chosen;
+    if (SUCCEEDED(dlg->Show(g.hwnd))) {
+        IShellItem* item = nullptr;
+        if (SUCCEEDED(dlg->GetResult(&item))) {
+            PWSTR p = nullptr;
+            if (SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &p)) && p) { chosen = p; CoTaskMemFree(p); }
+            item->Release();
+        }
+    }
+    dlg->Release();
+    return chosen;
+}
+void saves_report(const saves::Result& r) {
+    set_text(IdSavesStatus, W(r.message));
+    log_line(std::string("saves: ") + (r.ok ? "ok: " : "not done: ") + r.message);
+    refresh_saves_page();
+}
+bool saves_game_closed() {
+    if (!g.running) return true;
+    set_text(IdSavesStatus, L"Close the game first: it would overwrite the save.");
+    return false;
+}
+void saves_import(bool folder) {
+    if (!saves_game_closed()) return;
+    const fs::path chosen = pick_path(folder, folder ? L"Choose a folder that contains a J-Stars save (SAVE-DATA.DAT)" : L"Choose a J-Stars save (SAVE-DATA.DAT)");
+    if (chosen.empty()) return;
+    std::string why;
+    const fs::path src = saves::find_importable(chosen, &why);
+    if (src.empty()) { saves_report({false, "Not imported: " + why + ".", {}}); return; }
+    const std::wstring q = L"Replace your current save with\r\n" + src.wstring() + L" ?\r\n\r\nYour current save is backed up first and can be restored on this page.";
+    if (MessageBoxW(g.hwnd, q.c_str(), L"Import save", MB_YESNO | MB_ICONQUESTION) != IDYES) return;
+    saves_report(saves::import_save(src, g.user_dir, backups_root()));
+}
+
 void refresh_online_page() {
     if (g.settings.online && g.online_status == "Online play is off.") g.online_status = "Online play is on. Press Play, then Online Battle > Friendly Match.";
     SendMessageW(ctl(IdOnline), BM_SETCHECK, g.settings.online ? BST_CHECKED : BST_UNCHECKED, 0);
@@ -1318,6 +1425,29 @@ void on_command(int id, int code) {
         break;
     }
     case IdOpenData: ShellExecuteW(g.hwnd, L"open", g.data_root.c_str(), nullptr, nullptr, SW_SHOWNORMAL); break;
+    case IdSaveImportFile: saves_import(false); break;
+    case IdSaveImportFolder: saves_import(true); break;
+    case IdSaveUnlock:
+        if (saves_game_closed() &&
+            MessageBoxW(g.hwnd, L"Unlock every character and set J-Points to 999,999 in your save?\r\n\r\nYour current save is backed up first and can be restored on this page.",
+                        L"Unlock every character", MB_YESNO | MB_ICONQUESTION) == IDYES)
+            saves_report(saves::unlock_all_characters(g.user_dir, backups_root()));
+        break;
+    case IdSaveRestore: {
+        if (!saves_game_closed()) break;
+        const int sel = (int)SendMessageW(ctl(IdSaveBackupList), CB_GETCURSEL, 0, 0);
+        if (sel < 0 || sel >= (int)g_save_backups.size()) break;
+        const std::wstring q = L"Restore the backup " + g_save_backups[sel].filename().wstring() + L" ?\r\n\r\nYour current save is backed up first.";
+        if (MessageBoxW(g.hwnd, q.c_str(), L"Restore save", MB_YESNO | MB_ICONQUESTION) == IDYES)
+            saves_report(saves::restore(g_save_backups[sel], g.user_dir, backups_root()));
+        break;
+    }
+    case IdSaveOpenBackups: {
+        std::error_code ec;
+        fs::create_directories(backups_root(), ec);
+        ShellExecuteW(g.hwnd, L"open", backups_root().c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+        break;
+    }
     case IdLicenses: ShellExecuteW(g.hwnd, L"open", (g.exe.parent_path() / "LICENSES").c_str(), nullptr, nullptr, SW_SHOWNORMAL); break;
     case IdReport: create_report(); break;
     case IdDeletePrepared: {

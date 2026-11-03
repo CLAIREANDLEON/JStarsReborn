@@ -4,7 +4,7 @@
 // ABI is native) and a Windows x64 host (where the attribute selects the System V convention).
 // Parts adapted from HayatoG/iss_pc and Castlesea/infamous-second-son-pc-port are GPL-2.0-or-later.
 #pragma once
-#define JSTARS_RUNTIME_VERSION "0.5.2"
+#define JSTARS_RUNTIME_VERSION "0.5.3"
 #include <stddef.h>
 #include <stdint.h>
 
