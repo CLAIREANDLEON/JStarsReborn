@@ -1,5 +1,21 @@
 # Change log
 
+## 0.5.2 playtest preview (pre-release)
+
+From the 0.5.1 playtest reports (recomplauncher.com):
+- **Online:** the second player's game no longer stops when Search for a Room finds the host's room (`sceNpMatching2SignalingGetPingInfo`
+  was missing). Joining a room is still not implemented, so a match between two players cannot start yet.
+- **Audio:** the sound feed now runs with Windows' real-time audio scheduling (MMCSS "Pro Audio") and refills 20 ms after a dropout instead
+  of resuming with tiny gaps. This targets the "choppy/scratchy" reports. It could not be reproduced on our test PC (0 underruns before
+  and after), so it is unconfirmed.
+- **Errors the game reports:** the system error dialog is implemented (logged; no on-screen popup), so a sign-in or network error returns
+  to the menu instead of stopping the game.
+- **60 fps (experimental, Settings):** the game's own engine rate set to 60 plus its six fixed 30 Hz timing constants, applied in memory
+  only after checking the game build. Battle speed is correct at 60. Some animations or effects may still run at the wrong speed; please
+  report them. 120 fps is not supported (the game's timers cannot run exactly at 120); the planned route is 60 fps plus frame generation.
+- Launcher 0.5.2: new "60 fps (experimental)" setting.
+
+
 ## 0.5.1 playtest preview (pre-release; online still in testing)
 
 - Online is peer-to-peer over the internet, not only the local network: a host's room code (its public address) lets another player

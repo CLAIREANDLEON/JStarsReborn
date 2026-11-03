@@ -15,7 +15,7 @@
 namespace reborn::launcher {
 namespace fs = std::filesystem;
 
-inline constexpr const char* launcher_version = "0.5.1";
+inline constexpr const char* launcher_version = "0.5.2";
 
 // ---- settings (launcher.ini, UTF-8 key=value) ---------------------------------------------------------------------
 struct Settings {
@@ -29,6 +29,7 @@ struct Settings {
     bool online = false;                // experimental: --online, LAN room directory (Friendly Match), see docs/ADR-007-online.md
     bool upnp = true;                   // ask the router to open the two UDP ports (online.hpp)
     std::string lobby_peers;            // friends' room codes or addresses, as typed (comma-separated)
+    int frame_rate = 30;                // 30 (the game's own) or 60 (experimental: runtime --frame-rate 60)
 };
 // Reads settings; unknown keys are ignored, invalid values fall back to defaults (reported in `notes`).
 Settings load_settings(const fs::path& file, std::vector<std::string>* notes = nullptr);

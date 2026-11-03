@@ -149,6 +149,7 @@ Settings load_settings(const fs::path& file, std::vector<std::string>* notes) {
         else if (k == "online") ok = parse_bool(v, s.online);
         else if (k == "upnp") ok = parse_bool(v, s.upnp);
         else if (k == "lobby_peers") s.lobby_peers = sanitize_lobby_peers(v);
+        else if (k == "frame_rate") { int r = 0; ok = parse_int(v, 30, 60, r) && (r == 30 || r == 60); if (ok) s.frame_rate = r; }
         if (!ok) note("settings: ignored invalid value for " + k);
     }
     return s;
@@ -166,7 +167,8 @@ void save_settings(const fs::path& file, const Settings& s) {
       << "player_name=" << sanitize_player_name(s.player_name) << "\n"
       << "online=" << (s.online ? 1 : 0) << "\n"
       << "upnp=" << (s.upnp ? 1 : 0) << "\n"
-      << "lobby_peers=" << sanitize_lobby_peers(s.lobby_peers) << "\n";
+      << "lobby_peers=" << sanitize_lobby_peers(s.lobby_peers) << "\n"
+      << "frame_rate=" << s.frame_rate << "\n";
     write_file_atomic(file, o.str());
 }
 

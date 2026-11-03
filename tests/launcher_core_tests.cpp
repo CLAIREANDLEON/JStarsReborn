@@ -33,6 +33,15 @@ int main(int argc, char** argv) {
         CHECK(r.online && !r.upnp && r.lobby_peers == "192.168.1.20", "the online settings and peer address round trip");
         CHECK(!load_settings(scratch / "missing.ini", nullptr).online, "online is off by default");
     }
+    {
+        Settings f; f.frame_rate = 60;
+        save_settings(scratch / "fps.ini", f);
+        CHECK(load_settings(scratch / "fps.ini", nullptr).frame_rate == 60, "the 60 fps setting round trips");
+        CHECK(load_settings(scratch / "missing.ini", nullptr).frame_rate == 30, "the frame rate is the game's 30 by default");
+        write(scratch / "fps-bad.ini", "frame_rate=120\n");
+        std::vector<std::string> fn;
+        CHECK(load_settings(scratch / "fps-bad.ini", &fn).frame_rate == 30 && !fn.empty(), "an unsupported frame rate falls back to 30 and is reported");
+    }
     // game folder
     CHECK(check_game_folder("").status == GameStatus::NotChosen, "no folder chosen");
     CHECK(check_game_folder(scratch / "does not exist").status == GameStatus::Missing, "missing folder");

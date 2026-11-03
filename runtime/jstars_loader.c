@@ -241,6 +241,54 @@ static void* monitor_main(void* arg) {
     return NULL;
 }
 
+
+// ---- Native frame rate (--frame-rate 60; experimental) -----------------------------------------------------------------
+// The same changes as tools/re/prepare_timing_experiment.py --engine-rate 60 --after-ticks 0 (Codex; measured: battle clock
+// 0.99593x at 59.756 fps) plus tools/re/rate_constants.py (the literal 30 Hz constants). Applied in memory to CUSA01593 v01.02
+// only: every original byte is checked first, and nothing is changed unless all of them match. docs/reverse-engineering/
+// NATIVE_60_EXPERIMENT.md. Default 30: nothing is touched.
+static int native_rate_patch(int rate, const Segment* segs, uint64_t ns, const Reloc* relocs, uint64_t nr) {
+    if (rate == 30) return 0;
+    if (rate != 60) { rt_logf("--frame-rate %d: only 30 and 60 are supported", rate); return -1; }
+    enum { SITE = 0x433e6a, RESUME = 0x433e73, CAVE = 0x730100, COUNTER = 0x81f374, RATE_SITE = 0x1e01b1 };
+    static const uint8_t site_orig[9] = {0x44, 0x89, 0xfe, 0xff, 0x90, 0xf0, 0x00, 0x00, 0x00};
+    static const uint8_t rate_orig[10] = {0xbf, 0x1e, 0x00, 0x00, 0x00, 0xe8, 0x75, 0x41, 0x22, 0x00};
+    static const struct { uint32_t addr; float v30; int step; } k[] = {
+        {0x585c08, 1.0f / 30.0f, 1}, {0x5791ec, 30.0f, 0}, {0x5791f0, 30.0f, 0}, {0x575868, 30.0f, 0}, {0x57586c, 30.0f, 0}, {0x579200, 30.0f, 0}};
+    // Trampoline (prepare_timing_experiment.trampoline(0)): mov esi,r15d; cmp dword [COUNTER],0; jb +5; mov esi,1;
+    // call [rax+0xf0]; jmp RESUME. With threshold 0 the guest requests presentation mode 1 from the start.
+    uint8_t cave[32];
+    size_t n = 0;
+    const uint8_t a1[] = {0x44, 0x89, 0xfe, 0x81, 0x3d};
+    memcpy(cave + n, a1, sizeof a1); n += sizeof a1;
+    int32_t disp = (int32_t)(COUNTER - (CAVE + 13)); memcpy(cave + n, &disp, 4); n += 4;
+    uint32_t thr = 0; memcpy(cave + n, &thr, 4); n += 4;
+    const uint8_t a2[] = {0x72, 0x05, 0xbe, 0x01, 0x00, 0x00, 0x00, 0xff, 0x90, 0xf0, 0x00, 0x00, 0x00, 0xe9};
+    memcpy(cave + n, a2, sizeof a2); n += sizeof a2;
+    int32_t back = (int32_t)(RESUME - (CAVE + (int64_t)n + 4)); memcpy(cave + n, &back, 4); n += 4;
+    // checks
+    if (ns < 1 || segs[0].address != 0 || segs[0].size != 7536868 || !(segs[0].flags & 1)) { rt_logf("--frame-rate 60: not the supported game build (segment layout)"); return -1; }
+    if (CAVE + n > ((segs[0].size + 16383) & ~(uint64_t)16383)) { rt_logf("--frame-rate 60: no room for the trampoline"); return -1; }
+    if (memcmp(image + SITE, site_orig, sizeof site_orig) || memcmp(image + RATE_SITE, rate_orig, sizeof rate_orig)) { rt_logf("--frame-rate 60: original code does not match (other game build?); not applied"); return -1; }
+    for (size_t i = 0; i < n; ++i) if (image[CAVE + i]) { rt_logf("--frame-rate 60: trampoline area is not empty; not applied"); return -1; }
+    for (size_t i = 0; i < sizeof k / sizeof *k; ++i) { float v; memcpy(&v, image + k[i].addr, 4); if (v != k[i].v30) { rt_logf("--frame-rate 60: constant %#x does not match; not applied", k[i].addr); return -1; } }
+    for (uint64_t i = 0; i < nr; ++i) {
+        const uint64_t t = relocs[i].target;
+        const uint64_t ranges[][2] = {{SITE, RESUME}, {CAVE, CAVE + n}, {RATE_SITE, RATE_SITE + 10}};
+        for (size_t r = 0; r < 3; ++r) if (t < ranges[r][1] && t + 8 > ranges[r][0]) { rt_logf("--frame-rate 60: a relocation overlaps the change; not applied"); return -1; }
+        for (size_t c = 0; c < sizeof k / sizeof *k; ++c) if (t < k[c].addr + 4 && t + 8 > k[c].addr) { rt_logf("--frame-rate 60: a relocation overlaps a constant; not applied"); return -1; }
+    }
+    // apply
+    memcpy(image + CAVE, cave, n);
+    image[SITE] = 0xe9; int32_t jmp = (int32_t)(CAVE - SITE - 5); memcpy(image + SITE + 1, &jmp, 4); memset(image + SITE + 5, 0x90, 4);
+    uint32_t r60 = 60; memcpy(image + RATE_SITE + 1, &r60, 4);
+    for (size_t i = 0; i < sizeof k / sizeof *k; ++i) { float v = k[i].step ? 1.0f / 60.0f : 60.0f; memcpy(image + k[i].addr, &v, 4); }
+    rt_logf("--frame-rate 60 (EXPERIMENTAL): engine rate 60, presentation mode 1, %u literal 30 Hz constants set for 60 Hz. "
+            "Battle clock validated; movement/animation parity is not yet fully validated (docs/reverse-engineering/NATIVE_60_EXPERIMENT.md)",
+            (unsigned)(sizeof k / sizeof *k));
+    return 0;
+}
+
 static void* guest_main(void* arg) {
     (void)arg;
     rt_thread_attach_main();
@@ -282,7 +330,7 @@ int main(int argc, char** argv) {
     }
 #endif
     const char *boot = NULL, *logpath = "jstars-boot.log", *gpu_dir = NULL, *capture_dir = NULL, *game_root = NULL, *user_dir = NULL, *pad_script = NULL, *experiments = NULL;
-    int online = 0, trace_net = 0, trace_np = 0, shadnet = 0;
+    int online = 0, trace_net = 0, trace_np = 0, shadnet = 0, frame_rate = 30;
     uint16_t lobby_port = 0;
     int frame_stats = 0, flip_rate = -1, flip_rate_after = 0, ffx_probe = 0;
     const char *vblank_hz = NULL, *present_mode = NULL;
@@ -316,6 +364,7 @@ int main(int argc, char** argv) {
         else if (!strcmp(argv[i], "--experiment") && i + 1 < argc) experiments = argv[++i];
         else if (!strcmp(argv[i], "--online")) online = 1;
         else if (!strcmp(argv[i], "--shadnet")) shadnet = online = 1;
+        else if (!strcmp(argv[i], "--frame-rate") && i + 1 < argc) frame_rate = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--shadnet-server") && i + 1 < argc) { static char e[300]; snprintf(e, sizeof e, "JSTARS_SHADNET_SERVER=%s", argv[++i]); putenv(e); }
         else if (!strcmp(argv[i], "--frame-stats")) frame_stats = 1;
         else if (!strcmp(argv[i], "--ffx-probe")) ffx_probe = 1;
@@ -333,7 +382,7 @@ int main(int argc, char** argv) {
         else if (!strcmp(argv[i], "--capture-max") && i + 1 < argc) g_capture_max = atoi(argv[++i]);
         else { fprintf(stderr, "usage: %s --boot boot-linked.bin [--log file] [--check-imports] [--stop-at-first-gnm] [--selftest-host] [--audit-dump]\n"
                                "       [--game-root dir] [--user-dir dir] [--gpu-dir dir] [--capture-dir dir] [--window WxH] [--max-seconds n] [--capture-flips n]\n"
-                               "       [--capture-interval flips] [--capture-max n] [--pad-script file] [--no-keyboard] [--no-audio] [--volume 0-100] [--dump-audio prefix] [--pad-none] [--sample-threads seconds] [--count-imports] [--trace-draws first,count] [--experiment names] [--frame-stats] [--ffx-probe] [--flip-rate n] [--flip-rate-after s] [--vblank-hz n] [--present-mode Fifo|Mailbox|Immediate] [--online] [--shadnet] [--shadnet-server host[:port]] [--lobby-port n] [--lobby-peer ip[,ip]] [--trace-net] [--trace-np]\n", argv[0]); return 1; }
+                               "       [--capture-interval flips] [--capture-max n] [--pad-script file] [--no-keyboard] [--no-audio] [--volume 0-100] [--dump-audio prefix] [--pad-none] [--sample-threads seconds] [--count-imports] [--trace-draws first,count] [--experiment names] [--frame-rate 30|60] [--frame-stats] [--ffx-probe] [--flip-rate n] [--flip-rate-after s] [--vblank-hz n] [--present-mode Fifo|Mailbox|Immediate] [--online] [--shadnet] [--shadnet-server host[:port]] [--lobby-port n] [--lobby-peer ip[,ip]] [--trace-net] [--trace-np]\n", argv[0]); return 1; }
     }
     if (audit_dump) { extern void rt_audit_dump(void*); rt_audit_dump(stdout); return 0; }
     if (selftest) { rt_log_open(logpath); extern int rt_selftest_host(const char*); char sd[4096]; snprintf(sd, sizeof sd, "%s.selftest", logpath); if (selftest == 2) { extern int rt_selftest_jsnet(const char*); return rt_selftest_jsnet(sd); } return rt_selftest_host(sd); }
@@ -513,6 +562,8 @@ int main(int argc, char** argv) {
     }
     rt_logf("imports bound: %" PRIu64 " host, %" PRIu64 " game modules, %" PRIu64 " unimplemented (trapped)", n_host, n_module, n_trap);
     if (check_only) return n_trap ? 1 : 0;
+    if (native_rate_patch(frame_rate, segs, ns, relocs, nr) && frame_rate != 30)
+        rt_logf("--frame-rate %d was not applied: the game runs at its own 30 fps", frame_rate);
 
     if (os_protect(image, image_size, 0)) fail("protect image");
     for (uint64_t i = 0; i < ns; ++i)

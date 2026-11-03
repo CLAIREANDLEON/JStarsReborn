@@ -56,7 +56,7 @@ enum Id {
     IdPlay = 200, IdStop, IdCancelPrep, IdOpenSessionLogs, IdPrepProgress, IdStatus, IdLastHead, IdLastDetail, IdPrepStep, IdPlayHint,
     IdFolderEdit = 300, IdBrowse, IdRecheck, IdFolderDetails, IdPrepState, IdPrepareNow, IdFolderNote, IdFolderLabel,
     IdWindowSize = 400, IdSound, IdVolume, IdVolumeLabel, IdKeyboard, IdConfirm, IdPlayerName, IdSettingsNote, IdLblWindow, IdLblVolume,
-    IdLblConfirm, IdLblName,
+    IdLblConfirm, IdLblName, IdFrameRate60,
     IdOnline = 450, IdOnlineIntro, IdUpnp, IdLblMyCode, IdMyCode, IdFindCode, IdCopyCode, IdLblPeers, IdLobbyPeers, IdOnlineStatus, IdOnlineNote,
     IdControlsList = 500, IdControlsNote,
     IdOpenLatest = 600, IdOpenLogs, IdReport, IdDeletePrepared, IdOpenData, IdLicenses, IdHelpInfo, IdHelpText,
@@ -280,6 +280,7 @@ void layout() {
         place(IdSound, x0, sy, S(400), S(26)); sy += S(38);
         place(IdLblVolume, x0, sy + S(4), lw, S(24)); place(IdVolume, fx, sy, S(260), S(32)); place(IdVolumeLabel, fx + S(268), sy + S(4), S(60), S(24)); sy += S(48);
         place(IdKeyboard, x0, sy, cw, S(26)); sy += S(42);
+        place(IdFrameRate60, x0, sy, cw, S(26)); sy += S(42);
         place(IdLblConfirm, x0, sy + S(4), lw, S(24)); place(IdConfirm, fx, sy, S(260), S(300)); sy += S(48);
         place(IdLblName, x0, sy + S(4), lw, S(24)); place(IdPlayerName, fx, sy, S(260), S(28)); sy += S(52);
         place(IdSettingsNote, x0, sy, cw, S(72));
@@ -643,6 +644,7 @@ void launch_game() {
     if (g.settings.sound) cmd += L" --volume " + std::to_wstring(g.settings.volume);
     else cmd += L" --no-audio";
     if (!g.settings.keyboard) cmd += L" --no-keyboard";
+    if (g.settings.frame_rate == 60) cmd += L" --frame-rate 60"; // experimental; the runtime checks the game build first
     // Experimental online test: real sockets and the LAN room directory. The online probe makes a console online function that
     // is not implemented yet answer "signed out" (the game shows its communication error) instead of stopping the game.
     if (g.settings.online) {
@@ -1055,6 +1057,7 @@ void build_controls() {
     SendMessageW(ctl(IdVolume), TBM_SETPAGESIZE, 0, 10);
     add(PageSettings, L"STATIC", L"", SS_LEFT, IdVolumeLabel);
     add(PageSettings, L"BUTTON", L"Use the keyboard as a controller when no controller is connected", BS_AUTOCHECKBOX | WS_TABSTOP, IdKeyboard);
+    add(PageSettings, L"BUTTON", L"60 fps (experimental: battle speed is correct; some animations may still be off)", BS_AUTOCHECKBOX | WS_TABSTOP, IdFrameRate60);
     add(PageSettings, L"STATIC", L"Confirm button", SS_LEFT, IdLblConfirm);
     add(PageSettings, WC_COMBOBOXW, L"", CBS_DROPDOWNLIST | WS_TABSTOP, IdConfirm);
     SendMessageW(ctl(IdConfirm), CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Cross confirms (Western layout)"));
@@ -1164,6 +1167,7 @@ void load_settings_into_ui() {
     set_text(IdVolumeLabel, std::to_wstring(g.settings.volume) + L" %");
     enable(IdVolume, g.settings.sound);
     SendMessageW(ctl(IdKeyboard), BM_SETCHECK, g.settings.keyboard ? BST_CHECKED : BST_UNCHECKED, 0);
+    SendMessageW(ctl(IdFrameRate60), BM_SETCHECK, g.settings.frame_rate == 60 ? BST_CHECKED : BST_UNCHECKED, 0);
     SendMessageW(ctl(IdConfirm), CB_SETCURSEL, g.settings.confirm_button == "circle" ? 1 : 0, 0);
     set_text(IdPlayerName, W(g.settings.player_name));
     refresh_online_page();
@@ -1343,6 +1347,10 @@ void on_command(int id, int code) {
         break;
     case IdKeyboard:
         g.settings.keyboard = SendMessageW(ctl(IdKeyboard), BM_GETCHECK, 0, 0) == BST_CHECKED;
+        save_settings_now();
+        break;
+    case IdFrameRate60:
+        g.settings.frame_rate = SendMessageW(ctl(IdFrameRate60), BM_GETCHECK, 0, 0) == BST_CHECKED ? 60 : 30;
         save_settings_now();
         break;
     case IdOnline:
