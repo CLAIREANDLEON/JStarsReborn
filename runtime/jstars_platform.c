@@ -47,7 +47,33 @@ enum { D_MSG, D_ERROR, D_SAVE, D_IME, D_INVITE, D_COMMERCE, D_PROFILE, D_COUNT }
     static int GUEST_ABI tag##_init(void) { g_dlg[idx] = DLG_INITIALIZED; return 0; } \
     static int GUEST_ABI tag##_term(void) { g_dlg[idx] = DLG_NONE; return 0; } \
     static int GUEST_ABI tag##_status(void) { return g_dlg[idx]; }
-DLG_FN(msg, D_MSG) DLG_FN(err, D_ERROR) DLG_FN(save, D_SAVE) DLG_FN(invite, D_INVITE) DLG_FN(commerce, D_COMMERCE) DLG_FN(profile, D_PROFILE)
+DLG_FN(msg, D_MSG) DLG_FN(save, D_SAVE) DLG_FN(invite, D_INVITE) DLG_FN(commerce, D_COMMERCE) DLG_FN(profile, D_PROFILE)
+// libSceErrorDialog (contract from upstream shadPS4 error_dialog.cpp). The console shows "An error has occurred" with the code and
+// waits for OK. There is no system dialog on this host: Open logs the code and the dialog reports FINISHED, as if the player
+// had pressed OK at once, so the game continues on its own error path (e.g. a sign-in error returns to the menu).
+enum { CD_NOT_INITIALIZED = (int)0x80B80003, CD_ALREADY_INITIALIZED = (int)0x80B80004, CD_INVALID_STATE = (int)0x80B80006,
+       CD_NOT_RUNNING = (int)0x80B8000B, CD_ARG_NULL = (int)0x80B8000D };
+typedef struct { int32_t size; int32_t error_code; int32_t user_id; int32_t reserved; } ErrorDialogParam;
+static int GUEST_ABI err_init(void) {
+    if (g_dlg[D_ERROR] != DLG_NONE) return CD_ALREADY_INITIALIZED;
+    g_dlg[D_ERROR] = DLG_INITIALIZED;
+    return 0;
+}
+static int GUEST_ABI err_open(const ErrorDialogParam* p) {
+    if (g_dlg[D_ERROR] != DLG_INITIALIZED && g_dlg[D_ERROR] != DLG_FINISHED) return CD_INVALID_STATE;
+    if (!p) return CD_ARG_NULL;
+    rt_logf("sceErrorDialogOpen: the game reports system error 0x%08X (user %d); no system dialog on this host, treated as "
+            "acknowledged", (unsigned)p->error_code, p->user_id);
+    g_dlg[D_ERROR] = DLG_FINISHED;
+    return 0;
+}
+static int GUEST_ABI err_close(void) { return g_dlg[D_ERROR] == DLG_RUNNING ? (g_dlg[D_ERROR] = DLG_FINISHED, 0) : CD_NOT_RUNNING; }
+static int GUEST_ABI err_term(void) {
+    if (g_dlg[D_ERROR] == DLG_NONE) return CD_NOT_INITIALIZED;
+    g_dlg[D_ERROR] = DLG_NONE;
+    return 0;
+}
+static int GUEST_ABI err_status(void) { return g_dlg[D_ERROR]; }
 static int GUEST_ABI cd_init(void) { return 0; }
 // The game updates a save-data progress bar while it writes the save file, without the system dialog being open. No system
 // dialog exists on this host, so the call reports the console's NOT_RUNNING error (value from upstream shadPS4 commondialog.h);
@@ -1434,6 +1460,9 @@ const HostSymbol platform_symbols[] = {
     {"sceErrorDialogInitialize", "libSceErrorDialog", (void*)err_init, 0},
     {"sceErrorDialogTerminate", "libSceErrorDialog", (void*)err_term, 0},
     {"sceErrorDialogUpdateStatus", "libSceErrorDialog", (void*)err_status, 0},
+    {"sceErrorDialogGetStatus", "libSceErrorDialog", (void*)err_status, 0},
+    {"sceErrorDialogOpen", "libSceErrorDialog", (void*)err_open, 0},
+    {"sceErrorDialogClose", "libSceErrorDialog", (void*)err_close, 0},
     {"sceSaveDataDialogInitialize", "libSceSaveDataDialog", (void*)save_init, 0},
     {"sceSaveDataDialogTerminate", "libSceSaveDataDialog", (void*)save_term, 0},
     {"sceSaveDataDialogUpdateStatus", "libSceSaveDataDialog", (void*)save_status, 0},

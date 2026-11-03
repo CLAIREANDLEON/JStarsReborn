@@ -931,6 +931,18 @@ int rt_selftest_host(const char* scratch_dir) {
     }
 
     (void)fsbad;
+    {   // libSceErrorDialog: upstream contract; Open finishes at once on this host (no system dialog)
+        struct { int32_t size, code, user, reserved; } prm = {16, (int32_t)0x80550C01, 1, 0};
+        CHECK(F(int, "sceErrorDialogOpen", (const void*))(&prm) == (int)0x80B80006, "error dialog: Open before Initialize is INVALID_STATE");
+        CHECK(F(int, "sceErrorDialogInitialize", (void))() == 0, "error dialog: Initialize");
+        CHECK(F(int, "sceErrorDialogInitialize", (void))() == (int)0x80B80004, "error dialog: a second Initialize is ALREADY_INITIALIZED");
+        CHECK(F(int, "sceErrorDialogOpen", (const void*))(NULL) == (int)0x80B8000D, "error dialog: Open(NULL) is ARG_NULL");
+        CHECK(F(int, "sceErrorDialogOpen", (const void*))(&prm) == 0 && F(int, "sceErrorDialogUpdateStatus", (void))() == 3,
+              "error dialog: Open logs the code and reports FINISHED");
+        CHECK(F(int, "sceErrorDialogOpen", (const void*))(&prm) == 0, "error dialog: it can be opened again after finishing");
+        CHECK(F(int, "sceErrorDialogClose", (void))() == (int)0x80B8000B, "error dialog: Close when not running is NOT_RUNNING");
+        CHECK(F(int, "sceErrorDialogTerminate", (void))() == 0 && F(int, "sceErrorDialogUpdateStatus", (void))() == 0, "error dialog: Terminate");
+    }
     selftest_jsnet(scratch_dir);
     rt_logf("selftest-host: %d checks, %d failed", g_checks, g_fail);
     return g_fail ? 1 : 0;
