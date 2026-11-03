@@ -97,6 +97,7 @@ typedef struct {
     uint64_t frames_rendered;    // frames the device callback has mixed and handed to the device
     uint64_t underruns;          // device callbacks that needed more frames from an active port than it had queued
     int ports_open;
+    int realtime;                // device feed thread: 2 MMCSS "Pro Audio", 1 time-critical priority, 0 normal
 } OsAudioStats;
 int os_audio_start(void);                    // opens the default render endpoint (idempotent); 0 on success
 int os_audio_port_new(void);                 // port index (0..7) or -1

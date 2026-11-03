@@ -19,7 +19,10 @@
 
 #define PORTS 8
 #define RING 4096                      // stereo frames per port (about 85 ms at 48 kHz)
-typedef struct { int used; float buf[RING * 2]; unsigned rd, wr; unsigned count; uint64_t last_data_ms; } Port;
+// After a port runs dry while the game is still feeding it, it waits until PREROLL frames are queued before playing again
+// (one short gap instead of a run of tiny ones, which sounds scratchy). A port whose feed stopped plays out what it has.
+#define PREROLL 960                    // 20 ms at 48 kHz
+typedef struct { int used; float buf[RING * 2]; unsigned rd, wr; unsigned count; uint64_t last_data_ms; int refilling; } Port;
 // KSDATAFORMAT_SUBTYPE_IEEE_FLOAT, spelled out here to avoid depending on ksmedia.h's conditional GUID definitions
 static const GUID k_subtype_float = {0x00000003, 0x0000, 0x0010, {0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}};
 static Port g_port[PORTS];
@@ -33,6 +36,15 @@ static IAudioClient* g_client; static IAudioRenderClient* g_render; static UINT3
 static void* render_thread(void* unused) {
     (void)unused;
     CoInitializeEx(NULL, COINIT_MULTITHREADED);
+    // Real-time scheduling for the device feed: MMCSS "Pro Audio" (avrt.dll), else a time-critical thread priority. Without it
+    // a busy CPU (game threads, shader compilation) can delay this thread past the device's period: an audible click.
+    {
+        HMODULE avrt = LoadLibraryW(L"avrt.dll");
+        typedef HANDLE(WINAPI * SetMm)(LPCWSTR, LPDWORD);
+        SetMm set = avrt ? (SetMm)(void*)GetProcAddress(avrt, "AvSetMmThreadCharacteristicsW") : NULL;
+        DWORD task = 0;
+        g_stats.realtime = set && set(L"Pro Audio", &task) ? 2 : SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL) ? 1 : 0;
+    }
     for (;;) {
         if (WaitForSingleObject(g_event, 200) == WAIT_FAILED) break;
         UINT32 pad = 0;
@@ -48,13 +60,16 @@ static void* render_thread(void* unused) {
         for (int p = 0; p < PORTS; ++p) {
             Port* pt = &g_port[p];
             if (!pt->used) continue;
+            const int feeding = now - pt->last_data_ms < 50;
+            if (pt->refilling && (pt->count >= PREROLL || !feeding)) pt->refilling = 0;
+            if (pt->refilling) continue;
             unsigned take = pt->count < n ? pt->count : n;
             for (unsigned i = 0; i < take; ++i) {
                 unsigned r = (pt->rd + i) % RING;
                 out[i * 2] += pt->buf[r * 2]; out[i * 2 + 1] += pt->buf[r * 2 + 1];
             }
             pt->rd = (pt->rd + take) % RING; pt->count -= take;
-            if (take < n && now - pt->last_data_ms < 250) g_stats.underruns++; // an active port had too little queued
+            if (take < n && feeding) { g_stats.underruns++; pt->refilling = 1; } // an active port had too little queued
         }
         g_stats.frames_rendered += n;
         pthread_cond_broadcast(&g_space);

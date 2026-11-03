@@ -174,10 +174,10 @@ static void ao_meter(int handle, AoPort* p) {
     if (!p->last_report_ms) p->last_report_ms = now;
     if (now - p->last_report_ms >= 5000) {
         OsAudioStats st; os_audio_stats(&st);
-        rt_logf("audio port %d: last %.1f s submitted by the game: peak %.4f (any input channel %.4f; downmix before limiter %.4f, %llu samples soft-limited), rms %.5f (%llu frames total, %llu silent buffers of the last window)%s; device: %llu frames submitted, %llu rendered, %llu underruns",
+        rt_logf("audio port %d: last %.1f s submitted by the game: peak %.4f (any input channel %.4f; downmix before limiter %.4f, %llu samples soft-limited), rms %.5f (%llu frames total, %llu silent buffers of the last window)%s; device: %llu frames submitted, %llu rendered, %llu underruns, feed thread %s",
                 handle, (double)p->metered_frames / p->freq, (double)p->peak, (double)p->raw_peak, (double)p->dm_peak, (unsigned long long)p->limited, p->metered_frames ? sqrt(p->sumsq / (2.0 * (double)p->metered_frames)) : 0.0,
                 (unsigned long long)p->total_frames, (unsigned long long)p->silent_buffers, p->host_port >= 0 ? "" : " [null sink]",
-                (unsigned long long)st.frames_submitted, (unsigned long long)st.frames_rendered, (unsigned long long)st.underruns);
+                (unsigned long long)st.frames_submitted, (unsigned long long)st.frames_rendered, (unsigned long long)st.underruns, st.realtime == 2 ? "MMCSS Pro Audio" : st.realtime == 1 ? "time-critical" : "normal priority");
         p->sumsq = 0; p->peak = 0; p->raw_peak = 0; p->dm_peak = 0; p->limited = 0; p->metered_frames = 0; p->silent_buffers = 0; p->last_report_ms = now;
         wav_finish(p);
     }
