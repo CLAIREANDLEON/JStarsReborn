@@ -7,7 +7,9 @@ param(
     [string]$Python = 'python',
     [ValidateRange(0,100)][int]$Volume = 0,
     [ValidateRange(0,86400)][int]$MaxSeconds = 0,
-    [switch]$PrepareOnly
+    [switch]$PrepareOnly,
+    # Also rewrite the literal 30 Hz constants (tools/re/rate_constants.py; Claude 2026-11-03). Off: the original candidate.
+    [switch]$RateConstants
 )
 $ErrorActionPreference = 'Stop'
 $patcher = Join-Path $PSScriptRoot 're\prepare_timing_experiment.py'
@@ -24,6 +26,13 @@ $null = New-Item -ItemType Directory -Path $run
 $testBoot = Join-Path $run 'boot-experiment.bin'
 & $Python $patcher --eboot (Join-Path $Game 'eboot.bin') --boot $Boot --out $testBoot --after-ticks 0 --engine-rate 60
 if ($LASTEXITCODE -ne 0) { throw 'Timing experiment preparation failed; the game was not started.' }
+if ($RateConstants) {
+    $constants = Join-Path $PSScriptRoot 're\rate_constants.py'
+    $patched = Join-Path $run 'boot-experiment-constants.bin'
+    & $Python $constants --boot $testBoot --out $patched --rate 60
+    if ($LASTEXITCODE -ne 0) { throw 'Rate constants could not be applied; the game was not started.' }
+    $testBoot = $patched
+}
 $names = Join-Path (Split-Path -Parent $Boot) 'import-names.tsv'
 if (Test-Path -LiteralPath $names) { Copy-Item -LiteralPath $names -Destination (Join-Path $run 'import-names.tsv') }
 $manifest = [ordered]@{
@@ -31,6 +40,7 @@ $manifest = [ordered]@{
     runtime_sha256 = $runtimeHash
     boot_sha256 = (Get-FileHash -LiteralPath $testBoot -Algorithm SHA256).Hash.ToLowerInvariant()
     engine_rate = 60
+    rate_constants = [bool]$RateConstants
     presentation_hz = 60
     volume = $Volume
 }
