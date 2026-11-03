@@ -73,11 +73,17 @@ enum {
     PADBTN_TRIANGLE = 0x1000, PADBTN_CIRCLE = 0x2000, PADBTN_CROSS = 0x4000, PADBTN_SQUARE = 0x8000, PADBTN_TOUCHPAD = 0x100000
 };
 typedef struct { uint32_t buttons; uint8_t lx, ly, rx, ry, l2, r2; } OsPadState; // sticks 0..255 (128 = centre), triggers 0..255
-enum { OS_PAD_NONE = 0, OS_PAD_XINPUT = 1, OS_PAD_KEYBOARD = 2 };
-// Fills `out` from the first connected XInput controller, else (allow_keyboard and window_focused) from the keyboard.
+enum { OS_PAD_NONE = 0, OS_PAD_XINPUT = 1, OS_PAD_KEYBOARD = 2, OS_PAD_SONY = 4 }; // 3 is used by jstars_input.c for scripted input
+// Fills `out` from a native Sony controller (DualSense / DualShock 4, jstars_sonypad.c), else the first connected XInput controller, else (allow_keyboard and window_focused) from the keyboard.
 // Returns the source used, or OS_PAD_NONE (out is neutral). Linux builds have no controller source yet.
 int os_pad_poll(OsPadState* out, int allow_keyboard, int window_focused);
-void os_pad_rumble(int large, int small); // 0..255 motor speeds on the XInput controller in use (no-op without one)
+void os_pad_rumble(int large, int small); // 0..255 motor speeds on the controller in use (no-op without one)
+// Native Sony controllers (Windows HID; other platforms: never connected). Poll returns 1 and fills `out` while one is connected.
+int os_sonypad_poll(OsPadState* out);
+const char* os_sonypad_name(void);         // "DualSense (USB, 054c:0ce6)" etc., "" before the first connection
+void os_sonypad_rumble(int strong, int weak);
+int os_sonypad_parse(const uint8_t* report, unsigned n, int dualsense, int bluetooth, OsPadState* out); // 1 = state decoded
+unsigned os_sonypad_rumble_report(uint8_t* out, unsigned cap, int dualsense, int bluetooth, unsigned out_len, uint8_t seq, int strong, int weak);
 
 // ---- thread sampling (diagnostics: where is each guest thread right now) -----------------------------------------
 typedef struct { uintptr_t rip, rsp, rbp; int nwords; uintptr_t words[256]; } OsThreadSample;
