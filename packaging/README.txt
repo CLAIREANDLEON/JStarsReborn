@@ -1,4 +1,4 @@
-JStarsReborn 0.5.1 (playtest preview) - unofficial Windows PC port runtime for J-Stars Victory VS+ (PS4, CUSA01593 version 01.02)
+JStarsReborn 0.5.2 (playtest preview) - unofficial Windows PC port runtime for J-Stars Victory VS+ (PS4, CUSA01593 version 01.02)
 ====================================================================================================
 
 Legal (read DISCLAIMER.txt)
@@ -34,6 +34,11 @@ Problems
   Troubleshooting page: open the latest session logs or create a diagnostic report (a ZIP you save yourself;
   it is never uploaded and contains no game files, saves or prepared data).
 
+60 fps (experimental, off by default)
+  Settings > "60 fps (experimental)". The game runs its own engine at 60 instead of 30; it is applied only after the runtime
+  checks the game build (otherwise the game runs at 30 as usual). Battle speed is correct at 60; some animations or effects
+  may still be off - please report them with a diagnostic report. 120 fps is not offered.
+
 Online (experimental, still in testing, off by default)
   Online play is peer-to-peer: the two games talk to each other directly. There is no JStarsReborn server and nothing
   contacts PlayStation Network; no account is used. Turn it on in the launcher's Online page.
@@ -43,7 +48,8 @@ Online (experimental, still in testing, off by default)
     no UPnP, forward UDP 47391 and 3658 to the host PC by hand and use the host's public address instead of a code.
   - Then both press Play > Online Battle > Friendly Match: the host chooses Create a Room, the other player Search for a Room.
   - Windows may ask to allow JStarsReborn on networks: allow it.
-  What works: hosting a room, and seeing other players' rooms. What does NOT work yet: joining a room, so a match
+  What works: hosting a room, and seeing other players' rooms (0.5.2 fixes the crash when a search found a room).
+  What does NOT work yet: joining a room, so a match
   between two players cannot start yet; Rank Match and Quick Match. Unfinished functions make the game show
   "A communication error has occurred" and return to the menu.
 

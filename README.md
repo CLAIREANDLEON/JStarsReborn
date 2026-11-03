@@ -11,14 +11,22 @@ No game files, keys, firmware or decryption tools are included or downloaded. Th
 > Use only a dump you made yourself from a copy of the game you legally own. Piracy is not supported in any form.
 > Provided as is, without warranty. Read the full [DISCLAIMER.md](DISCLAIMER.md).
 
-**State (0.5.1, pre-release):** on the owner's Windows 11 PC the game boots, shows the title, creates and loads its own
+**State (0.5.2, pre-release):** on the owner's Windows 11 PC the game boots, shows the title, creates and loads its own
 save data, and runs the menus and Free Battle matches, driven by scripted test input and by a live controller. Movies are
 skipped (no decoder) and trophies are an empty set. Whether it plays well and sounds right has **not** been confirmed by a
-human tester yet. See [CHANGELOG.md](CHANGELOG.md) for the full list of known issues.
+human tester yet. See [CHANGELOG.md](CHANGELOG.md) for the full list of known issues, and
+[docs/RELEASE_NOTES_0.5.2.md](docs/RELEASE_NOTES_0.5.2.md) for what changed after the 0.5.1 playtest.
+
+> **60 fps (experimental):** the launcher's Settings page has a "60 fps" option. It sets the game's own engine rate to 60 and its fixed
+> 30 Hz timing constants for 60, only after checking the game build. In a scripted 6-minute Free Battle the game held 60 fps and the battle
+> timer ran in real time; some animations or effects may still be off. 120 fps is not offered (the game's timers cannot run exactly at
+> 120); the plan is 60 fps plus frame generation. See [docs/reverse-engineering/NATIVE_60_EXPERIMENT.md](docs/reverse-engineering/NATIVE_60_EXPERIMENT.md).
 
 > **Online play is still in testing.** It is peer-to-peer (no server) and off by default: turn it on in the launcher's
 > **Online** page. A host can open its ports with UPnP and share a room code; players on the same network or with the code
-> see the host's Friendly Match room. **Joining a room, and so an actual match between two players, does not work yet.**
+> see the host's Friendly Match room (0.5.2 fixes the search crash testers hit). **Joining a room, and so an actual match between two
+> players, does not work yet.** A server-based online stack (shadPS4's network code, [docs/ADR-008-online-shadnet.md](docs/ADR-008-online-shadnet.md))
+> is in the source but switched off until a lobby server is settled.
 > Nothing contacts PlayStation Network and no account is used. See [docs/ADR-007-online.md](docs/ADR-007-online.md).
 
 ## Using it (Windows)
@@ -72,6 +80,9 @@ installed llvm-mingw C++ libraries remains unresolved.
   (`evidence/windows-launcher-0.4.0/`).
 - 0.5.0 (pre-release): online in testing: real sockets, local sign-in answers, Matching2/Signaling, room hosting and search;
   launcher online setting.
+- 0.5.1 (pre-release): peer-to-peer room codes over the internet, UPnP, launcher Online page.
+- 0.5.2 (pre-release): fixes from the first public playtest (online room-search crash, audio feed priority, system error dialog) and
+  an experimental 60 fps option ([release notes](docs/RELEASE_NOTES_0.5.2.md)).
 
 ## License
 
