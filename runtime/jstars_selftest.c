@@ -46,7 +46,7 @@ static void GUEST_ABI m2_request_cb(uint16_t ctx_id, uint32_t req_id, uint16_t e
 static volatile int rr_calls; static volatile uint16_t rr_event; static volatile int rr_error;
 static uint8_t rr_room[0x58], rr_member[0x58]; static volatile uint64_t rr_members_num, rr_left_room;
 static volatile int rr_me_is_owner; static volatile uint32_t rr_total, rr_results; static uint8_t rr_ext[0x88], rr_owner[36];
-static volatile uint32_t rr_attr_num; static volatile uint16_t rr_attr_id;
+static volatile uint32_t rr_attr_num; static volatile uint16_t rr_attr_id; static uint8_t rr_ping[0x28];
 static void GUEST_ABI room_request_cb(uint16_t ctx_id, uint32_t req_id, uint16_t event, int error, const void* data, void* arg) {
     (void)ctx_id; (void)req_id; (void)arg;
     rr_event = event; rr_error = error;
@@ -55,6 +55,8 @@ static void GUEST_ABI room_request_cb(uint16_t ctx_id, uint32_t req_id, uint16_t
         const uint8_t* room; const uint8_t* members; const uint8_t* me; const uint8_t* owner;
         memcpy(&room, d, 8); memcpy(&members, d + 8, 8); memcpy((void*)&rr_members_num, d + 16, 8); memcpy(&me, d + 24, 8); memcpy(&owner, d + 32, 8);
         memcpy(rr_room, room, 0x58); memcpy(rr_member, members, 0x58); rr_me_is_owner = me == owner && me == members;
+    } else if (event == 0x0E01 && data) {
+        memcpy(rr_ping, data, 0x28);
     } else if (event == 0x0103 && data) {
         memcpy((void*)&rr_left_room, data, 8);
     } else if (event == 0x0106 && data) {
@@ -677,6 +679,15 @@ int rt_selftest_host(const char* scratch_dir) {
             uint8_t sd[56]; memset(sd, 0, sizeof sd); memcpy(sd, &room_id, 8);
             rr_calls = 0;
             CHECK(M2REQ("sceNpMatching2SetRoomDataExternal")(ctx, sd, opt, &rid) == 0 && rr_wait(1) == 1 && rr_event == 0x0004, "m2 rooms: SetRoomDataExternal on the room answers");
+            {   // SignalingGetPingInfo on a room (0.5.1 playtest: the guest stopped here after SearchRoom found the host's room)
+                uint8_t pq[24]; memset(pq, 0, sizeof pq); memcpy(pq, &room_id, 8);
+                rr_calls = 0; memset(rr_ping, 0xEE, sizeof rr_ping);
+                uint64_t prid; uint32_t prtt; uint16_t psrv;
+                const int ok = M2REQ("sceNpMatching2SignalingGetPingInfo")(ctx, pq, opt, &rid) == 0 && rr_wait(1) == 1 && rr_event == 0x0E01 && rr_error == 0;
+                memcpy(&psrv, rr_ping, 2); memcpy(&prid, rr_ping + 8, 8); memcpy(&prtt, rr_ping + 16, 4);
+                CHECK(ok && prid == room_id && psrv == 1 && prtt == 0, "m2: SignalingGetPingInfo answers event 0x0E01 with the room id and rtt 0");
+                CHECK(M2REQ("sceNpMatching2SignalingGetPingInfo")(ctx, NULL, opt, &rid) != 0, "m2: SignalingGetPingInfo without a request is refused");
+            }
             uint8_t lv[32]; memset(lv, 0, sizeof lv); const uint64_t wrong = room_id + 1; memcpy(lv, &wrong, 8);
             CHECK(M2REQ("sceNpMatching2LeaveRoom")(ctx, lv, opt, &rid) == (int)0x80550C30, "m2 rooms: leaving a room this player is not in reports ROOM_NOT_FOUND");
             memcpy(lv, &room_id, 8); rr_calls = 0;

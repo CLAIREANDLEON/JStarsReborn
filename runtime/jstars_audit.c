@@ -174,6 +174,7 @@ static const AuditRow rows[] = {
     {"sceMsgDialogTerminate", "diagnostic-stub", "state only"},
     {"sceMsgDialogUpdateStatus", "diagnostic-stub", "reports the stored state only"},
     {"sceErrorDialogInitialize", "partial", "state machine as upstream; ALREADY_INITIALIZED on a second call"},
+    {"sceNpMatching2SignalingGetPingInfo", "partial", "answers event 0x0E01 with the room ids; rtt 0 (no signaling ping measured, as upstream without data)"},
     {"sceErrorDialogOpen", "partial", "logs the error code; no on-screen dialog, reported FINISHED as if acknowledged"},
     {"sceErrorDialogClose", "partial", "NOT_RUNNING unless running (never, since Open finishes at once)"},
     {"sceErrorDialogTerminate", "diagnostic-stub", "state only"},

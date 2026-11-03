@@ -828,6 +828,32 @@ static int GUEST_ABI m2_set_room_data_external(uint16_t ctx_id, const void* requ
     return 0;
 }
 
+// sceNpMatching2SignalingGetPingInfo(ctx, { roomId; pad[16] }, opt, reqId): answers event 0x0E01 with the 0x28-byte
+// { u16 serverId; pad[2]; u32 worldId; u64 roomId; u32 rtt (microseconds); reserved[20] } (shadPS4 np_types2.h). The game
+// calls it on a room found by SearchRoom (0.5.1 stopped there: playtest report 2026-11-03). No signaling connection measures a
+// ping in this mode, so rtt is 0, which is also what upstream shadPS4 reports when it has no measurement.
+enum { M2_REQUEST_EVENT_SIGNALING_GET_PING_INFO = 0x0E01 };
+typedef struct { uint16_t server_id; uint8_t pad[2]; uint32_t world_id; uint64_t room_id; uint32_t rtt; uint8_t reserved[20]; } M2PingInfo;
+_Static_assert(sizeof(M2PingInfo) == 0x28, "SceNpMatching2SignalingGetPingInfoResponse is 0x28 bytes");
+static int GUEST_ABI m2_signaling_get_ping_info(uint16_t ctx_id, const void* request, const void* opt, uint32_t* req_id) {
+    int i, rc = m2_begin_request(ctx_id, request, opt, req_id, &i);
+    if (rc) return rc;
+    uint64_t room_id;
+    memcpy(&room_id, request, 8);
+    M2PingInfo* a = (M2PingInfo*)calloc(1, sizeof *a);
+    if (!a) { pthread_mutex_unlock(&g_m2_lock); return M2_ERR_OUT_OF_MEMORY; }
+    a->server_id = M2_SERVER_ID;
+    a->world_id = M2_LOCAL_WORLD_ID;
+    a->room_id = room_id;
+    const uint32_t id = m2_post_request_locked(i, ctx_id, M2_REQUEST_EVENT_SIGNALING_GET_PING_INFO, 0, a);
+    pthread_mutex_unlock(&g_m2_lock);
+    if (!id) return M2_ERR_OUT_OF_MEMORY;
+    *req_id = id;
+    rt_logf("sceNpMatching2SignalingGetPingInfo(context %u, room %016llx) -> request %u: no ping is measured in this mode (rtt 0)",
+            ctx_id, (unsigned long long)room_id, id);
+    return 0;
+}
+
 // Search operators: SCE_NP_MATCHING2_OPERATOR_EQ..GE = 1..6 (the PS3 values, as in RPCS3's sceNp2.h; shadPS4 does not
 // name them). An unknown operator does not exclude a room, and is logged.
 static int m2_int_match(uint8_t op, uint32_t have, uint32_t want) {
@@ -1444,6 +1470,7 @@ const HostSymbol platform_symbols[] = {
     {"sceNpMatching2LeaveRoom", "libSceNpMatching2", (void*)m2_leave_room, 0},
     {"sceNpMatching2SetRoomDataExternal", "libSceNpMatching2", (void*)m2_set_room_data_external, 0},
     {"sceNpMatching2SearchRoom", "libSceNpMatching2", (void*)m2_search_room, 0},
+    {"sceNpMatching2SignalingGetPingInfo", "libSceNpMatching2", (void*)m2_signaling_get_ping_info, 0},
     {"sceNpSignalingInitialize", "libSceNpSignaling", (void*)sig_initialize, 0},
     {"sceNpSignalingTerminate", "libSceNpSignaling", (void*)sig_terminate, 0},
     {"sceNpSignalingCreateContext", "libSceNpSignaling", (void*)sig_create_context, 0},
