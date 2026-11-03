@@ -1,7 +1,10 @@
 # Native high-frame-rate investigation
 
-Checkpoint: 2026-11-02, source base `88dcdb3`. This is research, not a working
-60 FPS gameplay patch. Default gameplay remains unchanged.
+Checkpoint: 2026-11-02, source base `88dcdb3`. The initial research below is
+followed by a live watchpoint investigation and an opt-in engine-rate candidate
+in [NATIVE_60_EXPERIMENT.md](NATIVE_60_EXPERIMENT.md). That candidate corrects the
+measured 60 FPS battle countdown; full gameplay-speed validation is pending.
+Default gameplay remains unchanged.
 
 ## What is established
 
@@ -102,7 +105,8 @@ Requires Python and Capstone. From the source root, with placeholder paths:
 python tools/re/timing_candidates.py <owned-game-folder> --out <private-report.json> --address 0x81f370 --address 0x81f374 --address 0x81f378
 ```
 
-Executed on the identified dump; selected leads inspected locally. The tool
+Initial pass: executed on the identified dump; selected leads inspected locally. The tool
 writes addresses, operation names and counts only, without input paths or game
 bytes. No timing mutation, new GPU build, or new in-game run was performed during
-this research pass. Resume with live observation of the listed leads.
+that initial research pass. The subsequent live investigation and test results
+are recorded in [NATIVE_60_EXPERIMENT.md](NATIVE_60_EXPERIMENT.md).
