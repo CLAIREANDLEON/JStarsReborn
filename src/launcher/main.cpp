@@ -59,7 +59,7 @@ enum Id {
     IdPlay = 200, IdStop, IdCancelPrep, IdOpenSessionLogs, IdPrepProgress, IdStatus, IdLastHead, IdLastDetail, IdPrepStep, IdPlayHint,
     IdFolderEdit = 300, IdBrowse, IdRecheck, IdFolderDetails, IdPrepState, IdPrepareNow, IdFolderNote, IdFolderLabel,
     IdWindowSize = 400, IdSound, IdVolume, IdVolumeLabel, IdKeyboard, IdConfirm, IdPlayerName, IdSettingsNote, IdLblWindow, IdLblVolume,
-    IdLblConfirm, IdLblName, IdFrameRate60, IdFullscreen, IdWidescreen, IdMatchRefresh,
+    IdLblConfirm, IdLblName, IdFrameRate60, IdFullscreen, IdWidescreen, IdMatchRefresh, IdFsr,
     IdOnline = 450, IdOnlineIntro, IdUpnp, IdLblMyCode, IdMyCode, IdFindCode, IdCopyCode, IdLblPeers, IdLobbyPeers, IdOnlineStatus, IdOnlineNote,
     IdControlsList = 500, IdControlsNote,
     IdSavesInfo = 550, IdSaveImportFile, IdSaveImportFolder, IdSaveUnlock, IdSaveBackupList, IdSaveRestore, IdSaveOpenBackups, IdSavesStatus, IdSavesNote,
@@ -288,7 +288,8 @@ void layout() {
         place(IdFrameRate60, x0, sy, cw, S(26)); sy += S(34);
         place(IdFullscreen, x0, sy, cw, S(26)); sy += S(34);
         place(IdMatchRefresh, x0 + S(24), sy, cw - S(24), S(26)); sy += S(34);
-        place(IdWidescreen, x0, sy, cw, S(26)); sy += S(42);
+        place(IdWidescreen, x0, sy, cw, S(26)); sy += S(34);
+        place(IdFsr, x0, sy, cw, S(26)); sy += S(42);
         place(IdLblConfirm, x0, sy + S(4), lw, S(24)); place(IdConfirm, fx, sy, S(260), S(300)); sy += S(48);
         place(IdLblName, x0, sy + S(4), lw, S(24)); place(IdPlayerName, fx, sy, S(260), S(28)); sy += S(52);
         place(IdSettingsNote, x0, sy, cw, S(72));
@@ -666,6 +667,7 @@ void launch_game() {
     if (g.settings.frame_rate == 60) cmd += L" --frame-rate 60"; // experimental; the runtime checks the game build first
     // Shaders and pipelines compiled in earlier sessions are rebuilt at start instead of in the middle of a battle.
     cmd += L" --shader-cache " + quote_arg((g.data_root / "shader-cache").wstring());
+    if (g.settings.fsr) cmd += L" --fsr";
     if (g.settings.fullscreen) cmd += L" --fullscreen";
     if (g.settings.fullscreen && g.settings.match_refresh) cmd += L" --match-refresh";
     if (g.settings.widescreen) cmd += L" --widescreen"; // experimental; the runtime checks the game build first
@@ -1100,6 +1102,7 @@ void build_controls() {
     add(PageSettings, L"BUTTON", L"60 fps (experimental: battle speed is correct; some animations may still be off)", BS_AUTOCHECKBOX | WS_TABSTOP, IdFrameRate60);
     add(PageSettings, L"BUTTON", L"Fullscreen (borderless; Alt+Enter or F11 switches in game)", BS_AUTOCHECKBOX | WS_TABSTOP, IdFullscreen);
     add(PageSettings, L"BUTTON", L"Smooth pacing: in fullscreen, run the monitor at 120 Hz if its refresh rate is not a multiple of 60", BS_AUTOCHECKBOX | WS_TABSTOP, IdMatchRefresh);
+    add(PageSettings, L"BUTTON", L"AMD FSR 1 upscaling: sharper picture (the game renders at 1280x720 and is scaled to your window)", BS_AUTOCHECKBOX | WS_TABSTOP, IdFsr);
     add(PageSettings, L"BUTTON", L"Ultrawide / widescreen: fill screens wider than 16:9 (experimental; the HUD is stretched)", BS_AUTOCHECKBOX | WS_TABSTOP, IdWidescreen);
     add(PageSettings, L"STATIC", L"Confirm button", SS_LEFT, IdLblConfirm);
     add(PageSettings, WC_COMBOBOXW, L"", CBS_DROPDOWNLIST | WS_TABSTOP, IdConfirm);
@@ -1229,6 +1232,7 @@ void load_settings_into_ui() {
     SendMessageW(ctl(IdFrameRate60), BM_SETCHECK, g.settings.frame_rate == 60 ? BST_CHECKED : BST_UNCHECKED, 0);
     SendMessageW(ctl(IdFullscreen), BM_SETCHECK, g.settings.fullscreen ? BST_CHECKED : BST_UNCHECKED, 0);
     SendMessageW(ctl(IdMatchRefresh), BM_SETCHECK, g.settings.match_refresh ? BST_CHECKED : BST_UNCHECKED, 0);
+    SendMessageW(ctl(IdFsr), BM_SETCHECK, g.settings.fsr ? BST_CHECKED : BST_UNCHECKED, 0);
     enable(IdMatchRefresh, g.settings.fullscreen);
     SendMessageW(ctl(IdWidescreen), BM_SETCHECK, g.settings.widescreen ? BST_CHECKED : BST_UNCHECKED, 0);
     SendMessageW(ctl(IdConfirm), CB_SETCURSEL, g.settings.confirm_button == "circle" ? 1 : 0, 0);
@@ -1516,6 +1520,10 @@ void on_command(int id, int code) {
     case IdFullscreen:
         g.settings.fullscreen = SendMessageW(ctl(IdFullscreen), BM_GETCHECK, 0, 0) == BST_CHECKED;
         enable(IdMatchRefresh, g.settings.fullscreen);
+        save_settings_now();
+        break;
+    case IdFsr:
+        g.settings.fsr = SendMessageW(ctl(IdFsr), BM_GETCHECK, 0, 0) == BST_CHECKED;
         save_settings_now();
         break;
     case IdMatchRefresh:

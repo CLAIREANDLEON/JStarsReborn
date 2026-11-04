@@ -7,6 +7,11 @@ felt like stutter even when the fps counter said 60. The runtime now uses 1 ms t
 On our test PC at 60 fps the 95th-percentile frame time went from 30.6 ms to 17.3 ms (a steady 60 fps now looks like 60 fps). It also
 helps at the default 30 fps.
 
+### Fewer hitches in battle: shader cache
+The first time an effect appears, its shaders have to be compiled, which caused short freezes (30-160 ms) during battles. Compiled
+shaders are now kept between sessions and prepared when the game starts, so from the second session on those freezes are gone.
+The first session after installing a new version still compiles as it goes (startup takes a little longer from then on).
+
 ### New: Ultrawide / widescreen (experimental)
 - Settings > **Ultrawide / widescreen**. On a screen wider than 16:9 (21:9, 32:9) the game shows more to the left and right instead of
   black bars; the vertical view is unchanged. At 3440x1440 the horizontal field of view goes from 60 to about 76 degrees.

@@ -48,8 +48,10 @@ public:
     bool IsVkValidationEnabled() { static const auto value = Flag("JSTARS_VK_VALIDATION", false); return value; }
     bool IsVkValidationGpuEnabled() { static const auto value = Flag("JSTARS_VK_VALIDATION_GPU", false); return value; }
     bool IsVkValidationSyncEnabled() { static const auto value = Flag("JSTARS_VK_VALIDATION_SYNC", false); return value; }
-    bool IsFsrEnabled() { return false; }
-    bool IsRcasEnabled() { return false; }
-    float GetRcasAttenuation() { return 0.25f; }
+    // AMD FSR 1 (EASU upscaling + RCAS sharpening, upstream host_passes/fsr_pass.cpp) when the game's frame is smaller than the
+    // window: runtime --fsr. Sharpness: RCAS attenuation in stops (0 = sharpest, 2 = softest), runtime --fsr-sharpness.
+    bool IsFsrEnabled() { static const auto value = Flag("JSTARS_FSR", false); return value; }
+    bool IsRcasEnabled() { static const auto value = Flag("JSTARS_FSR", false); return value; }
+    float GetRcasAttenuation() { static const auto value = static_cast<float>(Number("JSTARS_FSR_ATTENUATION_MILLI", 250)); return value; }
 };
 #define EmulatorSettings (*EmulatorSettingsImpl::GetInstance())

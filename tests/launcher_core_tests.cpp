@@ -41,6 +41,9 @@ int main(int argc, char** argv) {
         Settings d = load_settings(scratch / "missing.ini", nullptr);
         CHECK(!d.fullscreen && !d.widescreen, "fullscreen and widescreen are off by default");
         CHECK(d.match_refresh, "refresh matching (fullscreen only) is on by default");
+        CHECK(d.fsr, "FSR 1 upscaling is on by default");
+        Settings nf; nf.fsr = false; save_settings(scratch / "nofsr.ini", nf);
+        CHECK(!load_settings(scratch / "nofsr.ini", nullptr).fsr, "FSR off round trips");
         Settings mr; mr.match_refresh = false; save_settings(scratch / "mr.ini", mr);
         CHECK(!load_settings(scratch / "mr.ini", nullptr).match_refresh, "refresh matching off round trips");
         Settings w; w.fullscreen = true; w.widescreen = true;

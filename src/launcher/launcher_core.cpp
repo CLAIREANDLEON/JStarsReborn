@@ -153,6 +153,7 @@ Settings load_settings(const fs::path& file, std::vector<std::string>* notes) {
         else if (k == "fullscreen") ok = parse_bool(v, s.fullscreen);
         else if (k == "widescreen") ok = parse_bool(v, s.widescreen);
         else if (k == "match_refresh") ok = parse_bool(v, s.match_refresh);
+        else if (k == "fsr") ok = parse_bool(v, s.fsr);
         if (!ok) note("settings: ignored invalid value for " + k);
     }
     return s;
@@ -174,7 +175,8 @@ void save_settings(const fs::path& file, const Settings& s) {
       << "frame_rate=" << s.frame_rate << "\n"
       << "fullscreen=" << (s.fullscreen ? 1 : 0) << "\n"
       << "widescreen=" << (s.widescreen ? 1 : 0) << "\n"
-      << "match_refresh=" << (s.match_refresh ? 1 : 0) << "\n";
+      << "match_refresh=" << (s.match_refresh ? 1 : 0) << "\n"
+      << "fsr=" << (s.fsr ? 1 : 0) << "\n";
     write_file_atomic(file, o.str());
 }
 
@@ -486,6 +488,7 @@ std::string diagnostic_settings_json(const Settings& s) {
       << ", \"frame_rate\": " << s.frame_rate
       << ", \"fullscreen\": " << (s.fullscreen ? "true" : "false")
       << ", \"match_refresh\": " << (s.match_refresh ? "true" : "false")
+      << ", \"fsr\": " << (s.fsr ? "true" : "false")
       << ", \"widescreen\": " << (s.widescreen ? "true" : "false") << "}";
     return o.str();
 }
