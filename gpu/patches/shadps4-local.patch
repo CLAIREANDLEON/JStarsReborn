@@ -35,7 +35,25 @@
  namespace Common {
  
  #ifdef __APPLE__
-@@ -175,14 +192,11 @@
+@@ -116,7 +133,16 @@
+     LARGE_INTEGER interval{
+         .QuadPart = -1 * (duration.count() / 100u),
+     };
+-    HANDLE timer = ::CreateWaitableTimer(NULL, TRUE, NULL);
++    // JStarsReborn: a high-resolution timer (Windows 10 1803+). A default waitable timer wakes on the process' timer tick
++    // (15.6 ms unless raised), which made the 60 Hz vblank loop alternate 16/31 ms frames. Falls back to the old timer.
++#ifndef CREATE_WAITABLE_TIMER_HIGH_RESOLUTION
++#define CREATE_WAITABLE_TIMER_HIGH_RESOLUTION 0x00000002
++#endif
++    HANDLE timer = ::CreateWaitableTimerExW(NULL, NULL, CREATE_WAITABLE_TIMER_MANUAL_RESET | CREATE_WAITABLE_TIMER_HIGH_RESOLUTION,
++                                           TIMER_ALL_ACCESS);
++    if (!timer) {
++        timer = ::CreateWaitableTimer(NULL, TRUE, NULL);
++    }
+     SetWaitableTimer(timer, &interval, 0, NULL, NULL, 0);
+     const auto ret = WaitForSingleObjectEx(timer, INFINITE, interruptible);
+     ::CloseHandle(timer);
+@@ -175,14 +201,11 @@
  
  // Sets the debugger-visible name of the current thread.
  void SetCurrentThreadName(const char* name) {
@@ -52,7 +70,7 @@
  }
  
  #else // !_WIN32, so must be POSIX threads
-@@ -190,9 +204,6 @@
+@@ -190,9 +213,6 @@
  // MinGW with the POSIX threading model does not support pthread_setname_np
  #if !defined(_WIN32) || defined(_MSC_VER)
  void SetCurrentThreadName(const char* name) {
@@ -62,7 +80,7 @@
  #ifdef __APPLE__
      pthread_setname_np(name);
  #elif defined(__Bitrig__) || defined(__DragonFly__) || defined(__FreeBSD__) || defined(__OpenBSD__)
-@@ -219,9 +230,6 @@
+@@ -219,9 +239,6 @@
  
  #if defined(_WIN32)
  void SetCurrentThreadName(const char* name) {
@@ -72,7 +90,7 @@
      // Do Nothing on MinGW
  }
  
-@@ -251,17 +259,9 @@
+@@ -251,17 +268,9 @@
  }
  
  std::string GetCurrentThreadName() {

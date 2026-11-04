@@ -23,7 +23,9 @@ public:
     s32 GetGpuId() { static const auto value = s32(Number("JSTARS_GPU_ID", -1)); return value; }
     u32 GetInternalScreenWidth() { static const auto value = u32(Number("JSTARS_INTERNAL_WIDTH", 1920)); return value; }
     u32 GetInternalScreenHeight() { static const auto value = u32(Number("JSTARS_INTERNAL_HEIGHT", 1080)); return value; }
-    std::string GetPresentMode() { const char* v = std::getenv("JSTARS_PRESENT_MODE"); return v ? v : "Fifo"; }
+    // Mailbox by default, as upstream shadPS4: presenting never blocks the vblank loop (FIFO made it wait for the monitor's own refresh,
+    // e.g. 175 Hz, and the loop then caught up with back-to-back vblanks: stutter). Falls back to FIFO where Mailbox is unsupported.
+    std::string GetPresentMode() { const char* v = std::getenv("JSTARS_PRESENT_MODE"); return v ? v : "Mailbox"; }
     u32 GetReadbacksMode() { static const auto value = u32(Number("JSTARS_READBACKS", GpuReadbacksMode::Disabled)); return value; }
     u32 GetVblankFrequency() { static const auto value = u32(std::max(1L, Number("JSTARS_VBLANK_HZ", 60))); return value; }
     bool IsCopyGpuBuffers() { static const auto value = Flag("JSTARS_COPY_GPU_BUFFERS", false); return value; }

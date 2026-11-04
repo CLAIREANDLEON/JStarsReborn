@@ -389,6 +389,16 @@ int main(int argc, char** argv) {
     if (!boot) { fprintf(stderr, "--boot is required\n"); return 1; }
     rt_log_open(logpath);
     rt_logf("JStarsReborn runtime %s", JSTARS_RUNTIME_VERSION);
+#ifdef _WIN32
+    // 1 ms timer resolution for this process (Windows' default tick is 15.6 ms): the game's own sleeps and waits, and the renderer's
+    // vblank loop, otherwise wake only on that tick, which showed as frames alternating between 16 and 31 ms.
+    {
+        typedef unsigned(WINAPI * TimeBeginPeriod)(unsigned);
+        HMODULE winmm = LoadLibraryW(L"winmm.dll");
+        TimeBeginPeriod tbp = winmm ? (TimeBeginPeriod)(void*)GetProcAddress(winmm, "timeBeginPeriod") : NULL;
+        rt_logf("timer resolution: %s", tbp && tbp(1) == 0 ? "1 ms (timeBeginPeriod)" : "Windows default (timeBeginPeriod unavailable)");
+    }
+#endif
     if (pad_script) rt_input_load_script(pad_script);
     if (experiments) rt_set_experiments(experiments);
     rt_net_configure(online, trace_net);

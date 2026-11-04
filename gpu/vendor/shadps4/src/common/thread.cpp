@@ -133,7 +133,16 @@ bool AccurateSleep(const std::chrono::nanoseconds duration, std::chrono::nanosec
     LARGE_INTEGER interval{
         .QuadPart = -1 * (duration.count() / 100u),
     };
-    HANDLE timer = ::CreateWaitableTimer(NULL, TRUE, NULL);
+    // JStarsReborn: a high-resolution timer (Windows 10 1803+). A default waitable timer wakes on the process' timer tick
+    // (15.6 ms unless raised), which made the 60 Hz vblank loop alternate 16/31 ms frames. Falls back to the old timer.
+#ifndef CREATE_WAITABLE_TIMER_HIGH_RESOLUTION
+#define CREATE_WAITABLE_TIMER_HIGH_RESOLUTION 0x00000002
+#endif
+    HANDLE timer = ::CreateWaitableTimerExW(NULL, NULL, CREATE_WAITABLE_TIMER_MANUAL_RESET | CREATE_WAITABLE_TIMER_HIGH_RESOLUTION,
+                                           TIMER_ALL_ACCESS);
+    if (!timer) {
+        timer = ::CreateWaitableTimer(NULL, TRUE, NULL);
+    }
     SetWaitableTimer(timer, &interval, 0, NULL, NULL, 0);
     const auto ret = WaitForSingleObjectEx(timer, INFINITE, interruptible);
     ::CloseHandle(timer);
