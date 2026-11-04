@@ -166,6 +166,20 @@ void TraceDraw(const AmdGpu::Regs& regs, const char* kind, u32 count) {
              HashBytes(psb, pn), static_cast<u64>(cb.Address()), static_cast<u32>(cb.info.format),
              regs.screen_scissor.top_left_x, regs.screen_scissor.top_left_y,
              regs.screen_scissor.bottom_right_x, regs.screen_scissor.bottom_right_y);
+    // jstars 0.5.4: every bound render target and the depth buffer (finding the main pass, its depth and any velocity
+    // buffer for FSR). rtN=address:pitch x height:data format/number format:write mask.
+    std::string rts;
+    for (u32 i = 0; i < AmdGpu::NUM_COLOR_BUFFERS; ++i) {
+        const auto& c = regs.color_buffers[i];
+        const u32 mask = regs.color_target_mask.GetMask(i);
+        if (!c || !mask) continue;
+        rts += fmt::format(" rt{}={:#x}:{}x{}:{}/{}:{:x}", i, static_cast<u64>(c.Address()), c.Pitch(), c.Height(),
+                           static_cast<u32>(c.GetDataFmt()), static_cast<u32>(c.GetNumberFmt()), mask);
+    }
+    const auto& db = regs.depth_buffer;
+    LOG_INFO(Lib_GnmDriver, "DRAW #{} targets{} depth={:#x}:{}x{}:z{}:{}{}", n, rts.empty() ? " none" : rts.c_str(),
+             static_cast<u64>(db.DepthValid() ? db.DepthAddress() : 0), db.Pitch(), db.Height(), static_cast<u32>(db.z_info.format),
+             regs.depth_control.depth_enable ? "test" : "-", regs.depth_control.depth_write_enable ? "+write" : "");
 }
 } // namespace
 

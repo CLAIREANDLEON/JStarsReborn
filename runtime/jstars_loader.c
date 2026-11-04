@@ -327,6 +327,69 @@ static int widescreen_patch(float* scale_cell, const Segment* segs, uint64_t ns,
     return 0;
 }
 
+// ---- Projection trace (--trace-projection; diagnostics for FSR / frame generation) -----------------------------------------
+// Logs the parameters of every distinct perspective projection the game builds (routine 0x3ec310: fov in degrees, horizontal
+// scale, h/w aspect, near, far) with the calling site, and how often each was built, so the main camera (near/far/field of view
+// needed by FSR) can be told apart from shadow, UI and other cameras. A cave saves the arguments, calls proj_trace and continues
+// into the widescreen cave or the original code. Reads only; the game's computation is unchanged.
+static struct { uint64_t site; float fov, scale, aspect, znear, zfar; uint64_t count; } g_proj[64];
+static unsigned g_proj_n; static uint64_t g_proj_calls; static volatile int g_proj_lock;
+// args: the five float arguments as the cave saved them (xmm0..xmm4, 16 bytes apart); ret: the caller's return address.
+// (Floats through memory, and the work in a host-ABI function: mingw-w64 GCC 13 hits an internal error otherwise.)
+static __attribute__((noinline)) void proj_record(const float* args, uint64_t ret);
+static void GUEST_ABI proj_trace(const float* args, uint64_t ret) { proj_record(args, ret); } // host ABI from here on
+static __attribute__((noinline)) void proj_record(const float* args, uint64_t ret) {
+    const float fov = args[0], scale = args[4], aspect = args[8], znear = args[12], zfar = args[16];
+    const uint64_t site = ret - (uint64_t)(uintptr_t)image;
+    while (__atomic_exchange_n(&g_proj_lock, 1, __ATOMIC_ACQUIRE)) {}
+    unsigned i = 0;
+    for (; i < g_proj_n; ++i)
+        if (g_proj[i].site == site && g_proj[i].fov == fov && g_proj[i].scale == scale && g_proj[i].aspect == aspect &&
+            g_proj[i].znear == znear && g_proj[i].zfar == zfar) break;
+    int fresh = 0;
+    if (i == g_proj_n && g_proj_n < 64) { g_proj[i].site = site; g_proj[i].fov = fov; g_proj[i].scale = scale; g_proj[i].aspect = aspect;
+                                           g_proj[i].znear = znear; g_proj[i].zfar = zfar; g_proj[i].count = 0; ++g_proj_n; fresh = 1; }
+    if (i < 64) ++g_proj[i].count;
+    const uint64_t calls = ++g_proj_calls;
+    __atomic_store_n(&g_proj_lock, 0, __ATOMIC_RELEASE);
+    if (fresh) rt_logf("projection #%u: called from eboot+%#" PRIx64 ": fov %.3f deg, scale %.4f, h/w %.4f, near %.4f, far %.1f",
+                       i, site, fov, scale, aspect, znear, zfar);
+    if (calls % 6000 == 0) {
+        char line[1024]; size_t n = 0;
+        while (__atomic_exchange_n(&g_proj_lock, 1, __ATOMIC_ACQUIRE)) {}
+        for (unsigned k = 0; k < g_proj_n && n < sizeof line - 32; ++k)
+            n += (size_t)snprintf(line + n, sizeof line - n, " #%u=%" PRIu64, k, g_proj[k].count);
+        __atomic_store_n(&g_proj_lock, 0, __ATOMIC_RELEASE);
+        rt_logf("projection counts after %" PRIu64 " builds:%s", calls, line);
+    }
+}
+static int projection_trace_patch(int widescreen_on, const Segment* segs, uint64_t ns, const Reloc* relocs, uint64_t nr) {
+    enum { SITE = 0x3ec310, RESUME = 0x3ec319, CAVE = 0x730200, WS_CAVE = 0x730140 };
+    static const uint8_t prologue[9] = {0x55, 0x48, 0x89, 0xe5, 0x53, 0x48, 0x83, 0xec, 0x18};
+    // push rdi; sub rsp,0x60; save xmm0-4 at [rsp+16*i]; mov rdi,rsp; mov rsi,[rsp+0x68] (return address); movabs rax,proj_trace;
+    // call rax; restore xmm0-4; add rsp,0x60; pop rdi (assembled with GNU as)
+    static const uint8_t head[88] = {
+        0x57, 0x48, 0x83, 0xec, 0x60, 0xc5, 0xf8, 0x11, 0x04, 0x24, 0xc5, 0xf8, 0x11, 0x4c, 0x24, 0x10, 0xc5, 0xf8, 0x11, 0x54, 0x24,
+        0x20, 0xc5, 0xf8, 0x11, 0x5c, 0x24, 0x30, 0xc5, 0xf8, 0x11, 0x64, 0x24, 0x40, 0x48, 0x89, 0xe7, 0x48, 0x8b, 0x74, 0x24, 0x68,
+        0x48, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xd0, 0xc5, 0xf8, 0x10, 0x04, 0x24, 0xc5, 0xf8, 0x10, 0x4c, 0x24, 0x10, 0xc5, 0xf8,
+        0x10, 0x54, 0x24, 0x20, 0xc5, 0xf8, 0x10, 0x5c, 0x24, 0x30, 0xc5, 0xf8, 0x10, 0x64, 0x24, 0x40, 0x48, 0x83, 0xc4, 0x60, 0x5f};
+    uint8_t c[128]; size_t n = sizeof head;
+    memcpy(c, head, sizeof head);
+    const uint64_t fn = (uint64_t)(uintptr_t)proj_trace; memcpy(c + 44, &fn, 8);
+    if (widescreen_on) { c[n] = 0xe9; const int32_t d = (int32_t)(WS_CAVE - (CAVE + n + 5)); memcpy(c + n + 1, &d, 4); n += 5; }
+    else { memcpy(c + n, prologue, 9); n += 9; c[n] = 0xe9; const int32_t d = (int32_t)(RESUME - (CAVE + n + 5)); memcpy(c + n + 1, &d, 4); n += 5; }
+    if (ns < 1 || segs[0].address != 0 || segs[0].size != 7536868) { rt_logf("--trace-projection: not the supported game build; not applied"); return -1; }
+    if (CAVE + n > ((segs[0].size + 4095) & ~(uint64_t)4095)) { rt_logf("--trace-projection: no room; not applied"); return -1; }
+    static const uint8_t ws_site[1] = {0xe9};
+    if (widescreen_on ? memcmp(image + SITE, ws_site, 1) : memcmp(image + SITE, prologue, 9)) { rt_logf("--trace-projection: unexpected code at the site; not applied"); return -1; }
+    for (size_t i = 0; i < n; ++i) if (image[CAVE + i]) { rt_logf("--trace-projection: cave area is not empty; not applied"); return -1; }
+    for (uint64_t i = 0; i < nr; ++i) if (relocs[i].target < CAVE + n && relocs[i].target + 8 > CAVE) { rt_logf("--trace-projection: relocation overlap; not applied"); return -1; }
+    memcpy(image + CAVE, c, n);
+    image[SITE] = 0xe9; const int32_t j = (int32_t)(CAVE - (SITE + 5)); memcpy(image + SITE + 1, &j, 4); memset(image + SITE + 5, 0x90, 4);
+    rt_logf("--trace-projection: logging the game's perspective projections (diagnostics; the picture is unchanged)");
+    return 0;
+}
+
 static void* guest_main(void* arg) {
     (void)arg;
     rt_thread_attach_main();
@@ -373,7 +436,7 @@ int main(int argc, char** argv) {
     int frame_stats = 0, flip_rate = -1, flip_rate_after = 0, ffx_probe = 0;
     const char *vblank_hz = NULL, *present_mode = NULL;
     const char* lobby_peers = NULL;
-    int check_only = 0, selftest = 0, audit_dump = 0, stop_at_gnm = 0, win_w = 1280, win_h = 720, fullscreen = 0, widescreen = 0, match_refresh = 0;
+    int check_only = 0, selftest = 0, audit_dump = 0, stop_at_gnm = 0, win_w = 1280, win_h = 720, fullscreen = 0, widescreen = 0, match_refresh = 0, trace_projection = 0;
     for (int i = 1; i < argc; ++i) {
         if (!strcmp(argv[i], "--version")) { printf("JStarsReborn runtime %s\n", JSTARS_RUNTIME_VERSION); return 0; }
         else if (!strcmp(argv[i], "--boot") && i + 1 < argc) boot = argv[++i];
@@ -408,6 +471,7 @@ int main(int argc, char** argv) {
         else if (!strcmp(argv[i], "--ffx-probe")) ffx_probe = 1;
         else if (!strcmp(argv[i], "--fullscreen")) fullscreen = 1;
         else if (!strcmp(argv[i], "--match-refresh")) match_refresh = 1;
+        else if (!strcmp(argv[i], "--trace-projection")) trace_projection = 1;
         else if (!strcmp(argv[i], "--widescreen")) widescreen = 1;
         else if (!strcmp(argv[i], "--flip-rate") && i + 1 < argc) flip_rate = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--flip-rate-after") && i + 1 < argc) flip_rate_after = atoi(argv[++i]);
@@ -422,7 +486,7 @@ int main(int argc, char** argv) {
         else if (!strcmp(argv[i], "--capture-interval") && i + 1 < argc) g_capture_interval = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--capture-max") && i + 1 < argc) g_capture_max = atoi(argv[++i]);
         else { fprintf(stderr, "usage: %s --boot boot-linked.bin [--log file] [--check-imports] [--stop-at-first-gnm] [--selftest-host] [--audit-dump]\n"
-                               "       [--game-root dir] [--user-dir dir] [--gpu-dir dir] [--capture-dir dir] [--window WxH] [--fullscreen] [--match-refresh] [--widescreen] [--max-seconds n] [--capture-flips n]\n"
+                               "       [--game-root dir] [--user-dir dir] [--gpu-dir dir] [--capture-dir dir] [--window WxH] [--fullscreen] [--match-refresh] [--widescreen] [--trace-projection] [--max-seconds n] [--capture-flips n]\n"
                                "       [--capture-interval flips] [--capture-max n] [--pad-script file] [--no-keyboard] [--no-audio] [--volume 0-100] [--dump-audio prefix] [--pad-none] [--sample-threads seconds] [--count-imports] [--trace-draws first,count] [--experiment names] [--frame-rate 30|60] [--frame-stats] [--ffx-probe] [--flip-rate n] [--flip-rate-after s] [--vblank-hz n] [--present-mode Fifo|Mailbox|Immediate] [--online] [--shadnet] [--shadnet-server host[:port]] [--lobby-port n] [--lobby-peer ip[,ip]] [--trace-net] [--trace-np]\n", argv[0]); return 1; }
     }
     if (audit_dump) { extern void rt_audit_dump(void*); rt_audit_dump(stdout); return 0; }
@@ -616,10 +680,12 @@ int main(int argc, char** argv) {
     if (check_only) return n_trap ? 1 : 0;
     if (native_rate_patch(frame_rate, segs, ns, relocs, nr) && frame_rate != 30)
         rt_logf("--frame-rate %d was not applied: the game runs at its own 30 fps", frame_rate);
+    int widescreen_on = 0;
     if (widescreen) {
         if (widescreen_patch(rt_gpu_widescreen(0), segs, ns, relocs, nr)) rt_logf("--widescreen was not applied: 16:9 picture");
-        else rt_gpu_widescreen(1);
+        else { rt_gpu_widescreen(1); widescreen_on = 1; }
     }
+    if (trace_projection) projection_trace_patch(widescreen_on, segs, ns, relocs, nr);
 
     if (os_protect(image, image_size, 0)) fail("protect image");
     for (uint64_t i = 0; i < ns; ++i)
