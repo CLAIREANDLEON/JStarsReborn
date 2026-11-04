@@ -1,5 +1,19 @@
 # Change log
 
+## 0.5.4 playtest preview (pre-release)
+
+- **Smoother frame pacing.** At 60 fps, frames alternated between 16 and 31 ms (Windows' 15.6 ms timer tick): the renderer's frame loop
+  slept on a low-resolution timer. The runtime now asks Windows for 1 ms timer resolution and the frame loop uses a high-resolution
+  timer. Measured on an RX 9070 XT at 60 fps (5-minute scripted run, menus and a Free Battle; medians of 5-second
+  windows): frame time p95 30.6 -> 17.3 ms; p99 31.5 -> 17.4 ms in menus and 31.6 -> 24.1 ms in battle. This also
+  helps at 30 fps. The default present mode is Mailbox where the driver offers it (FIFO otherwise).
+- **Ultrawide / widescreen (experimental, Settings):** on screens wider than 16:9 the game shows more to the sides (Hor+) instead of
+  black bars, with the vertical view unchanged; at 3440x1440 the horizontal field of view goes from 60 to about 76 degrees. The 2D HUD
+  and menus are stretched for now. Applied in memory only after checking the game build. `docs/WIDESCREEN.md`.
+- **Fullscreen (Settings):** borderless fullscreen on the monitor. Alt+Enter or F11 switches between fullscreen and the window.
+- A minimized game no longer slows down (an extra 8 ms wait per dropped frame made it run at ~44 fps).
+- Launcher 0.5.4: "Fullscreen" and "Ultrawide / widescreen" settings.
+
 ## 0.5.3 playtest preview (pre-release)
 
 - **Launcher: new Saves page.** Import a save (a SAVE-DATA.DAT, or a folder that contains one: another JStarsReborn install, a shadPS4

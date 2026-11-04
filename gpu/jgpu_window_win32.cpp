@@ -13,6 +13,28 @@
 extern JgpuHost* jgpu_host_ptr();
 
 static std::atomic<HWND> g_main_hwnd{nullptr};
+bool jgpu_window_start_fullscreen = false; // set by jgpu_init from JgpuConfig.fullscreen
+
+// Borderless fullscreen on the window's monitor, and back to the previous window (Alt+Enter or F11). Runs on the window thread.
+static WINDOWPLACEMENT g_windowed_placement{sizeof(WINDOWPLACEMENT)};
+static bool g_is_fullscreen = false;
+static void set_fullscreen(HWND hwnd, bool on) {
+    if (on == g_is_fullscreen) return;
+    if (on) {
+        MONITORINFO mi{sizeof(mi)};
+        if (!GetMonitorInfoW(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), &mi)) return;
+        GetWindowPlacement(hwnd, &g_windowed_placement);
+        SetWindowLongPtrW(hwnd, GWL_STYLE, WS_POPUP | WS_VISIBLE);
+        SetWindowPos(hwnd, HWND_TOP, mi.rcMonitor.left, mi.rcMonitor.top, mi.rcMonitor.right - mi.rcMonitor.left,
+                     mi.rcMonitor.bottom - mi.rcMonitor.top, SWP_FRAMECHANGED | SWP_NOOWNERZORDER);
+    } else {
+        SetWindowLongPtrW(hwnd, GWL_STYLE, WS_OVERLAPPEDWINDOW | WS_VISIBLE);
+        SetWindowPlacement(hwnd, &g_windowed_placement);
+        SetWindowPos(hwnd, nullptr, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER);
+    }
+    g_is_fullscreen = on;
+    LOG_INFO(Frontend, "window: {}", on ? "borderless fullscreen" : "windowed");
+}
 extern "C" int jgpu_window_focused(void) {
     HWND h = g_main_hwnd.load();
     return h && GetForegroundWindow() == h;
@@ -34,6 +56,18 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_SIZE:
         if (self && wp != SIZE_MINIMIZED) self->OnResize(LOWORD(lp), HIWORD(lp));
         return 0;
+    case WM_SYSKEYDOWN: // Alt+Enter (bit 29: Alt held); no system beep
+        if (wp == VK_RETURN && (lp & (1 << 29))) {
+            if (!(lp & (1 << 30))) set_fullscreen(hwnd, !g_is_fullscreen);
+            return 0;
+        }
+        break;
+    case WM_SYSCHAR:
+        if (wp == VK_RETURN) return 0;
+        break;
+    case WM_KEYDOWN:
+        if (wp == VK_F11 && !(lp & (1 << 30))) { set_fullscreen(hwnd, !g_is_fullscreen); return 0; }
+        break;
     case WM_CLOSE:
         if (self) self->OnClose();
         if (auto* h = jgpu_host_ptr(); h && h->window_closed) h->window_closed();
@@ -63,6 +97,7 @@ WindowSDL::WindowSDL(s32 w, s32 h, const char* title) : width(w), height(h) {
                                     r.right - r.left, r.bottom - r.top, nullptr, nullptr, wc.hInstance, nullptr);
         if (hwnd) {
             SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
+            if (jgpu_window_start_fullscreen) set_fullscreen(hwnd, true);
             RECT cr;
             GetClientRect(hwnd, &cr);
             width = cr.right - cr.left;

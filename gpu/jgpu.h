@@ -30,6 +30,7 @@ typedef struct JgpuConfig {
     const char* capture_dir; /* PNG captures of presented frames */
     int32_t width, height;   /* initial window size */
     int headless_window;     /* 1: no window thread (unit tests of the library only) */
+    int fullscreen;          /* 1: borderless fullscreen on the window's monitor (Alt+Enter / F11 switch in either mode) */
 } JgpuConfig;
 
 typedef struct JgpuStats {
@@ -56,6 +57,10 @@ void jgpu_get_stats(JgpuStats* out);
 /* AMD FSR SDK capability probe (jgpu_fsr.cpp): loads amd_fidelityfx_loader_vk.dll if present and lists the upscaler and
  * frame-generation versions for this device. Returns 0 if the loader answered; the summary is in jgpu_fsr_report(). */
 int jgpu_fsr_probe(void);
+/* Hor+ widescreen. Returns the cell holding the horizontal field-of-view factor (window aspect / frame aspect, at least 1; 1
+ * while the window is not wider than the frame) that the runtime's projection patch reads. enable 1 also makes the presenter
+ * stretch frames to fill windows wider than the frame (call it only once the game's projection is patched). */
+float* jgpu_widescreen(int enable);
 const char* jgpu_fsr_report(void);
 void jgpu_shutdown(void);
 #ifdef __cplusplus

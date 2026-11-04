@@ -38,6 +38,12 @@ int main(int argc, char** argv) {
         save_settings(scratch / "fps.ini", f);
         CHECK(load_settings(scratch / "fps.ini", nullptr).frame_rate == 60, "the 60 fps setting round trips");
         CHECK(load_settings(scratch / "missing.ini", nullptr).frame_rate == 30, "the frame rate is the game's 30 by default");
+        Settings d = load_settings(scratch / "missing.ini", nullptr);
+        CHECK(!d.fullscreen && !d.widescreen, "fullscreen and widescreen are off by default");
+        Settings w; w.fullscreen = true; w.widescreen = true;
+        save_settings(scratch / "ws.ini", w);
+        Settings wr = load_settings(scratch / "ws.ini", nullptr);
+        CHECK(wr.fullscreen && wr.widescreen, "fullscreen and widescreen round trip");
         write(scratch / "fps-bad.ini", "frame_rate=120\n");
         std::vector<std::string> fn;
         CHECK(load_settings(scratch / "fps-bad.ini", &fn).frame_rate == 30 && !fn.empty(), "an unsupported frame rate falls back to 30 and is reported");

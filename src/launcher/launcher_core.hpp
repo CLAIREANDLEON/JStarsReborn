@@ -15,7 +15,7 @@
 namespace reborn::launcher {
 namespace fs = std::filesystem;
 
-inline constexpr const char* launcher_version = "0.5.3";
+inline constexpr const char* launcher_version = "0.5.4";
 
 // ---- settings (launcher.ini, UTF-8 key=value) ---------------------------------------------------------------------
 struct Settings {
@@ -30,6 +30,8 @@ struct Settings {
     bool upnp = true;                   // ask the router to open the two UDP ports (online.hpp)
     std::string lobby_peers;            // friends' room codes or addresses, as typed (comma-separated)
     int frame_rate = 30;                // 30 (the game's own) or 60 (experimental: runtime --frame-rate 60)
+    bool fullscreen = false;            // borderless fullscreen on the monitor (runtime --fullscreen; Alt+Enter / F11 switch in game)
+    bool widescreen = false;            // experimental Hor+ widescreen for monitors wider than 16:9 (runtime --widescreen)
 };
 // Reads settings; unknown keys are ignored, invalid values fall back to defaults (reported in `notes`).
 Settings load_settings(const fs::path& file, std::vector<std::string>* notes = nullptr);

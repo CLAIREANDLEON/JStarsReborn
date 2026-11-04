@@ -144,10 +144,10 @@ static void install_gpu_host(void) {
                                   rt_errno_cell, rt_read_tsc, rt_tsc_frequency, rt_process_time_us, rt_compiled_sdk_version, host_is_neo};
     jgpu_set_host(&host);
 }
-int rt_gpu_start(const char* title, const char* data_dir, const char* capture_dir, int width, int height) {
+int rt_gpu_start(const char* title, const char* data_dir, const char* capture_dir, int width, int height, int fullscreen) {
     install_gpu_host();
-    JgpuConfig cfg = {title, data_dir, capture_dir, width, height, 0};
-    rt_logf("GPU library: starting (window %dx%d, data %s, captures %s)", width, height, data_dir, capture_dir);
+    JgpuConfig cfg = {title, data_dir, capture_dir, width, height, 0, fullscreen};
+    rt_logf("GPU library: starting (window %dx%d%s, data %s, captures %s)", width, height, fullscreen ? ", borderless fullscreen" : "", data_dir, capture_dir);
     if (jgpu_init(&cfg)) { rt_logf("GPU library: initialization failed"); return 1; }
     g_gpu_on = 1;
     rt_input_set_focus_hook(jgpu_window_focused);
@@ -156,6 +156,7 @@ int rt_gpu_start(const char* title, const char* data_dir, const char* capture_di
     return 0;
 }
 void rt_gpu_capture(int n) { if (g_gpu_on) jgpu_request_capture(n); }
+float* rt_gpu_widescreen(int enable) { return g_gpu_on ? jgpu_widescreen(enable) : NULL; }
 void rt_gpu_fsr_probe(void) { if (g_gpu_on) { jgpu_fsr_probe(); rt_logf("%s", jgpu_fsr_report()); } }
 void rt_gpu_stats(uint64_t out[5]) {
     JgpuStats s = {0};
@@ -168,8 +169,9 @@ void* rt_gpu_resolve(const char* nid_lib) { (void)nid_lib; return NULL; }
 const char* rt_gpu_symbol_name(const char* nid_lib) { (void)nid_lib; return ""; }
 void rt_gpu_mem_map(void* addr, uint64_t len) { (void)addr; (void)len; }
 void rt_gpu_mem_unmap(void* addr, uint64_t len) { (void)addr; (void)len; }
-int rt_gpu_start(const char* t, const char* d, const char* c, int w, int h) { (void)t; (void)d; (void)c; (void)w; (void)h; rt_logf("this build has no GPU library"); return 1; }
+int rt_gpu_start(const char* t, const char* d, const char* c, int w, int h, int f) { (void)t; (void)d; (void)c; (void)w; (void)h; (void)f; rt_logf("this build has no GPU library"); return 1; }
 void rt_gpu_capture(int n) { (void)n; }
+float* rt_gpu_widescreen(int enable) { (void)enable; return NULL; }
 void rt_gpu_stats(uint64_t out[5]) { memset(out, 0, 5 * sizeof *out); }
 void rt_gpu_timing_configure(int frame_stats, int flip_rate_override, int flip_rate_after) { (void)frame_stats; (void)flip_rate_override; (void)flip_rate_after; }
 void rt_gpu_timing_tick(int sec) { (void)sec; }

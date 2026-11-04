@@ -59,7 +59,7 @@ enum Id {
     IdPlay = 200, IdStop, IdCancelPrep, IdOpenSessionLogs, IdPrepProgress, IdStatus, IdLastHead, IdLastDetail, IdPrepStep, IdPlayHint,
     IdFolderEdit = 300, IdBrowse, IdRecheck, IdFolderDetails, IdPrepState, IdPrepareNow, IdFolderNote, IdFolderLabel,
     IdWindowSize = 400, IdSound, IdVolume, IdVolumeLabel, IdKeyboard, IdConfirm, IdPlayerName, IdSettingsNote, IdLblWindow, IdLblVolume,
-    IdLblConfirm, IdLblName, IdFrameRate60,
+    IdLblConfirm, IdLblName, IdFrameRate60, IdFullscreen, IdWidescreen,
     IdOnline = 450, IdOnlineIntro, IdUpnp, IdLblMyCode, IdMyCode, IdFindCode, IdCopyCode, IdLblPeers, IdLobbyPeers, IdOnlineStatus, IdOnlineNote,
     IdControlsList = 500, IdControlsNote,
     IdSavesInfo = 550, IdSaveImportFile, IdSaveImportFolder, IdSaveUnlock, IdSaveBackupList, IdSaveRestore, IdSaveOpenBackups, IdSavesStatus, IdSavesNote,
@@ -285,7 +285,9 @@ void layout() {
         place(IdSound, x0, sy, S(400), S(26)); sy += S(38);
         place(IdLblVolume, x0, sy + S(4), lw, S(24)); place(IdVolume, fx, sy, S(260), S(32)); place(IdVolumeLabel, fx + S(268), sy + S(4), S(60), S(24)); sy += S(48);
         place(IdKeyboard, x0, sy, cw, S(26)); sy += S(42);
-        place(IdFrameRate60, x0, sy, cw, S(26)); sy += S(42);
+        place(IdFrameRate60, x0, sy, cw, S(26)); sy += S(34);
+        place(IdFullscreen, x0, sy, cw, S(26)); sy += S(34);
+        place(IdWidescreen, x0, sy, cw, S(26)); sy += S(42);
         place(IdLblConfirm, x0, sy + S(4), lw, S(24)); place(IdConfirm, fx, sy, S(260), S(300)); sy += S(48);
         place(IdLblName, x0, sy + S(4), lw, S(24)); place(IdPlayerName, fx, sy, S(260), S(28)); sy += S(52);
         place(IdSettingsNote, x0, sy, cw, S(72));
@@ -663,6 +665,8 @@ void launch_game() {
     else cmd += L" --no-audio";
     if (!g.settings.keyboard) cmd += L" --no-keyboard";
     if (g.settings.frame_rate == 60) cmd += L" --frame-rate 60"; // experimental; the runtime checks the game build first
+    if (g.settings.fullscreen) cmd += L" --fullscreen";
+    if (g.settings.widescreen) cmd += L" --widescreen"; // experimental; the runtime checks the game build first
     // Experimental online test: real sockets and the LAN room directory. The online probe makes a console online function that
     // is not implemented yet answer "signed out" (the game shows its communication error) instead of stopping the game.
     if (g.settings.online) {
@@ -1076,6 +1080,8 @@ void build_controls() {
     add(PageSettings, L"STATIC", L"", SS_LEFT, IdVolumeLabel);
     add(PageSettings, L"BUTTON", L"Use the keyboard as a controller when no controller is connected", BS_AUTOCHECKBOX | WS_TABSTOP, IdKeyboard);
     add(PageSettings, L"BUTTON", L"60 fps (experimental: battle speed is correct; some animations may still be off)", BS_AUTOCHECKBOX | WS_TABSTOP, IdFrameRate60);
+    add(PageSettings, L"BUTTON", L"Fullscreen (borderless; Alt+Enter or F11 switches in game)", BS_AUTOCHECKBOX | WS_TABSTOP, IdFullscreen);
+    add(PageSettings, L"BUTTON", L"Ultrawide / widescreen: fill screens wider than 16:9 (experimental; the HUD is stretched)", BS_AUTOCHECKBOX | WS_TABSTOP, IdWidescreen);
     add(PageSettings, L"STATIC", L"Confirm button", SS_LEFT, IdLblConfirm);
     add(PageSettings, WC_COMBOBOXW, L"", CBS_DROPDOWNLIST | WS_TABSTOP, IdConfirm);
     SendMessageW(ctl(IdConfirm), CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Cross confirms (Western layout)"));
@@ -1085,7 +1091,7 @@ void build_controls() {
     SendMessageW(ctl(IdPlayerName), EM_SETLIMITTEXT, 16, 0);
     add(PageSettings, L"STATIC",
         L"Settings are saved at once and apply the next time you press Play. The player name is what the game sees as your console user name. "
-        L"Graphics options beyond the window size are not offered because the runtime has none yet. Online play is on the Online page.", SS_LEFT | SS_NOPREFIX, IdSettingsNote);
+        L"The window size is used when fullscreen is off. Ultrawide shows more of the scene to the sides; menus and the HUD are stretched. Online play is on the Online page.", SS_LEFT | SS_NOPREFIX, IdSettingsNote);
     // Online
     add(PageOnline, L"BUTTON", L"Enable online play (experimental, still in testing)", BS_AUTOCHECKBOX | WS_TABSTOP, IdOnline);
     add(PageOnline, L"STATIC",
@@ -1201,6 +1207,8 @@ void load_settings_into_ui() {
     enable(IdVolume, g.settings.sound);
     SendMessageW(ctl(IdKeyboard), BM_SETCHECK, g.settings.keyboard ? BST_CHECKED : BST_UNCHECKED, 0);
     SendMessageW(ctl(IdFrameRate60), BM_SETCHECK, g.settings.frame_rate == 60 ? BST_CHECKED : BST_UNCHECKED, 0);
+    SendMessageW(ctl(IdFullscreen), BM_SETCHECK, g.settings.fullscreen ? BST_CHECKED : BST_UNCHECKED, 0);
+    SendMessageW(ctl(IdWidescreen), BM_SETCHECK, g.settings.widescreen ? BST_CHECKED : BST_UNCHECKED, 0);
     SendMessageW(ctl(IdConfirm), CB_SETCURSEL, g.settings.confirm_button == "circle" ? 1 : 0, 0);
     set_text(IdPlayerName, W(g.settings.player_name));
     refresh_online_page();
@@ -1481,6 +1489,14 @@ void on_command(int id, int code) {
         break;
     case IdFrameRate60:
         g.settings.frame_rate = SendMessageW(ctl(IdFrameRate60), BM_GETCHECK, 0, 0) == BST_CHECKED ? 60 : 30;
+        save_settings_now();
+        break;
+    case IdFullscreen:
+        g.settings.fullscreen = SendMessageW(ctl(IdFullscreen), BM_GETCHECK, 0, 0) == BST_CHECKED;
+        save_settings_now();
+        break;
+    case IdWidescreen:
+        g.settings.widescreen = SendMessageW(ctl(IdWidescreen), BM_GETCHECK, 0, 0) == BST_CHECKED;
         save_settings_now();
         break;
     case IdOnline:

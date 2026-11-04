@@ -151,7 +151,11 @@ static Core::Loader::SymbolsResolver g_resolver;
 int jgpu_init(const JgpuConfig* config) {
     g_data_dir = config->data_dir ? config->data_dir : ".";
     g_capture_dir = config->capture_dir ? config->capture_dir : ".";
-    LOG_INFO(Lib, "creating window {}x{}", config->width, config->height);
+    LOG_INFO(Lib, "creating window {}x{}{}", config->width, config->height, config->fullscreen ? " (borderless fullscreen)" : "");
+#ifdef _WIN32
+    extern bool jgpu_window_start_fullscreen;
+    jgpu_window_start_fullscreen = config->fullscreen != 0;
+#endif
     g_window_owner = std::make_unique<Frontend::WindowSDL>(config->width, config->height, config->title ? config->title : "JStarsReborn");
     g_window = g_window_owner.get();
     if (!g_window->IsOpen()) {
@@ -166,8 +170,32 @@ int jgpu_init(const JgpuConfig* config) {
     return 0;
 }
 
+// ---------------------------------------------------------------- Hor+ widescreen (runtime --widescreen)
+static float g_widescreen_scale = 1.0f;       // read by the game's patched projection routine (plain aligned float store)
+static std::atomic<bool> g_widescreen_on{false};
+float* jgpu_widescreen(int enable) {
+    if (enable) g_widescreen_on = true;
+    return &g_widescreen_scale;
+}
+// Called by the presenter for every frame (vk_presenter.cpp): returns the factor by which the window is wider than the frame
+// when widescreen is on (the frame is then stretched to fill the window), 0 otherwise; the factor is published for the next
+// projections the game builds.
+extern "C" float jgpu_widescreen_present(int frame_w, int frame_h, int window_w, int window_h) {
+    if (!g_widescreen_on.load(std::memory_order_relaxed) || frame_w <= 0 || frame_h <= 0 || window_w <= 0 || window_h <= 0) return 0.0f;
+    float k = (static_cast<float>(window_w) / window_h) / (static_cast<float>(frame_w) / frame_h);
+    if (k < 1.01f) k = 1.0f;
+    if (k > 4.0f) k = 4.0f;
+    g_widescreen_scale = k;
+    return k > 1.0f ? k : 0.0f;
+}
+
 void jgpu_request_capture(int count) {
-    for (int i = 0; i < count; ++i) VideoCore::RequestScreenshot(VideoCore::ScreenshotRequest::GameOnly);
+    // With widescreen on, also capture the presented picture (the frame stretched to the window), which is what the player sees.
+    const bool presented = g_widescreen_on.load(std::memory_order_relaxed);
+    for (int i = 0; i < count; ++i) {
+        VideoCore::RequestScreenshot(VideoCore::ScreenshotRequest::GameOnly);
+        if (presented) VideoCore::RequestScreenshot(VideoCore::ScreenshotRequest::WithOverlays);
+    }
 }
 
 void jgpu_get_stats(JgpuStats* out) {

@@ -1,4 +1,4 @@
-JStarsReborn 0.5.3 (playtest preview) - unofficial Windows PC port runtime for J-Stars Victory VS+ (PS4, CUSA01593 version 01.02)
+JStarsReborn 0.5.4 (playtest preview) - unofficial Windows PC port runtime for J-Stars Victory VS+ (PS4, CUSA01593 version 01.02)
 ====================================================================================================
 
 Legal (read DISCLAIMER.txt)
@@ -38,6 +38,11 @@ Saves
   The launcher's Saves page imports a save (a SAVE-DATA.DAT, or a folder with one: another JStarsReborn install, a shadPS4 user
   folder, a decrypted PS4 save), unlocks every character in one click, and restores earlier saves. Every change backs up the
   current save first (%LOCALAPPDATA%\JStarsReborn\save-backups). Start the game once to create its save, and close the game first.
+
+Fullscreen and ultrawide (Settings, off by default)
+  "Fullscreen" opens the game borderless over the whole monitor; Alt+Enter or F11 switches between fullscreen and the window.
+  "Ultrawide / widescreen" (experimental): on screens wider than 16:9 the game shows more to the sides instead of black bars.
+  The HUD and menus are stretched for now. Applied only after the runtime checks the game build.
 
 60 fps (experimental, off by default)
   Settings > "60 fps (experimental)". The game runs its own engine at 60 instead of 30; it is applied only after the runtime

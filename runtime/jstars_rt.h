@@ -4,7 +4,7 @@
 // ABI is native) and a Windows x64 host (where the attribute selects the System V convention).
 // Parts adapted from HayatoG/iss_pc and Castlesea/infamous-second-son-pc-port are GPL-2.0-or-later.
 #pragma once
-#define JSTARS_RUNTIME_VERSION "0.5.3"
+#define JSTARS_RUNTIME_VERSION "0.5.4"
 #include <stddef.h>
 #include <stdint.h>
 
@@ -55,7 +55,10 @@ uint64_t rt_read_tsc(void);
 uint64_t rt_tsc_frequency(void);
 uint64_t rt_process_time_us(void);
 int rt_compiled_sdk_version(void);                 // SDK version from the eboot's process parameters, or -1
-int rt_gpu_start(const char* title, const char* data_dir, const char* capture_dir, int width, int height); // 0 on success
+int rt_gpu_start(const char* title, const char* data_dir, const char* capture_dir, int width, int height, int fullscreen); // 0 on success
+// Hor+ widescreen: the horizontal scale cell the projection patch reads (NULL without the GPU library); enable 1 turns on the
+// presenter's fill mode (only once the patch is in place).
+float* rt_gpu_widescreen(int enable);
 void rt_gpu_capture(int n);                        // request PNG captures of the next n presented frames
 void rt_gpu_stats(uint64_t out[5]);
 void rt_gpu_timing_configure(int frame_stats, int flip_rate_override, int flip_rate_after);

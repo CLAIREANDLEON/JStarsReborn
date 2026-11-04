@@ -21,6 +21,7 @@ unsigned jgpu_symbol_count(void) { abort(); }
 void jgpu_request_capture(int x) { (void)x;abort(); }
 int jgpu_fsr_probe(void) { abort(); }
 const char* jgpu_fsr_report(void) { abort(); }
+float* jgpu_widescreen(int x) { (void)x;abort(); }
 void jgpu_get_stats(JgpuStats* x) { (void)x;abort(); }
 int jgpu_handle_fault(void* a,uintptr_t b) { (void)a;(void)b;abort(); }
 int os_protect(void* a,size_t b,int c) { (void)a;(void)b;(void)c;abort(); }

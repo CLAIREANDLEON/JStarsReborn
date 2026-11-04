@@ -437,7 +437,16 @@
  namespace Vulkan {
  
  bool CanBlitToSwapchain(const vk::PhysicalDevice physical_device, vk::Format format) {
-@@ -173,11 +167,10 @@
+@@ -96,6 +90,8 @@
+     };
+ }
+ 
++extern "C" float jgpu_widescreen_present(int frame_w, int frame_h, int window_w, int window_h); // jstars: gpu/jgpu.cpp
++
+ [[nodiscard]] vk::ImageBlit MakeImageBlitStretch(s32 frame_width, s32 frame_height,
+                                                  s32 swapchain_width, s32 swapchain_height) {
+     return MakeImageBlit(frame_width, frame_height, swapchain_width, swapchain_height, 0, 0);
+@@ -173,11 +169,10 @@
          return paths;
      }
  
@@ -451,7 +460,7 @@
      const auto now = std::chrono::system_clock::now();
      const auto now_time = std::chrono::system_clock::to_time_t(now);
      const auto ms =
-@@ -428,14 +421,6 @@
+@@ -428,14 +423,6 @@
  
      LOG_INFO(Render_Vulkan, "Saved screenshot: {}", primary_path.string());
  
@@ -466,7 +475,7 @@
  
      for (size_t i = 1; i < readback.paths.size(); ++i) {
          const auto& path = readback.paths[i];
-@@ -451,14 +436,6 @@
+@@ -451,14 +438,6 @@
          }
  
          LOG_INFO(Render_Vulkan, "Saved screenshot: {}", path.string());
@@ -481,7 +490,7 @@
      }
  }
  
-@@ -492,18 +469,9 @@
+@@ -492,18 +471,9 @@
      fsr_pass.Create(device, instance.GetAllocator(), num_images);
      pp_pass.Create(device, swapchain.GetSurfaceFormat().format);
  
@@ -500,7 +509,7 @@
      draw_scheduler.Finish();
      present_scheduler.Finish();
      flip_scheduler.Finish();
-@@ -525,9 +493,6 @@
+@@ -525,9 +495,6 @@
  
  void Presenter::RecreateFrame(Frame* frame, u32 width, u32 height) {
      const vk::Device device = instance.GetDevice();
@@ -510,7 +519,7 @@
      if (frame->image_view) {
          device.destroyImageView(frame->image_view);
      }
-@@ -563,8 +528,8 @@
+@@ -563,8 +530,8 @@
      VkResult result = vmaCreateImage(instance.GetAllocator(), &unsafe_image_info, &alloc_info,
                                       &unsafe_image, &frame->allocation, nullptr);
      if (result != VK_SUCCESS) [[unlikely]] {
@@ -521,7 +530,7 @@
          UNREACHABLE();
      }
      frame->image = vk::Image{unsafe_image};
-@@ -587,7 +552,6 @@
+@@ -587,7 +554,6 @@
      frame->width = width;
      frame->height = height;
  
@@ -529,7 +538,7 @@
      frame->is_hdr = swapchain.GetHDR();
  }
  
-@@ -851,6 +815,22 @@
+@@ -851,6 +817,23 @@
          }
      };
  
@@ -545,14 +554,15 @@
 +                        unusable_count);
 +        }
 +        free_frame();
-+        std::this_thread::sleep_for(std::chrono::milliseconds(8));
++        // 0.5.4: no sleep here. The flips are already paced by the vblank thread; an extra 8 ms wait made a minimized game
++        // miss vblanks and run at ~44 instead of 60 fps (runs 20261104-021102/-021831).
 +        return;
 +    }
 +
      // Recreate the swapchain if the window was resized.
      if (window.GetWidth() != swapchain.GetWidth() || window.GetHeight() != swapchain.GetHeight()) {
          swapchain.Recreate(window.GetWidth(), window.GetHeight());
-@@ -873,8 +853,6 @@
+@@ -873,8 +856,6 @@
      ASSERT_MSG(reset_result == vk::Result::eSuccess,
                 "Unexpected error resetting present done fence: {}", vk::to_string(reset_result));
  
@@ -561,7 +571,7 @@
      const vk::Image swapchain_image = swapchain.Image();
      const vk::ImageView swapchain_image_view = swapchain.ImageView();
  
-@@ -898,9 +876,9 @@
+@@ -898,9 +879,9 @@
          const std::array pre_barriers{
              vk::ImageMemoryBarrier{
                  .srcAccessMask = vk::AccessFlagBits::eNone,
@@ -573,7 +583,7 @@
                  .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
                  .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
                  .image = swapchain_image,
-@@ -914,9 +892,9 @@
+@@ -914,9 +895,9 @@
              },
              vk::ImageMemoryBarrier{
                  .srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite,
@@ -585,7 +595,7 @@
                  .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
                  .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
                  .image = frame->image,
-@@ -932,63 +910,34 @@
+@@ -932,63 +913,42 @@
  
          bool swapchain_copied_for_screenshot = false;
  
@@ -664,9 +674,17 @@
 +            };
 +            cmdbuf.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer,
 +                                   vk::PipelineStageFlagBits::eTransfer, {}, clear_to_blit, {}, {});
-+            const vk::ImageBlit region = MakeImageBlitFit(
-+                static_cast<s32>(frame->width), static_cast<s32>(frame->height),
-+                static_cast<s32>(extent.width), static_cast<s32>(extent.height));
++            // jstars: Hor+ widescreen (runtime --widescreen): the game's projection was widened by the same factor, so a
++            // frame stretched to the wider window keeps its proportions (the 2D HUD is stretched with it).
++            const bool widescreen_fill =
++                jgpu_widescreen_present(static_cast<s32>(frame->width), static_cast<s32>(frame->height),
++                                        static_cast<s32>(extent.width), static_cast<s32>(extent.height)) > 1.0f;
++            const vk::ImageBlit region =
++                widescreen_fill
++                    ? MakeImageBlitStretch(static_cast<s32>(frame->width), static_cast<s32>(frame->height),
++                                           static_cast<s32>(extent.width), static_cast<s32>(extent.height))
++                    : MakeImageBlitFit(static_cast<s32>(frame->width), static_cast<s32>(frame->height),
++                                       static_cast<s32>(extent.width), static_cast<s32>(extent.height));
 +            cmdbuf.blitImage(frame->image, vk::ImageLayout::eTransferSrcOptimal, swapchain_image,
 +                             vk::ImageLayout::eTransferDstOptimal, region, vk::Filter::eLinear);
          }
@@ -674,7 +692,7 @@
  
          if (capture_with_overlays_count > 0) {
              auto& readback = pending_screenshot.emplace(
-@@ -1000,9 +949,9 @@
+@@ -1000,9 +960,9 @@
                  swapchain.GetHDR());
  
              const vk::ImageMemoryBarrier to_transfer{
@@ -686,7 +704,7 @@
                  .newLayout = vk::ImageLayout::eTransferSrcOptimal,
                  .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
                  .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-@@ -1016,7 +965,7 @@
+@@ -1016,7 +976,7 @@
                  },
              };
  
@@ -695,7 +713,7 @@
                                     vk::PipelineStageFlagBits::eTransfer,
                                     vk::DependencyFlagBits::eByRegion, {}, {}, to_transfer);
              CopyImageToReadback(cmdbuf, swapchain_image, vk::ImageLayout::eTransferSrcOptimal,
-@@ -1026,10 +975,10 @@
+@@ -1026,10 +986,10 @@
  
          const vk::AccessFlags post_src_access_mask =
              swapchain_copied_for_screenshot ? vk::AccessFlagBits::eTransferRead
@@ -708,7 +726,7 @@
          const vk::ImageMemoryBarrier post_barrier{
              .srcAccessMask = post_src_access_mask,
              .dstAccessMask = vk::AccessFlagBits::eNone,
-@@ -1126,6 +1075,9 @@
+@@ -1126,6 +1086,9 @@
  }
  
  void Presenter::SetExpectedGameSize(s32 width, s32 height) {

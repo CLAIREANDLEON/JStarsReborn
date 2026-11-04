@@ -289,6 +289,44 @@ static int native_rate_patch(int rate, const Segment* segs, uint64_t ns, const R
     return 0;
 }
 
+// ---- Widescreen / ultrawide (--widescreen; experimental) ------------------------------------------------------------------
+// The game builds every perspective projection in one routine (0x3ec310: fov in degrees, horizontal scale, h/w aspect, near,
+// far). Its 60-degree field of view is horizontal: m00 = cot(fov/2) / scale, m11 = cot(fov/2) / (h/w). For the 16:9 views
+// (h/w = 0.5625; shadow maps use 1.0 and are left alone) a cave multiplies the horizontal scale by the factor the presenter
+// publishes (window aspect / frame aspect, at least 1), so a wider window shows more to the sides (Hor+) while the vertical view
+// is unchanged, and the presenter stretches the 16:9 frame to fill the window. The 2D HUD is drawn into the same frame, so it
+// is stretched with it. CUSA01593 v01.02 only; every original byte is checked first. docs/WIDESCREEN.md.
+static int widescreen_patch(float* scale_cell, const Segment* segs, uint64_t ns, const Reloc* relocs, uint64_t nr) {
+    enum { SITE = 0x3ec310, RESUME = 0x3ec319, CAVE = 0x730140 };
+    static const uint8_t prologue[9] = {0x55, 0x48, 0x89, 0xe5, 0x53, 0x48, 0x83, 0xec, 0x18}; // push rbp; mov rbp,rsp; push rbx; sub rsp,0x18
+    // movabs rax, scale_cell; vsubss xmm5,xmm2,[c916]; vandps xmm5,xmm5,[absmask]; vcomiss xmm5,[eps]; jae +4;
+    // vmulss xmm1,xmm1,[rax]; (original prologue); jmp RESUME; data: absmask x4, 0.5625, 0.002 (assembled with GNU as)
+    static const uint8_t code[0x58] = {
+        0x48, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0,             0xc5, 0xea, 0x5c, 0x2d, 0x3e, 0x00, 0x00, 0x00,
+        0xc5, 0xd0, 0x54, 0x2d, 0x26, 0x00, 0x00, 0x00, 0xc5, 0xf8, 0x2f, 0x2d, 0x32, 0x00, 0x00, 0x00,
+        0x73, 0x04, 0xc5, 0xf2, 0x59, 0x08,             0x55, 0x48, 0x89, 0xe5, 0x53, 0x48, 0x83, 0xec, 0x18,
+        0xe9, 0, 0, 0, 0,                               0x90, 0x66, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0xff, 0xff, 0xff, 0x7f, 0xff, 0xff, 0xff, 0x7f, 0xff, 0xff, 0xff, 0x7f, 0xff, 0xff, 0xff, 0x7f,
+        0x00, 0x00, 0x10, 0x3f, 0x6f, 0x12, 0x03, 0x3b};
+    if (!scale_cell) { rt_logf("--widescreen: needs the GPU library; not applied"); return -1; }
+    if (ns < 1 || segs[0].address != 0 || segs[0].size != 7536868 || !(segs[0].flags & 1)) { rt_logf("--widescreen: not the supported game build (segment layout); not applied"); return -1; }
+    if (CAVE + sizeof code > ((segs[0].size + 4095) & ~(uint64_t)4095)) { rt_logf("--widescreen: no room for the cave; not applied"); return -1; }
+    if (memcmp(image + SITE, prologue, sizeof prologue)) { rt_logf("--widescreen: original code does not match (other game build?); not applied"); return -1; }
+    for (size_t i = 0; i < sizeof code; ++i) if (image[CAVE + i]) { rt_logf("--widescreen: cave area is not empty; not applied"); return -1; }
+    for (uint64_t i = 0; i < nr; ++i) {
+        const uint64_t t = relocs[i].target;
+        if ((t < RESUME && t + 8 > SITE) || (t < CAVE + sizeof code && t + 8 > CAVE)) { rt_logf("--widescreen: a relocation overlaps the change; not applied"); return -1; }
+    }
+    uint8_t c[sizeof code];
+    memcpy(c, code, sizeof c);
+    const uint64_t cell = (uint64_t)(uintptr_t)scale_cell; memcpy(c + 2, &cell, 8);
+    const int32_t back = (int32_t)(RESUME - (CAVE + 0x36)); memcpy(c + 0x32, &back, 4);
+    memcpy(image + CAVE, c, sizeof c);
+    image[SITE] = 0xe9; const int32_t jmp = (int32_t)(CAVE - (SITE + 5)); memcpy(image + SITE + 1, &jmp, 4); memset(image + SITE + 5, 0x90, 4);
+    rt_logf("--widescreen (EXPERIMENTAL): 16:9 projections widened to the window (Hor+); the frame fills windows wider than 16:9");
+    return 0;
+}
+
 static void* guest_main(void* arg) {
     (void)arg;
     rt_thread_attach_main();
@@ -335,7 +373,7 @@ int main(int argc, char** argv) {
     int frame_stats = 0, flip_rate = -1, flip_rate_after = 0, ffx_probe = 0;
     const char *vblank_hz = NULL, *present_mode = NULL;
     const char* lobby_peers = NULL;
-    int check_only = 0, selftest = 0, audit_dump = 0, stop_at_gnm = 0, win_w = 1280, win_h = 720;
+    int check_only = 0, selftest = 0, audit_dump = 0, stop_at_gnm = 0, win_w = 1280, win_h = 720, fullscreen = 0, widescreen = 0;
     for (int i = 1; i < argc; ++i) {
         if (!strcmp(argv[i], "--version")) { printf("JStarsReborn runtime %s\n", JSTARS_RUNTIME_VERSION); return 0; }
         else if (!strcmp(argv[i], "--boot") && i + 1 < argc) boot = argv[++i];
@@ -368,6 +406,8 @@ int main(int argc, char** argv) {
         else if (!strcmp(argv[i], "--shadnet-server") && i + 1 < argc) { static char e[300]; snprintf(e, sizeof e, "JSTARS_SHADNET_SERVER=%s", argv[++i]); putenv(e); }
         else if (!strcmp(argv[i], "--frame-stats")) frame_stats = 1;
         else if (!strcmp(argv[i], "--ffx-probe")) ffx_probe = 1;
+        else if (!strcmp(argv[i], "--fullscreen")) fullscreen = 1;
+        else if (!strcmp(argv[i], "--widescreen")) widescreen = 1;
         else if (!strcmp(argv[i], "--flip-rate") && i + 1 < argc) flip_rate = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--flip-rate-after") && i + 1 < argc) flip_rate_after = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--vblank-hz") && i + 1 < argc) vblank_hz = argv[++i];
@@ -381,7 +421,7 @@ int main(int argc, char** argv) {
         else if (!strcmp(argv[i], "--capture-interval") && i + 1 < argc) g_capture_interval = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--capture-max") && i + 1 < argc) g_capture_max = atoi(argv[++i]);
         else { fprintf(stderr, "usage: %s --boot boot-linked.bin [--log file] [--check-imports] [--stop-at-first-gnm] [--selftest-host] [--audit-dump]\n"
-                               "       [--game-root dir] [--user-dir dir] [--gpu-dir dir] [--capture-dir dir] [--window WxH] [--max-seconds n] [--capture-flips n]\n"
+                               "       [--game-root dir] [--user-dir dir] [--gpu-dir dir] [--capture-dir dir] [--window WxH] [--fullscreen] [--widescreen] [--max-seconds n] [--capture-flips n]\n"
                                "       [--capture-interval flips] [--capture-max n] [--pad-script file] [--no-keyboard] [--no-audio] [--volume 0-100] [--dump-audio prefix] [--pad-none] [--sample-threads seconds] [--count-imports] [--trace-draws first,count] [--experiment names] [--frame-rate 30|60] [--frame-stats] [--ffx-probe] [--flip-rate n] [--flip-rate-after s] [--vblank-hz n] [--present-mode Fifo|Mailbox|Immediate] [--online] [--shadnet] [--shadnet-server host[:port]] [--lobby-port n] [--lobby-peer ip[,ip]] [--trace-net] [--trace-np]\n", argv[0]); return 1; }
     }
     if (audit_dump) { extern void rt_audit_dump(void*); rt_audit_dump(stdout); return 0; }
@@ -534,7 +574,7 @@ int main(int argc, char** argv) {
         char gdir[4096], cdir[4096];
         if (!gpu_dir) { snprintf(gdir, sizeof gdir, "%s.gpu", logpath); gpu_dir = gdir; }
         if (!capture_dir) { snprintf(cdir, sizeof cdir, "%s.captures", logpath); capture_dir = cdir; }
-        if (rt_gpu_start("J-Stars Victory VS+", gpu_dir, capture_dir, win_w, win_h)) {
+        if (rt_gpu_start("J-Stars Victory VS+", gpu_dir, capture_dir, win_w, win_h, fullscreen)) {
             rt_logf("GPU library did not start; run with --stop-at-first-gnm for the loader-only diagnostic");
             return 6;
         }
@@ -574,6 +614,10 @@ int main(int argc, char** argv) {
     if (check_only) return n_trap ? 1 : 0;
     if (native_rate_patch(frame_rate, segs, ns, relocs, nr) && frame_rate != 30)
         rt_logf("--frame-rate %d was not applied: the game runs at its own 30 fps", frame_rate);
+    if (widescreen) {
+        if (widescreen_patch(rt_gpu_widescreen(0), segs, ns, relocs, nr)) rt_logf("--widescreen was not applied: 16:9 picture");
+        else rt_gpu_widescreen(1);
+    }
 
     if (os_protect(image, image_size, 0)) fail("protect image");
     for (uint64_t i = 0; i < ns; ++i)

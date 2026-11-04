@@ -90,6 +90,8 @@ bool CanBlitToSwapchain(const vk::PhysicalDevice physical_device, vk::Format for
     };
 }
 
+extern "C" float jgpu_widescreen_present(int frame_w, int frame_h, int window_w, int window_h); // jstars: gpu/jgpu.cpp
+
 [[nodiscard]] vk::ImageBlit MakeImageBlitStretch(s32 frame_width, s32 frame_height,
                                                  s32 swapchain_width, s32 swapchain_height) {
     return MakeImageBlit(frame_width, frame_height, swapchain_width, swapchain_height, 0, 0);
@@ -827,7 +829,8 @@ void Presenter::Present(Frame* frame, bool is_reusing_frame, bool is_game_frame)
                         unusable_count);
         }
         free_frame();
-        std::this_thread::sleep_for(std::chrono::milliseconds(8));
+        // 0.5.4: no sleep here. The flips are already paced by the vblank thread; an extra 8 ms wait made a minimized game
+        // miss vblanks and run at ~44 instead of 60 fps (runs 20261104-021102/-021831).
         return;
     }
 
@@ -932,9 +935,17 @@ void Presenter::Present(Frame* frame, bool is_reusing_frame, bool is_game_frame)
             };
             cmdbuf.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer,
                                    vk::PipelineStageFlagBits::eTransfer, {}, clear_to_blit, {}, {});
-            const vk::ImageBlit region = MakeImageBlitFit(
-                static_cast<s32>(frame->width), static_cast<s32>(frame->height),
-                static_cast<s32>(extent.width), static_cast<s32>(extent.height));
+            // jstars: Hor+ widescreen (runtime --widescreen): the game's projection was widened by the same factor, so a
+            // frame stretched to the wider window keeps its proportions (the 2D HUD is stretched with it).
+            const bool widescreen_fill =
+                jgpu_widescreen_present(static_cast<s32>(frame->width), static_cast<s32>(frame->height),
+                                        static_cast<s32>(extent.width), static_cast<s32>(extent.height)) > 1.0f;
+            const vk::ImageBlit region =
+                widescreen_fill
+                    ? MakeImageBlitStretch(static_cast<s32>(frame->width), static_cast<s32>(frame->height),
+                                           static_cast<s32>(extent.width), static_cast<s32>(extent.height))
+                    : MakeImageBlitFit(static_cast<s32>(frame->width), static_cast<s32>(frame->height),
+                                       static_cast<s32>(extent.width), static_cast<s32>(extent.height));
             cmdbuf.blitImage(frame->image, vk::ImageLayout::eTransferSrcOptimal, swapchain_image,
                              vk::ImageLayout::eTransferDstOptimal, region, vk::Filter::eLinear);
         }
