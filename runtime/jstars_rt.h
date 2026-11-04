@@ -55,7 +55,8 @@ uint64_t rt_read_tsc(void);
 uint64_t rt_tsc_frequency(void);
 uint64_t rt_process_time_us(void);
 int rt_compiled_sdk_version(void);                 // SDK version from the eboot's process parameters, or -1
-int rt_gpu_start(const char* title, const char* data_dir, const char* capture_dir, int width, int height, int fullscreen); // 0 on success
+enum { RT_DISPLAY_FULLSCREEN = 1, RT_DISPLAY_MATCH_REFRESH = 2 };
+int rt_gpu_start(const char* title, const char* data_dir, const char* capture_dir, int width, int height, int display); // 0 on success; display: RT_DISPLAY_* bits
 // Hor+ widescreen: the horizontal scale cell the projection patch reads (NULL without the GPU library); enable 1 turns on the
 // presenter's fill mode (only once the patch is in place).
 float* rt_gpu_widescreen(int enable);

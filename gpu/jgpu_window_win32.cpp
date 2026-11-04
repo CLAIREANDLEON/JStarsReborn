@@ -14,6 +14,66 @@ extern JgpuHost* jgpu_host_ptr();
 
 static std::atomic<HWND> g_main_hwnd{nullptr};
 bool jgpu_window_start_fullscreen = false; // set by jgpu_init from JgpuConfig.fullscreen
+bool jgpu_window_match_refresh = false;    // set by jgpu_init from JgpuConfig.match_refresh
+
+// ---- refresh matching ------------------------------------------------------------------------------------------------
+// The game presents at 30 or 60 fps. On a monitor whose refresh rate is not a multiple of 60 (144, 165, 175 Hz...) and without
+// variable refresh, each frame then stays on screen for an uneven number of refreshes (60 fps at 175 Hz: 2 or 3 refreshes, 11.4 or
+// 17.1 ms), which looks like stutter although every frame arrives on time. In fullscreen, refresh matching switches the monitor
+// temporarily (CDS_FULLSCREEN: never written to the registry, undone by Windows when the process ends) to the same resolution at a
+// multiple of 60 Hz, preferring 120 Hz, and restores it when fullscreen ends.
+static wchar_t g_changed_device[CCHDEVICENAME];
+static bool g_refresh_changed = false;
+static bool cadence_ok(DWORD hz) { return hz == 59 || hz == 60 || hz == 119 || hz == 120 || hz == 239 || hz == 240; }
+static int refresh_rank(DWORD hz) { // higher is better; 0 = not a multiple of 60
+    switch (hz) { case 120: return 6; case 119: return 5; case 240: return 4; case 239: return 3; case 60: return 2; case 59: return 1; }
+    return 0;
+}
+static void log_display(HMONITOR mon) {
+    MONITORINFOEXW mi{}; mi.cbSize = sizeof(mi);
+    DEVMODEW cur{}; cur.dmSize = sizeof(cur);
+    if (!GetMonitorInfoW(mon, &mi) || !EnumDisplaySettingsExW(mi.szDevice, ENUM_CURRENT_SETTINGS, &cur, 0)) return;
+    LOG_INFO(Frontend, "display: {}x{} at {} Hz{}", cur.dmPelsWidth, cur.dmPelsHeight, cur.dmDisplayFrequency,
+             cadence_ok(cur.dmDisplayFrequency) ? "" : " (not a multiple of 60: 30/60 fps frames are shown for uneven times without variable refresh)");
+}
+static void match_refresh(HMONITOR mon) {
+    MONITORINFOEXW mi{}; mi.cbSize = sizeof(mi);
+    DEVMODEW cur{}; cur.dmSize = sizeof(cur);
+    if (!GetMonitorInfoW(mon, &mi) || !EnumDisplaySettingsExW(mi.szDevice, ENUM_CURRENT_SETTINGS, &cur, 0)) return;
+    if (cadence_ok(cur.dmDisplayFrequency)) {
+        LOG_INFO(Frontend, "refresh matching: the display already runs at {} Hz; unchanged", cur.dmDisplayFrequency);
+        return;
+    }
+    DEVMODEW best{}; int best_rank = 0;
+    DEVMODEW m{}; m.dmSize = sizeof(m);
+    for (DWORD i = 0; EnumDisplaySettingsExW(mi.szDevice, i, &m, 0); ++i) {
+        if (m.dmPelsWidth != cur.dmPelsWidth || m.dmPelsHeight != cur.dmPelsHeight || m.dmBitsPerPel != cur.dmBitsPerPel) continue;
+        const int rank = refresh_rank(m.dmDisplayFrequency);
+        if (rank > best_rank) { best = m; best_rank = rank; }
+    }
+    if (!best_rank) {
+        LOG_WARNING(Frontend, "refresh matching: {}x{} offers no 60/120/240 Hz mode; staying at {} Hz", cur.dmPelsWidth, cur.dmPelsHeight,
+                    cur.dmDisplayFrequency);
+        return;
+    }
+    best.dmFields = DM_PELSWIDTH | DM_PELSHEIGHT | DM_BITSPERPEL | DM_DISPLAYFREQUENCY;
+    const LONG r = ChangeDisplaySettingsExW(mi.szDevice, &best, nullptr, CDS_FULLSCREEN, nullptr);
+    if (r == DISP_CHANGE_SUCCESSFUL) {
+        wcsncpy(g_changed_device, mi.szDevice, CCHDEVICENAME - 1);
+        g_refresh_changed = true;
+        LOG_INFO(Frontend, "refresh matching: display switched from {} Hz to {} Hz while fullscreen", cur.dmDisplayFrequency,
+                 best.dmDisplayFrequency);
+    } else {
+        LOG_WARNING(Frontend, "refresh matching: switching to {} Hz failed ({}); staying at {} Hz", best.dmDisplayFrequency, r,
+                    cur.dmDisplayFrequency);
+    }
+}
+static void restore_refresh() {
+    if (!g_refresh_changed) return;
+    ChangeDisplaySettingsExW(g_changed_device, nullptr, nullptr, 0, nullptr); // back to the registry (desktop) mode
+    g_refresh_changed = false;
+    LOG_INFO(Frontend, "refresh matching: desktop refresh rate restored");
+}
 
 // Borderless fullscreen on the window's monitor, and back to the previous window (Alt+Enter or F11). Runs on the window thread.
 static WINDOWPLACEMENT g_windowed_placement{sizeof(WINDOWPLACEMENT)};
@@ -21,13 +81,16 @@ static bool g_is_fullscreen = false;
 static void set_fullscreen(HWND hwnd, bool on) {
     if (on == g_is_fullscreen) return;
     if (on) {
+        const HMONITOR mon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+        if (jgpu_window_match_refresh) match_refresh(mon);
         MONITORINFO mi{sizeof(mi)};
-        if (!GetMonitorInfoW(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), &mi)) return;
+        if (!GetMonitorInfoW(mon, &mi)) return;
         GetWindowPlacement(hwnd, &g_windowed_placement);
         SetWindowLongPtrW(hwnd, GWL_STYLE, WS_POPUP | WS_VISIBLE);
         SetWindowPos(hwnd, HWND_TOP, mi.rcMonitor.left, mi.rcMonitor.top, mi.rcMonitor.right - mi.rcMonitor.left,
                      mi.rcMonitor.bottom - mi.rcMonitor.top, SWP_FRAMECHANGED | SWP_NOOWNERZORDER);
     } else {
+        restore_refresh();
         SetWindowLongPtrW(hwnd, GWL_STYLE, WS_OVERLAPPEDWINDOW | WS_VISIBLE);
         SetWindowPlacement(hwnd, &g_windowed_placement);
         SetWindowPos(hwnd, nullptr, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER);
@@ -69,6 +132,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         if (wp == VK_F11 && !(lp & (1 << 30))) { set_fullscreen(hwnd, !g_is_fullscreen); return 0; }
         break;
     case WM_CLOSE:
+        restore_refresh();
         if (self) self->OnClose();
         if (auto* h = jgpu_host_ptr(); h && h->window_closed) h->window_closed();
         return 0;
@@ -97,6 +161,7 @@ WindowSDL::WindowSDL(s32 w, s32 h, const char* title) : width(w), height(h) {
                                     r.right - r.left, r.bottom - r.top, nullptr, nullptr, wc.hInstance, nullptr);
         if (hwnd) {
             SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
+            log_display(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST));
             if (jgpu_window_start_fullscreen) set_fullscreen(hwnd, true);
             RECT cr;
             GetClientRect(hwnd, &cr);

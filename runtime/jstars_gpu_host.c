@@ -144,10 +144,12 @@ static void install_gpu_host(void) {
                                   rt_errno_cell, rt_read_tsc, rt_tsc_frequency, rt_process_time_us, rt_compiled_sdk_version, host_is_neo};
     jgpu_set_host(&host);
 }
-int rt_gpu_start(const char* title, const char* data_dir, const char* capture_dir, int width, int height, int fullscreen) {
+int rt_gpu_start(const char* title, const char* data_dir, const char* capture_dir, int width, int height, int display) {
     install_gpu_host();
-    JgpuConfig cfg = {title, data_dir, capture_dir, width, height, 0, fullscreen};
-    rt_logf("GPU library: starting (window %dx%d%s, data %s, captures %s)", width, height, fullscreen ? ", borderless fullscreen" : "", data_dir, capture_dir);
+    const int fullscreen = display & RT_DISPLAY_FULLSCREEN, match = (display & RT_DISPLAY_MATCH_REFRESH) != 0;
+    JgpuConfig cfg = {title, data_dir, capture_dir, width, height, 0, fullscreen != 0, match};
+    rt_logf("GPU library: starting (window %dx%d%s%s, data %s, captures %s)", width, height, fullscreen ? ", borderless fullscreen" : "",
+            match ? ", refresh matching" : "", data_dir, capture_dir);
     if (jgpu_init(&cfg)) { rt_logf("GPU library: initialization failed"); return 1; }
     g_gpu_on = 1;
     rt_input_set_focus_hook(jgpu_window_focused);

@@ -153,8 +153,9 @@ int jgpu_init(const JgpuConfig* config) {
     g_capture_dir = config->capture_dir ? config->capture_dir : ".";
     LOG_INFO(Lib, "creating window {}x{}{}", config->width, config->height, config->fullscreen ? " (borderless fullscreen)" : "");
 #ifdef _WIN32
-    extern bool jgpu_window_start_fullscreen;
+    extern bool jgpu_window_start_fullscreen, jgpu_window_match_refresh;
     jgpu_window_start_fullscreen = config->fullscreen != 0;
+    jgpu_window_match_refresh = config->match_refresh != 0;
 #endif
     g_window_owner = std::make_unique<Frontend::WindowSDL>(config->width, config->height, config->title ? config->title : "JStarsReborn");
     g_window = g_window_owner.get();

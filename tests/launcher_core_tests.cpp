@@ -40,6 +40,9 @@ int main(int argc, char** argv) {
         CHECK(load_settings(scratch / "missing.ini", nullptr).frame_rate == 30, "the frame rate is the game's 30 by default");
         Settings d = load_settings(scratch / "missing.ini", nullptr);
         CHECK(!d.fullscreen && !d.widescreen, "fullscreen and widescreen are off by default");
+        CHECK(d.match_refresh, "refresh matching (fullscreen only) is on by default");
+        Settings mr; mr.match_refresh = false; save_settings(scratch / "mr.ini", mr);
+        CHECK(!load_settings(scratch / "mr.ini", nullptr).match_refresh, "refresh matching off round trips");
         Settings w; w.fullscreen = true; w.widescreen = true;
         save_settings(scratch / "ws.ini", w);
         Settings wr = load_settings(scratch / "ws.ini", nullptr);

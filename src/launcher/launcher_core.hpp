@@ -32,6 +32,7 @@ struct Settings {
     int frame_rate = 30;                // 30 (the game's own) or 60 (experimental: runtime --frame-rate 60)
     bool fullscreen = false;            // borderless fullscreen on the monitor (runtime --fullscreen; Alt+Enter / F11 switch in game)
     bool widescreen = false;            // experimental Hor+ widescreen for monitors wider than 16:9 (runtime --widescreen)
+    bool match_refresh = true;          // fullscreen only: monitor at a multiple of 60 Hz while playing (runtime --match-refresh)
 };
 // Reads settings; unknown keys are ignored, invalid values fall back to defaults (reported in `notes`).
 Settings load_settings(const fs::path& file, std::vector<std::string>* notes = nullptr);

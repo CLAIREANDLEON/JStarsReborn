@@ -31,6 +31,7 @@ typedef struct JgpuConfig {
     int32_t width, height;   /* initial window size */
     int headless_window;     /* 1: no window thread (unit tests of the library only) */
     int fullscreen;          /* 1: borderless fullscreen on the window's monitor (Alt+Enter / F11 switch in either mode) */
+    int match_refresh;       /* 1: while fullscreen, switch the monitor to a multiple of 60 Hz (prefer 120) if it is not one */
 } JgpuConfig;
 
 typedef struct JgpuStats {

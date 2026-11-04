@@ -373,7 +373,7 @@ int main(int argc, char** argv) {
     int frame_stats = 0, flip_rate = -1, flip_rate_after = 0, ffx_probe = 0;
     const char *vblank_hz = NULL, *present_mode = NULL;
     const char* lobby_peers = NULL;
-    int check_only = 0, selftest = 0, audit_dump = 0, stop_at_gnm = 0, win_w = 1280, win_h = 720, fullscreen = 0, widescreen = 0;
+    int check_only = 0, selftest = 0, audit_dump = 0, stop_at_gnm = 0, win_w = 1280, win_h = 720, fullscreen = 0, widescreen = 0, match_refresh = 0;
     for (int i = 1; i < argc; ++i) {
         if (!strcmp(argv[i], "--version")) { printf("JStarsReborn runtime %s\n", JSTARS_RUNTIME_VERSION); return 0; }
         else if (!strcmp(argv[i], "--boot") && i + 1 < argc) boot = argv[++i];
@@ -407,6 +407,7 @@ int main(int argc, char** argv) {
         else if (!strcmp(argv[i], "--frame-stats")) frame_stats = 1;
         else if (!strcmp(argv[i], "--ffx-probe")) ffx_probe = 1;
         else if (!strcmp(argv[i], "--fullscreen")) fullscreen = 1;
+        else if (!strcmp(argv[i], "--match-refresh")) match_refresh = 1;
         else if (!strcmp(argv[i], "--widescreen")) widescreen = 1;
         else if (!strcmp(argv[i], "--flip-rate") && i + 1 < argc) flip_rate = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--flip-rate-after") && i + 1 < argc) flip_rate_after = atoi(argv[++i]);
@@ -421,7 +422,7 @@ int main(int argc, char** argv) {
         else if (!strcmp(argv[i], "--capture-interval") && i + 1 < argc) g_capture_interval = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--capture-max") && i + 1 < argc) g_capture_max = atoi(argv[++i]);
         else { fprintf(stderr, "usage: %s --boot boot-linked.bin [--log file] [--check-imports] [--stop-at-first-gnm] [--selftest-host] [--audit-dump]\n"
-                               "       [--game-root dir] [--user-dir dir] [--gpu-dir dir] [--capture-dir dir] [--window WxH] [--fullscreen] [--widescreen] [--max-seconds n] [--capture-flips n]\n"
+                               "       [--game-root dir] [--user-dir dir] [--gpu-dir dir] [--capture-dir dir] [--window WxH] [--fullscreen] [--match-refresh] [--widescreen] [--max-seconds n] [--capture-flips n]\n"
                                "       [--capture-interval flips] [--capture-max n] [--pad-script file] [--no-keyboard] [--no-audio] [--volume 0-100] [--dump-audio prefix] [--pad-none] [--sample-threads seconds] [--count-imports] [--trace-draws first,count] [--experiment names] [--frame-rate 30|60] [--frame-stats] [--ffx-probe] [--flip-rate n] [--flip-rate-after s] [--vblank-hz n] [--present-mode Fifo|Mailbox|Immediate] [--online] [--shadnet] [--shadnet-server host[:port]] [--lobby-port n] [--lobby-peer ip[,ip]] [--trace-net] [--trace-np]\n", argv[0]); return 1; }
     }
     if (audit_dump) { extern void rt_audit_dump(void*); rt_audit_dump(stdout); return 0; }
@@ -574,7 +575,8 @@ int main(int argc, char** argv) {
         char gdir[4096], cdir[4096];
         if (!gpu_dir) { snprintf(gdir, sizeof gdir, "%s.gpu", logpath); gpu_dir = gdir; }
         if (!capture_dir) { snprintf(cdir, sizeof cdir, "%s.captures", logpath); capture_dir = cdir; }
-        if (rt_gpu_start("J-Stars Victory VS+", gpu_dir, capture_dir, win_w, win_h, fullscreen)) {
+        if (rt_gpu_start("J-Stars Victory VS+", gpu_dir, capture_dir, win_w, win_h,
+                         (fullscreen ? RT_DISPLAY_FULLSCREEN : 0) | (match_refresh ? RT_DISPLAY_MATCH_REFRESH : 0))) {
             rt_logf("GPU library did not start; run with --stop-at-first-gnm for the loader-only diagnostic");
             return 6;
         }
