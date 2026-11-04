@@ -14,7 +14,7 @@
 - 120 fps is not offered: the game's internal timers cannot run exactly at 120. The plan is 60 fps plus frame generation.
 
 ### Please attach logs when something goes wrong
-In the launcher, open **Help > Create diagnostic report…** and attach the zip to your report (it removes your user name and computer name).
+In the launcher, open **Troubleshooting > Create diagnostic report…** and attach the zip to your report (it removes your user name and computer name).
 Without it we cannot tell why the game "won't run" or stutters on a given PC.
 
 ### Requirements
