@@ -87,8 +87,11 @@ void prune_sessions(const fs::path& sessions_root, std::size_t keep);
 std::optional<fs::path> latest_session(const fs::path& sessions_root);
 
 // ---- diagnostics ----------------------------------------------------------------------------------------------------
-// Replaces the user's profile path and user name with placeholders (case-insensitive).
+// Replaces known private values, including slash variants and JSON-escaped paths.
+// Short names are matched at word boundaries to avoid destroying unrelated diagnostics.
 std::string redact(std::string text, const std::vector<std::string>& secrets);
+// Diagnostic settings only: excludes paths, player/account names and peer addresses.
+std::string diagnostic_settings_json(const Settings& settings);
 // Minimal ZIP writer (stored, no compression) with CRC-32. Throws std::runtime_error on failure.
 class ZipWriter {
 public:
@@ -105,7 +108,8 @@ private:
 };
 std::uint32_t crc32(const std::string& data);
 std::string json_escape(const std::string& s);
-std::string read_text(const fs::path& p, std::size_t max_bytes = 4u << 20); // whole file (or its last max_bytes)
+// Whole file up to max_bytes; tail=false keeps startup metadata instead of the end.
+std::string read_text(const fs::path& p, std::size_t max_bytes = 4u << 20, bool tail = true);
 // UTF-8 <-> path without the Windows ANSI code page (paths may contain any character).
 std::string u8(const fs::path& p);
 fs::path from_u8(const std::string& s);

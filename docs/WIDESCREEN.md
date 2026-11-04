@@ -34,6 +34,6 @@ without the cave bytes taken from `runtime/jstars_loader.c` and checks the matri
 ## Known limitations
 - The 2D HUD, menus and movies are drawn into the same 16:9 frame, so they are stretched horizontally. Keeping them at 16:9
   needs the HUD draws identified and placed separately (as the Bloodborne PC port's HUD layout tool does); not done yet.
-- The game still renders 1920x1080; on a 3440x1440 monitor the frame is scaled up. A higher internal resolution and FSR
+- The tested game-only output is 1280x720; on a 3440x1440 monitor the frame is scaled up. A higher internal resolution and FSR
   upscaling are separate work.
 - Objects at the far left and right edges may appear late if the game culls them with its own 60-degree view. Please report it.

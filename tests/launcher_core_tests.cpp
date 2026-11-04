@@ -83,11 +83,48 @@ int main(int argc, char** argv) {
     // redaction
     CHECK(redact("C:\\Users\\Alex\\AppData\\Local\\JStarsReborn and alex", {"C:\\Users\\Alex", "Alex"}) ==
               "<redacted>\\AppData\\Local\\JStarsReborn and <redacted>", "redaction is case-insensitive");
+    {
+        const std::vector<std::string> secrets{"Alex", "D:\\Private Games\\Alex", "DESKTOP-TEST", "10.20.30.40:47391", "10.20.30.40"};
+        const auto raw = std::string("D:\\Private Games\\Alex\\eboot.bin desktop-test 10.20.30.40:47391");
+        CHECK(redact(raw, secrets) == "<redacted>\\eboot.bin <redacted> <redacted>",
+              "longest private root wins over a name inside it, regardless of input order");
+        CHECK(redact(json_escape(raw), secrets) == "<redacted>\\\\eboot.bin <redacted> <redacted>",
+              "JSON-escaped command lines redact complete private roots and endpoints");
+        CHECK(redact("d:/private games/ALEX/eboot.bin", secrets) == "<redacted>/eboot.bin",
+              "forward-slash path variants are redacted");
+        CHECK(redact("Al on PC: allocate Vulkan", {"", "Al", "PC"}) == "<redacted> on <redacted>: allocate Vulkan",
+              "short identities are redacted as words without damaging unrelated diagnostics");
+        CHECK(redact("C:\\redacted\\game", {"C:\\redacted", "redacted"}) == "<redacted>\\game",
+              "replacement tokens are not reprocessed by later patterns");
+        CHECK(redact("frame time ms p50 16.67 p95 17.30 p99 24.10", secrets) ==
+              "frame time ms p50 16.67 p95 17.30 p99 24.10", "redaction retains timing measurements");
+    }
+    {
+        Settings diagnostic;
+        diagnostic.frame_rate = 60; diagnostic.fullscreen = true; diagnostic.widescreen = true;
+        diagnostic.game_folder = "private-directory"; diagnostic.player_name = "private-player";
+        diagnostic.lobby_peers = "10.20.30.40";
+        auto settings = diagnostic_settings_json(diagnostic);
+        CHECK(settings.find("\"frame_rate\": 60") != std::string::npos && settings.find("\"fullscreen\": true") != std::string::npos &&
+              settings.find("\"widescreen\": true") != std::string::npos, "reports distinguish 60 fps, fullscreen and widescreen");
+        CHECK(settings.find("private-") == std::string::npos && settings.find("10.20.30.40") == std::string::npos,
+              "diagnostic settings exclude directories, player identity and peers");
+        write(scratch / "diagnostic-settings.json", settings);
+        write(scratch / "redacted-session.json", "{\"command_line\":\"" +
+              redact(json_escape("D:\\Private Games\\Example\\game.exe --frame-rate 60"), {"D:\\Private Games\\Example"}) + "\"}");
+    }
     // zip
+    write(scratch / "long.log", "GPU device header\nframe timings\nFAULT at end\n");
+    CHECK(read_text(scratch / "long.log", 17, false) == "GPU device header", "bounded startup read preserves GPU metadata");
+    CHECK(read_text(scratch / "long.log", 13) == "FAULT at end\n", "bounded tail read preserves the failure");
+    CHECK(read_text(scratch / "long.log", 0, false).empty() && read_text(scratch / "long.log", 0).empty(), "zero-size reads stay empty");
+    CHECK(read_text(scratch / "missing.log", 17, false).empty(), "missing startup log is allowed");
     {
         ZipWriter z(scratch / "report.zip");
         z.add("a.txt", "hello\n");
         z.add("dir/b.json", "{\"x\": 1}\n");
+        z.add("sessions/1/session.json", read_text(scratch / "redacted-session.json"));
+        z.add("settings.json", read_text(scratch / "diagnostic-settings.json"));
         z.finish();
     }
     CHECK(fs::file_size(scratch / "report.zip") > 0, "zip written");

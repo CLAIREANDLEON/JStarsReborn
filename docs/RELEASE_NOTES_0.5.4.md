@@ -10,7 +10,7 @@ helps at the default 30 fps.
 ### New: Ultrawide / widescreen (experimental)
 - Settings > **Ultrawide / widescreen**. On a screen wider than 16:9 (21:9, 32:9) the game shows more to the left and right instead of
   black bars; the vertical view is unchanged. At 3440x1440 the horizontal field of view goes from 60 to about 76 degrees.
-- The HUD, menus and movies are stretched for now (they are drawn into the same picture). The game still renders 1920x1080.
+- The HUD, menus and movies are stretched for now (they are drawn into the same picture). The tested game-only output is 1280x720, scaled to the window.
 - Applied only after checking the game build; on anything else the game keeps its normal 16:9 picture.
 - Please report anything that pops in at the screen edges.
 

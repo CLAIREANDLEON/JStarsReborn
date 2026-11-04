@@ -441,22 +441,50 @@ void prune_sessions(const fs::path& root, std::size_t keep) {
 
 // ---- diagnostics -----------------------------------------------------------------------------------------------------
 std::string redact(std::string text, const std::vector<std::string>& secrets) {
-    for (const auto& s0 : secrets) {
-        if (s0.size() < 3) continue;
-        const std::string s = lower(s0);
-        std::string low = lower(text);
-        std::string out;
-        std::size_t pos = 0;
-        while (true) {
-            const auto f = low.find(s, pos);
-            if (f == std::string::npos) { out += text.substr(pos); break; }
-            out += text.substr(pos, f - pos);
-            out += "<redacted>";
-            pos = f + s.size();
+    std::vector<std::string> patterns;
+    for (const auto& secret : secrets) {
+        if (secret.empty()) continue;
+        for (char slash : {'\\', '/'}) {
+            std::string value = secret;
+            std::replace(value.begin(), value.end(), slash == '/' ? '\\' : '/', slash);
+            patterns.push_back(lower(value));
+            patterns.push_back(lower(json_escape(value)));
         }
-        text = out;
     }
-    return text;
+    std::sort(patterns.begin(), patterns.end(), [](const auto& a, const auto& b) {
+        return a.size() != b.size() ? a.size() > b.size() : a < b;
+    });
+    patterns.erase(std::unique(patterns.begin(), patterns.end()), patterns.end());
+    const auto word = [](unsigned char ch) { return std::isalnum(ch) || ch == '_' || ch >= 0x80; };
+    const std::string low = lower(text);
+    std::string out;
+    for (std::size_t i = 0; i < text.size();) {
+        std::size_t length = 0;
+        for (const auto& pattern : patterns) {
+            if (low[i] != pattern[0]) continue;
+            if (low.compare(i, pattern.size(), pattern) != 0) continue;
+            if (pattern.size() < 3 &&
+                ((i && word(text[i - 1])) || (i + pattern.size() < text.size() && word(text[i + pattern.size()])))) continue;
+            length = pattern.size();
+            break;
+        }
+        if (length) { out += "<redacted>"; i += length; }
+        else out += text[i++];
+    }
+    return out;
+}
+
+std::string diagnostic_settings_json(const Settings& s) {
+    std::ostringstream o;
+    o << "{\"window\": \"" << s.window_width << "x" << s.window_height << "\", \"sound\": "
+      << (s.sound ? "true" : "false") << ", \"volume\": " << s.volume
+      << ", \"keyboard\": " << (s.keyboard ? "true" : "false")
+      << ", \"confirm_button\": \"" << (s.confirm_button == "circle" ? "circle" : "cross")
+      << "\", \"online\": " << (s.online ? "true" : "false")
+      << ", \"frame_rate\": " << s.frame_rate
+      << ", \"fullscreen\": " << (s.fullscreen ? "true" : "false")
+      << ", \"widescreen\": " << (s.widescreen ? "true" : "false") << "}";
+    return o.str();
 }
 
 std::uint32_t crc32(const std::string& data) {
@@ -533,14 +561,16 @@ std::string u8(const fs::path& p) {
 }
 fs::path from_u8(const std::string& s) { return fs::path(std::u8string(s.begin(), s.end())); }
 
-std::string read_text(const fs::path& p, std::size_t max_bytes) {
+std::string read_text(const fs::path& p, std::size_t max_bytes, bool tail) {
     std::ifstream f(p, std::ios::binary);
     if (!f) return {};
     f.seekg(0, std::ios::end);
-    const auto size = static_cast<std::uint64_t>(f.tellg());
-    const std::uint64_t start = size > max_bytes ? size - max_bytes : 0;
+    const auto end = f.tellg();
+    if (end < 0) return {};
+    const auto size = static_cast<std::uint64_t>(end);
+    const std::uint64_t start = tail && size > max_bytes ? size - max_bytes : 0;
     f.seekg(static_cast<std::streamoff>(start));
-    std::string s(static_cast<std::size_t>(size - start), '\0');
+    std::string s(static_cast<std::size_t>(std::min<std::uint64_t>(size, max_bytes)), '\0');
     f.read(s.data(), static_cast<std::streamsize>(s.size()));
     s.resize(static_cast<std::size_t>(f.gcount()));
     return s;

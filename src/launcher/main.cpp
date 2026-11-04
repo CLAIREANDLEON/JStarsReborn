@@ -585,9 +585,7 @@ std::string session_json(bool finished, DWORD code, const ExitInfo* info) {
       << "  \"runtime_sha256\": \"" << g.runtime_sha256 << "\",\n"
       << "  \"game\": {\"title_id\": \"" << json_escape(g.game.title_id) << "\", \"version\": \"" << json_escape(g.game.app_ver)
       << "\", \"supported_build\": \"" << json_escape(g.game.build ? g.game.build->label : "") << "\"},\n"
-      << "  \"settings\": {\"window\": \"" << g.settings.window_width << "x" << g.settings.window_height << "\", \"sound\": "
-      << (g.settings.sound ? "true" : "false") << ", \"volume\": " << g.settings.volume << ", \"keyboard\": " << (g.settings.keyboard ? "true" : "false")
-      << ", \"confirm_button\": \"" << g.settings.confirm_button << "\", \"online\": " << (g.settings.online ? "true" : "false") << "},\n"
+      << "  \"settings\": " << diagnostic_settings_json(g.settings) << ",\n"
       << "  \"mode\": \"normal play: live input (controller/keyboard), no scripted input, no time limit, no capture\",\n"
       << "  \"command_line\": \"" << json_escape(U(g.session_cmdline)) << "\",\n"
       << "  \"started_utc\": \"" << g.session_start << "\",\n";
@@ -654,12 +652,12 @@ void launch_game() {
         MessageBoxW(g.hwnd, (L"Could not create the session folder:\n" + g.session_dir.wstring()).c_str(), L"JStarsReborn", MB_ICONERROR);
         return;
     }
-    // Normal play: live input, no scripted input, no time limit, no capture, no diagnostics switches.
+    // Normal play: live input, no time limit or captures. Lightweight timing counters help diagnose stalls.
     std::wstring cmd = quote_arg(g.runtime_exe.wstring());
     cmd += L" --boot " + quote_arg((prepared / "boot-linked.bin").wstring());
     cmd += L" --game-root " + quote_arg(g.game.folder.wstring());
     cmd += L" --user-dir " + quote_arg(g.user_dir.wstring());
-    cmd += L" --log game.log --gpu-dir gpu --capture-dir captures";
+    cmd += L" --log game.log --gpu-dir gpu --capture-dir captures --frame-stats";
     cmd += L" --window " + std::to_wstring(g.settings.window_width) + L"x" + std::to_wstring(g.settings.window_height);
     if (g.settings.sound) cmd += L" --volume " + std::to_wstring(g.settings.volume);
     else cmd += L" --no-audio";
@@ -779,6 +777,18 @@ std::vector<std::string> privacy_secrets() {
     if (GetUserNameW(name, &n) && n > 1) s.push_back(U(name));
     n = 256;
     if (GetComputerNameW(name, &n) && n > 0) s.push_back(U(name));
+    for (const auto& p : {g.exe.parent_path(), g.runtime_exe.parent_path(), g.data_root, g.user_dir, g.game.folder})
+        if (!p.empty()) s.push_back(u8(p));
+    if (!g.settings.game_folder.empty()) s.push_back(g.settings.game_folder);
+    s.push_back(g.settings.player_name);
+    // Room codes embed addresses; redact both the input codes and resolved endpoints.
+    std::string peers = g.settings.lobby_peers + "," + online::peers_to_lobby_arg(g.settings.lobby_peers);
+    for (char& ch : peers) if (ch == ',' || ch == ';') ch = ' ';
+    std::istringstream peer_stream(peers);
+    for (std::string peer; peer_stream >> peer;) {
+        s.push_back(peer);
+        if (const auto colon = peer.find(':'); colon != std::string::npos) s.push_back(peer.substr(0, colon));
+    }
     std::sort(s.begin(), s.end(), [](const std::string& a, const std::string& b) { return a.size() > b.size(); });
     return s;
 }
@@ -855,11 +865,11 @@ void create_report() {
           << "os: " << os_version() << "\nvulkan loader present: " << (g.vulkan_present ? "yes" : "no") << "\n\n"
           << "game folder: " << g.settings.game_folder << "\nstatus: " << g.game.summary << "\n";
         for (const auto& d : g.game.details) r << "  " << d << "\n";
-        r << "prepared data: " << g.prep_state_text << "\n\nsettings: window " << g.settings.window_width << "x" << g.settings.window_height
-          << ", sound " << g.settings.sound << ", volume " << g.settings.volume << ", keyboard " << g.settings.keyboard << ", confirm "
-          << g.settings.confirm_button << "\n\n"
-          << "Contents: launcher log, and for the newest three sessions: session.json, game.log, stdout.txt, stderr.txt.\n"
-          << "Not included: game files, prepared data, saves, GPU command dumps, captures. Your user and computer name are replaced by <redacted>.\n"
+        r << "prepared data: " << g.prep_state_text << "\n\ncurrent launcher settings: " << diagnostic_settings_json(g.settings) << "\n"
+          << "For each run's settings, use its session.json. Window size is not the game's internal render resolution.\n\n"
+          << "Contents: launcher log, and for the newest three sessions: session.json, startup.log (first 256 KiB), game.log, stdout.txt, stderr.txt (last 8 MiB each).\n"
+          << "Not included: game files, prepared data, saves, GPU command dumps, captures. Known user/computer/player names, local roots and configured peers are redacted.\n"
+          << "Review the report before sharing: other text in third-party logs may contain identifying information.\n"
           << "This report is not uploaded anywhere.\n";
         if (g.last.valid) r << "\nlast session: " << g.last.info.headline << " " << g.last.info.detail << "\n";
         zip.add("report.txt", clean(r.str()));
@@ -870,9 +880,12 @@ void create_report() {
             if (it->is_directory(ec)) sessions.push_back(it->path());
         std::sort(sessions.begin(), sessions.end());
         if (sessions.size() > 3) sessions.erase(sessions.begin(), sessions.end() - 3);
+        unsigned session_index = 0;
         for (const auto& s : sessions) {
-            const std::string base = "sessions/" + u8(s.filename()) + "/";
+            // Never embed a user-controlled directory name in archive member names.
+            const std::string base = "sessions/" + std::to_string(++session_index) + "/";
             const std::string game_log = read_text(s / "game.log", 8u << 20);
+            zip.add(base + "startup.log", clean(read_text(s / "game.log", 256u << 10, false)));
             for (const char* f : {"session.json", "game.log", "stdout.txt", "stderr.txt"}) {
                 if (!fs::exists(s / f, ec)) continue;
                 std::string text = std::string(f) == "game.log" ? game_log : read_text(s / f, 8u << 20);
@@ -1186,7 +1199,8 @@ void refresh_help_text() {
     t << L"Every play session gets its own log folder (game.log, session.json with the versions, settings, start/end time and how it "
          L"ended). The newest 30 sessions are kept.\r\n\r\n"
       << L"The diagnostic report is a ZIP file you save yourself; it is never uploaded. It contains the launcher log and the logs of the newest "
-         L"three sessions, with your user and computer names replaced. It never contains game files, prepared data, saves or captures.\r\n\r\n"
+         L"three sessions, including startup GPU information and frame timing. Known names, local roots and configured peer addresses are replaced. "
+         L"Review it before sharing. It never contains game files, prepared data, saves or captures.\r\n\r\n"
       << L"Delete prepared data if the game fails to start after you changed the game folder; it is rebuilt on the next Play.\r\n\r\n"
       << L"Known limits of this version: movies are skipped; trophies are not available; online is an experimental local-network test (Settings); only CUSA01593 version 01.02 "
          L"is supported; only the title screen, menus, Free Battle and the J-Adventure map have been exercised.\r\n\r\n"
