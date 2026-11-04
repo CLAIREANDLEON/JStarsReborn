@@ -83,6 +83,7 @@ int os_sonypad_poll(OsPadState* out);
 const char* os_sonypad_name(void);         // "DualSense (USB, 054c:0ce6)" etc., "" before the first connection
 void os_sonypad_rumble(int strong, int weak);
 int os_sonypad_parse(const uint8_t* report, unsigned n, int dualsense, int bluetooth, OsPadState* out); // 1 = state decoded
+uint32_t os_sonypad_buttons(uint32_t current, uint32_t latched, uint32_t reported_before); // buttons a poll reports
 unsigned os_sonypad_rumble_report(uint8_t* out, unsigned cap, int dualsense, int bluetooth, unsigned out_len, uint8_t seq, int strong, int weak);
 
 // ---- thread sampling (diagnostics: where is each guest thread right now) -----------------------------------------

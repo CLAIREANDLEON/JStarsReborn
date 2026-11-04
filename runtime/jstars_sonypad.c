@@ -50,6 +50,12 @@ int os_sonypad_parse(const uint8_t* r, unsigned n, int dualsense, int bluetooth,
     return 1;
 }
 
+// Buttons to report at a poll: the current state plus taps that began and ended between two polls (latched), except
+// buttons already reported pressed at the previous poll, so a release is never held for an extra frame.
+uint32_t os_sonypad_buttons(uint32_t current, uint32_t latched, uint32_t reported_before) {
+    return current | (latched & ~reported_before);
+}
+
 static uint32_t crc32_sony(const uint8_t* p, size_t n) { // CRC-32 (IEEE) over the 0xA2 output seed byte, then the report
     uint32_t c = 0xFFFFFFFFu;
     for (size_t i = 0; i <= n; ++i) {
@@ -99,6 +105,7 @@ static SetupDiGetDeviceInterfaceDetailWFn p_detail; static SetupDiDestroyDeviceI
 static SRWLOCK g_lock = SRWLOCK_INIT;
 static OsPadState g_state;          // latest report
 static uint32_t g_latched;          // buttons seen pressed since the last poll
+static uint32_t g_reported;         // buttons reported at the last poll
 static int g_connected, g_kind, g_bt;
 static char g_name[96];
 static HANDLE g_out = INVALID_HANDLE_VALUE; static USHORT g_out_len; // write handle and output report length
@@ -199,7 +206,7 @@ static DWORD WINAPI reader_thread(LPVOID unused) {
         if (!r) { Sleep(1000); continue; }
         AcquireSRWLockExclusive(&g_lock);
         g_kind = kind; g_bt = bt; snprintf(g_name, sizeof g_name, "%s", name);
-        memset(&g_state, 0, sizeof g_state); g_state.lx = g_state.ly = g_state.rx = g_state.ry = 128; g_latched = 0;
+        memset(&g_state, 0, sizeof g_state); g_state.lx = g_state.ly = g_state.rx = g_state.ry = 128; g_latched = g_reported = 0;
         g_connected = 1;
         ReleaseSRWLockExclusive(&g_lock);
         SetEvent(g_rumble_event); // re-send the current rumble to a controller that just (re)connected
@@ -234,7 +241,7 @@ int os_sonypad_poll(OsPadState* out) {
     }
     AcquireSRWLockExclusive(&g_lock);
     const int c = g_connected;
-    if (c) { *out = g_state; out->buttons |= g_latched; g_latched = 0; }
+    if (c) { *out = g_state; out->buttons = os_sonypad_buttons(g_state.buttons, g_latched, g_reported); g_reported = out->buttons; g_latched = 0; }
     ReleaseSRWLockExclusive(&g_lock);
     return c;
 }
