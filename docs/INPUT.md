@@ -7,10 +7,15 @@ applies, in this order, and the log names the source whenever it changes:
 1. **Scripted test input** (`--pad-script file`) — automated test input, never a controller. Every transition is logged as
    `pad: SCRIPTED TEST INPUT buttons -> ...`. Script format (seconds count from the first `scePadOpen`):
    `at <s> press CROSS[+BTN] [for ms]`, `at <s> stick left|right x y [for ms]`, `every <ms> from <s> to <s> press BTN [for ms]`.
-2. **XInput controller** (first connected pad). Button/stick/trigger mapping is the usual one (A = CROSS, B = CIRCLE,
+2. **Sony controller**: a DualSense, DualSense Edge or DualShock 4 over USB or Bluetooth, read directly as HID reports
+   (`jstars_sonypad.c`), so DS4Windows or Steam Input is not needed. All buttons, analog sticks and triggers, the touchpad
+   click (TOUCHPAD) and rumble; Create/Share and PS stay with the system. The log names the controller and connection, for
+   example `pad: input source is now DualSense (Bluetooth, 054c:0ce6)`. A controller another program holds exclusively is
+   skipped, and the next source is used.
+3. **XInput controller** (first connected pad). Button/stick/trigger mapping is the usual one (A = CROSS, B = CIRCLE,
    X = SQUARE, Y = TRIANGLE, Start = OPTIONS, Back = TOUCHPAD, bumpers L1/R1, triggers L2/R2, stick clicks L3/R3, D-pad).
    Rumble goes to the XInput motors.
-3. **Keyboard**, only while the game window has focus (`--no-keyboard` disables it).
+4. **Keyboard**, only while the game window has focus (`--no-keyboard` disables it).
 
 | Key | Console input | Key | Console input |
 |---|---|---|---|

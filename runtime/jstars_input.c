@@ -2,6 +2,7 @@
 // these sources, chosen at start-up and recorded in the log:
 //   scripted   --pad-script <file>: timed test input for automated runs. It is NOT a player controller; every
 //              transition it injects is logged ("SCRIPTED TEST INPUT") so a run's evidence shows what drove the game.
+//   sony       a DualSense, DualSense Edge or DualShock 4 over USB or Bluetooth, read directly (Windows, jstars_sonypad.c).
 //   xinput     the first connected XInput controller (Windows).
 //   keyboard   the keyboard while the game window has focus (Windows; mapping in docs/INPUT.md). The keyboard is
 //              reported as a connected controller so the game does not stop at its "connect a controller" screen.
@@ -153,7 +154,7 @@ static int GUEST_ABI p_open(int user, int type, int index, const void* param) {
     (void)user; (void)type; (void)index; (void)param;
     if (!g_open_us) {
         g_open_us = now_us();
-        rt_logf("pad: scePadOpen; source order: %s%s%s", g_script_on ? "scripted test input, " : "", "XInput controller, ",
+        rt_logf("pad: scePadOpen; source order: %s%s%s", g_script_on ? "scripted test input, " : "", "Sony controller (DualSense / DualShock 4), XInput controller, ",
                 g_keyboard_ok && g_focus_hooked ? "keyboard (game window focused)" : "no keyboard");
     }
     return 1;
@@ -185,7 +186,7 @@ static int GUEST_ABI p_read(int handle, PadData* d) {
     d->connected = source != OS_PAD_NONE; d->connectedCount = d->connected;
     // Log source changes and every change of the button set (bounded: only transitions).
     if (source != g_last_source) {
-        rt_logf("pad: input source is now %s", scripted ? "SCRIPTED TEST INPUT" : source == OS_PAD_XINPUT ? "XInput controller" : source == OS_PAD_KEYBOARD ? "keyboard" : "none (connected=0)");
+        rt_logf("pad: input source is now %s", scripted ? "SCRIPTED TEST INPUT" : source == OS_PAD_SONY ? os_sonypad_name() : source == OS_PAD_XINPUT ? "XInput controller" : source == OS_PAD_KEYBOARD ? "keyboard" : "none (connected=0)");
         g_last_source = source;
     }
     if (st.buttons != g_last_logged) {

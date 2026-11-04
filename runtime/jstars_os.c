@@ -350,6 +350,7 @@ static int g_kb_focused_before;
 int os_pad_poll(OsPadState* out, int allow_keyboard, int window_focused) {
     memset(out, 0, sizeof *out);
     out->lx = out->ly = out->rx = out->ry = 128;
+    if (os_sonypad_poll(out)) return OS_PAD_SONY; // DualSense / DualShock 4 read directly (jstars_sonypad.c)
     xi_load();
     if (g_xi_get) {
         // The active controller is read on every call. Empty slots are probed at most every 500 ms: XInputGetState on a
@@ -423,6 +424,7 @@ int os_pad_poll(OsPadState* out, int allow_keyboard, int window_focused) {
     return OS_PAD_KEYBOARD; // the keyboard is always "connected" while enabled; unfocused it reports a neutral state
 }
 void os_pad_rumble(int large, int small) {
+    os_sonypad_rumble(large, small); // ignored unless a Sony controller is connected
     if (!g_xi_set || g_xi_user < 0) return;
     XINPUT_VIBRATION v = { (WORD)(large * 257), (WORD)(small * 257) };
     g_xi_set((DWORD)g_xi_user, &v);
