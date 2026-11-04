@@ -31,6 +31,7 @@ static void set_timeout(sock_t s, int ms) {
 static bool net_init() { return true; }
 #endif
 #include <algorithm>
+#include <cstdlib>
 #include <cctype>
 #include <cstring>
 #include <vector>

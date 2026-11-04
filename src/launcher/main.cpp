@@ -780,7 +780,8 @@ std::vector<std::string> privacy_secrets() {
     for (const auto& p : {g.exe.parent_path(), g.runtime_exe.parent_path(), g.data_root, g.user_dir, g.game.folder})
         if (!p.empty()) s.push_back(u8(p));
     if (!g.settings.game_folder.empty()) s.push_back(g.settings.game_folder);
-    s.push_back(g.settings.player_name);
+    // The default name "Player" identifies nobody and would blank out every "...Player..." in the logs (sceAvPlayer calls).
+    if (g.settings.player_name != "Player") s.push_back(g.settings.player_name);
     // Room codes embed addresses; redact both the input codes and resolved endpoints.
     std::string peers = g.settings.lobby_peers + "," + online::peers_to_lobby_arg(g.settings.lobby_peers);
     for (char& ch : peers) if (ch == ',' || ch == ';') ch = ' ';
