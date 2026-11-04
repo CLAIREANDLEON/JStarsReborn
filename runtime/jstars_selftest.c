@@ -3,6 +3,7 @@
 // name. Runs the same way on the Linux harness and on Windows.
 #define _GNU_SOURCE
 #include "jstars_rt.h"
+#include "jstars_os.h"
 #include <errno.h>
 #include <inttypes.h>
 #include <math.h>
@@ -139,6 +140,53 @@ int rt_selftest_jsnet(const char* scratch_dir) {
     rt_logf("selftest-jsnet: %d checks, %d failed", g_checks, g_fail);
     return g_fail ? 1 : 0;
 }
+
+// Native Sony controller support (jstars_sonypad.c, PR #5): report decoding for every layout, the tap/release rule and the rumble
+// output reports. Expected values are written out by hand from the hid-playstation layouts; the Bluetooth CRCs come from zlib's
+// CRC-32 over 0xA2 + the first 74 bytes, an independent implementation.
+static void selftest_sonypad(void) {
+    OsPadState o;
+    uint8_t r[80];
+    memset(r, 0, sizeof r); // DualSense USB 0x01: LX LY RX RY L2 R2 counter B0 B1 B2
+    r[0] = 0x01; r[1] = 10; r[2] = 20; r[3] = 30; r[4] = 40; r[5] = 50; r[6] = 60; r[8] = 0x22; r[9] = 0xA1; r[10] = 0x02;
+    CHECK(os_sonypad_parse(r, 64, 1, 0, &o) && o.lx == 10 && o.ly == 20 && o.rx == 30 && o.ry == 40 && o.l2 == 50 && o.r2 == 60 &&
+          o.buttons == (PADBTN_RIGHT | PADBTN_CROSS | PADBTN_L1 | PADBTN_OPTIONS | PADBTN_R3 | PADBTN_TOUCHPAD),
+          "sony pad: DualSense USB report (sticks, triggers, hat, face, shoulder, options, R3, touchpad)");
+    CHECK(!os_sonypad_parse(r, 10, 1, 0, &o), "sony pad: a short USB report is ignored");
+    memset(r, 0, sizeof r); // DualSense Bluetooth 0x31: one extra byte; hat released, create and PS are not game buttons
+    r[0] = 0x31; r[1] = 0x55; r[2] = 128; r[3] = 128; r[4] = 0; r[5] = 255; r[6] = 7; r[7] = 9; r[9] = 0x88; r[10] = 0x14; r[11] = 0x01;
+    CHECK(os_sonypad_parse(r, 78, 1, 1, &o) && o.rx == 0 && o.ry == 255 && o.l2 == 7 && o.r2 == 9 &&
+          o.buttons == (PADBTN_TRIANGLE | PADBTN_L2), "sony pad: DualSense Bluetooth 0x31 report; create and PS stay with the system");
+    memset(r, 0, sizeof r); // DualShock 4 USB 0x01: LX LY RX RY B0 B1 B2 L2 R2
+    r[0] = 0x01; r[1] = 1; r[2] = 2; r[3] = 3; r[4] = 4; r[5] = 0x14; r[6] = 0x42; r[7] = 0; r[8] = 200; r[9] = 100;
+    CHECK(os_sonypad_parse(r, 64, 0, 0, &o) && o.lx == 1 && o.ry == 4 && o.l2 == 200 && o.r2 == 100 &&
+          o.buttons == (PADBTN_DOWN | PADBTN_SQUARE | PADBTN_R1 | PADBTN_L3), "sony pad: DualShock 4 USB report");
+    memset(r, 0, sizeof r); // DualShock 4 Bluetooth 0x11: two extra bytes
+    r[0] = 0x11; r[3] = 9; r[7] = 0x47; r[8] = 0x08; r[9] = 0x02; r[10] = 5; r[11] = 255;
+    CHECK(os_sonypad_parse(r, 78, 0, 1, &o) && o.lx == 9 && o.l2 == 5 && o.r2 == 255 &&
+          o.buttons == (PADBTN_UP | PADBTN_LEFT | PADBTN_CIRCLE | PADBTN_R2 | PADBTN_TOUCHPAD), "sony pad: DualShock 4 Bluetooth 0x11 report");
+    memset(r, 0, sizeof r); // Bluetooth basic 0x01 (a DualSense before its first output report): DualShock 4 layout
+    r[0] = 0x01; r[1] = 77; r[5] = 0x08; r[8] = 33; r[9] = 44;
+    CHECK(os_sonypad_parse(r, 10, 1, 1, &o) && o.lx == 77 && o.l2 == 33 && o.r2 == 44 && o.buttons == 0,
+          "sony pad: Bluetooth basic report, hat released");
+    CHECK(os_sonypad_buttons(0, PADBTN_CROSS, 0) == PADBTN_CROSS, "sony pad: a tap between two reads is reported once");
+    CHECK(os_sonypad_buttons(0, PADBTN_CROSS, PADBTN_CROSS) == 0, "sony pad: a release is reported at the next read");
+    CHECK(os_sonypad_buttons(PADBTN_CIRCLE, PADBTN_CIRCLE, PADBTN_CIRCLE) == PADBTN_CIRCLE, "sony pad: a held button stays pressed");
+    uint8_t w[600];
+    CHECK(os_sonypad_rumble_report(w, sizeof w, 1, 0, 48, 0, 200, 100) == 48 && w[0] == 0x02 && w[1] == 0x03 && w[3] == 100 && w[4] == 200,
+          "sony pad: DualSense USB rumble report");
+    CHECK(os_sonypad_rumble_report(w, sizeof w, 0, 0, 32, 0, 200, 100) == 32 && w[0] == 0x05 && w[1] == 0x01 && w[4] == 100 && w[5] == 200,
+          "sony pad: DualShock 4 USB rumble report");
+    CHECK(os_sonypad_rumble_report(w, sizeof w, 1, 1, 78, 5, 200, 100) == 78 && w[0] == 0x31 && w[1] == 0x50 && w[2] == 0x10 &&
+          w[5] == 100 && w[6] == 200 && (w[74] | w[75] << 8 | w[76] << 16 | (uint32_t)w[77] << 24) == 0x5715e8e6u,
+          "sony pad: DualSense Bluetooth rumble report and CRC-32");
+    CHECK(os_sonypad_rumble_report(w, sizeof w, 0, 1, 547, 0, 255, 17) == 547 && w[0] == 0x11 && w[1] == 0xC0 && w[6] == 17 && w[7] == 255 &&
+          (w[74] | w[75] << 8 | w[76] << 16 | (uint32_t)w[77] << 24) == 0x953435c8u && w[546] == 0,
+          "sony pad: DualShock 4 Bluetooth rumble report padded to the device length, CRC-32");
+    CHECK(os_sonypad_rumble_report(w, sizeof w, 1, 0, 0, 0, 1, 1) == 0 && os_sonypad_rumble_report(w, 40, 0, 1, 78, 0, 1, 1) == 0,
+          "sony pad: no rumble report without an output report length or room");
+}
+
 int rt_selftest_host(const char* scratch_dir) {
     rt_thread_attach_main();
 #define F(ret, name, args) ((ret(GUEST_ABI*) args)rt_find_host(name))
@@ -954,6 +1002,7 @@ int rt_selftest_host(const char* scratch_dir) {
         CHECK(F(int, "sceErrorDialogClose", (void))() == (int)0x80B8000B, "error dialog: Close when not running is NOT_RUNNING");
         CHECK(F(int, "sceErrorDialogTerminate", (void))() == 0 && F(int, "sceErrorDialogUpdateStatus", (void))() == 0, "error dialog: Terminate");
     }
+    selftest_sonypad();
     selftest_jsnet(scratch_dir);
     rt_logf("selftest-host: %d checks, %d failed", g_checks, g_fail);
     return g_fail ? 1 : 0;

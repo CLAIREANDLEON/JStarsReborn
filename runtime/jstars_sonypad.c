@@ -109,6 +109,7 @@ static uint32_t g_reported;         // buttons reported at the last poll
 static int g_connected, g_kind, g_bt;
 static char g_name[96];
 static HANDLE g_out = INVALID_HANDLE_VALUE; static USHORT g_out_len; // write handle and output report length
+static unsigned g_out_gen;          // bumped whenever g_out is replaced or closed (the writer keeps its own duplicate)
 static HANDLE g_rumble_event; static int g_rumble_strong = -1, g_rumble_weak = -1, g_sent_strong = -1, g_sent_weak = -1;
 static volatile LONG g_started;
 
@@ -167,7 +168,7 @@ static HANDLE open_first(int* kind, int* bt, USHORT* in_len, char* name, size_t 
         low[n] = 0;
         *kind = k; *bt = wcsstr(low, L"vid_054c") == NULL; *in_len = caps[2];
         AcquireSRWLockExclusive(&g_lock);
-        g_out = w; g_out_len = caps[3]; g_sent_strong = g_sent_weak = -1;
+        g_out = w; g_out_len = caps[3]; g_sent_strong = g_sent_weak = -1; ++g_out_gen;
         ReleaseSRWLockExclusive(&g_lock);
         snprintf(name, name_cap, "%s (%s, %04x:%04x)", k == SONY_DUALSENSE ? (a.ProductID == 0x0DF2 ? "DualSense Edge" : "DualSense") : "DualShock 4",
                  *bt ? "Bluetooth" : "USB", a.VendorID, a.ProductID);
@@ -177,23 +178,38 @@ static HANDLE open_first(int* kind, int* bt, USHORT* in_len, char* name, size_t 
     return found;
 }
 
+// The writer works on its own duplicate of the write handle: the reader closes g_out when the controller goes away, possibly
+// while a WriteFile is in progress here, and a write must never reach a closed (or reused) handle. The duplicate is taken under
+// the lock (DuplicateHandle does not block) and closed by this thread only.
 static DWORD WINAPI writer_thread(LPVOID unused) {
     (void)unused;
     uint8_t seq = 0;
     static uint8_t buf[1024];
+    HANDLE mine = INVALID_HANDLE_VALUE; unsigned mine_gen = 0;
     for (;;) {
         WaitForSingleObject(g_rumble_event, INFINITE);
+        HANDLE fresh = INVALID_HANDLE_VALUE; int refresh = 0;
         AcquireSRWLockExclusive(&g_lock);
         const int strong = g_rumble_strong, weak = g_rumble_weak, kind = g_kind, bt = g_bt, connected = g_connected;
-        const HANDLE w = g_out; const USHORT out_len = g_out_len;
+        const USHORT out_len = g_out_len;
+        if (g_out_gen != mine_gen) {
+            refresh = 1; mine_gen = g_out_gen;
+            if (g_out != INVALID_HANDLE_VALUE &&
+                !DuplicateHandle(GetCurrentProcess(), g_out, GetCurrentProcess(), &fresh, 0, FALSE, DUPLICATE_SAME_ACCESS))
+                fresh = INVALID_HANDLE_VALUE;
+        }
         const int changed = strong != g_sent_strong || weak != g_sent_weak;
         if (changed) { g_sent_strong = strong; g_sent_weak = weak; }
         ReleaseSRWLockExclusive(&g_lock);
-        if (!connected || !changed || w == INVALID_HANDLE_VALUE || strong < 0) continue;
+        if (refresh) {
+            if (mine != INVALID_HANDLE_VALUE) CloseHandle(mine);
+            mine = fresh;
+        }
+        if (!connected || !changed || mine == INVALID_HANDLE_VALUE || strong < 0) continue;
         const unsigned n = os_sonypad_rumble_report(buf, sizeof buf, kind == SONY_DUALSENSE, bt, out_len, seq, strong, weak);
         seq = (uint8_t)((seq + 1) & 15);
         DWORD wr = 0;
-        if (n) WriteFile(w, buf, n, &wr, NULL);
+        if (n) WriteFile(mine, buf, n, &wr, NULL); // fails harmlessly if the controller was unplugged meanwhile
     }
 }
 
@@ -223,7 +239,9 @@ static DWORD WINAPI reader_thread(LPVOID unused) {
         AcquireSRWLockExclusive(&g_lock);
         g_connected = 0;
         if (g_out != INVALID_HANDLE_VALUE) { CloseHandle(g_out); g_out = INVALID_HANDLE_VALUE; }
+        ++g_out_gen;
         ReleaseSRWLockExclusive(&g_lock);
+        SetEvent(g_rumble_event); // the writer drops its duplicate of the old handle
         CloseHandle(r);
         Sleep(250);
     }
