@@ -50,6 +50,11 @@ addresses). Please still look at the report before sharing it.
 The game draws its picture at 1280x720. Settings > **AMD FSR 1 upscaling** scales it to your window with AMD's FSR 1 and sharpens
 it, instead of plain stretching, for a noticeably crisper image on 1440p and 4K screens.
 
+### Known issue: frame timing
+Frame pacing is much better than in 0.5.3, but motion can still look uneven at times (single missed refreshes, and a few shaders
+that still compile during battles). What we know and what would help is in
+[issue #6](https://github.com/Dopam3an/JStarsReborn/issues/6). A diagnostic report from your PC is the most useful thing to attach.
+
 ### Not in this build yet
 **FSR 4 and frame generation** need motion vectors (how every pixel moved since the last frame), and this game never draws them;
 they would have to be reconstructed, which is ongoing work. That is why this build has FSR 1, which needs only the picture.

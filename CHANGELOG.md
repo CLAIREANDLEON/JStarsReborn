@@ -27,6 +27,8 @@
 - **Diagnostic reports** (Troubleshooting > Create diagnostic report) keep the start of each game log (GPU and driver details), record
   the 60 fps / fullscreen / ultrawide settings of each run, and also remove game-folder paths, a custom player name and friends' room
   addresses. Play sessions now log frame timing every 5 seconds.
+- **Known issue:** motion can still look uneven at times (single missed refreshes; a few pipelines still compile in battle).
+  Tracked in issue #6 (https://github.com/Dopam3an/JStarsReborn/issues/6).
 - Launcher 0.5.4: "Fullscreen" and "Ultrawide / widescreen" settings.
 
 ## 0.5.3 playtest preview (pre-release)
