@@ -6,6 +6,10 @@ Runtime switches (the launcher's Settings page sets them): `--fullscreen` and `-
 `--fullscreen` opens the game window borderless over the whole monitor it starts on. Alt+Enter or F11 switches between
 fullscreen and the window in either mode. The window size setting is used for windowed mode.
 
+`--match-refresh` (launcher: Smooth pacing, on by default): while fullscreen, a monitor whose refresh rate is not a multiple of
+60 Hz is switched to 120 Hz (or 60/240) at the same resolution with `ChangeDisplaySettingsEx(CDS_FULLSCREEN)`, a temporary mode
+that Windows also undoes when the process ends. 60 fps frames then always last two refreshes instead of two or three (175 Hz).
+
 ## How the widescreen patch works
 The game builds every perspective projection in one routine, `0x3ec310` (CUSA01593 v01.02), with the field of view in degrees,
 a horizontal scale, the aspect as height/width, and the near and far planes:

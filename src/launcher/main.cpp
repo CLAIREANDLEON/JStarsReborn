@@ -664,6 +664,8 @@ void launch_game() {
     else cmd += L" --no-audio";
     if (!g.settings.keyboard) cmd += L" --no-keyboard";
     if (g.settings.frame_rate == 60) cmd += L" --frame-rate 60"; // experimental; the runtime checks the game build first
+    // Shaders and pipelines compiled in earlier sessions are rebuilt at start instead of in the middle of a battle.
+    cmd += L" --shader-cache " + quote_arg((g.data_root / "shader-cache").wstring());
     if (g.settings.fullscreen) cmd += L" --fullscreen";
     if (g.settings.fullscreen && g.settings.match_refresh) cmd += L" --match-refresh";
     if (g.settings.widescreen) cmd += L" --widescreen"; // experimental; the runtime checks the game build first

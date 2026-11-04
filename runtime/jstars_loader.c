@@ -472,6 +472,7 @@ int main(int argc, char** argv) {
         else if (!strcmp(argv[i], "--fullscreen")) fullscreen = 1;
         else if (!strcmp(argv[i], "--match-refresh")) match_refresh = 1;
         else if (!strcmp(argv[i], "--trace-projection")) trace_projection = 1;
+        else if (!strcmp(argv[i], "--shader-cache") && i + 1 < argc) os_setenv("JSTARS_SHADER_CACHE", argv[++i]); // persistent shader/pipeline cache
         else if (!strcmp(argv[i], "--widescreen")) widescreen = 1;
         else if (!strcmp(argv[i], "--flip-rate") && i + 1 < argc) flip_rate = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--flip-rate-after") && i + 1 < argc) flip_rate_after = atoi(argv[++i]);
@@ -486,7 +487,7 @@ int main(int argc, char** argv) {
         else if (!strcmp(argv[i], "--capture-interval") && i + 1 < argc) g_capture_interval = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--capture-max") && i + 1 < argc) g_capture_max = atoi(argv[++i]);
         else { fprintf(stderr, "usage: %s --boot boot-linked.bin [--log file] [--check-imports] [--stop-at-first-gnm] [--selftest-host] [--audit-dump]\n"
-                               "       [--game-root dir] [--user-dir dir] [--gpu-dir dir] [--capture-dir dir] [--window WxH] [--fullscreen] [--match-refresh] [--widescreen] [--trace-projection] [--max-seconds n] [--capture-flips n]\n"
+                               "       [--game-root dir] [--user-dir dir] [--gpu-dir dir] [--capture-dir dir] [--window WxH] [--fullscreen] [--match-refresh] [--widescreen] [--trace-projection] [--shader-cache dir] [--max-seconds n] [--capture-flips n]\n"
                                "       [--capture-interval flips] [--capture-max n] [--pad-script file] [--no-keyboard] [--no-audio] [--volume 0-100] [--dump-audio prefix] [--pad-none] [--sample-threads seconds] [--count-imports] [--trace-draws first,count] [--experiment names] [--frame-rate 30|60] [--frame-stats] [--ffx-probe] [--flip-rate n] [--flip-rate-after s] [--vblank-hz n] [--present-mode Fifo|Mailbox|Immediate] [--online] [--shadnet] [--shadnet-server host[:port]] [--lobby-port n] [--lobby-peer ip[,ip]] [--trace-net] [--trace-np]\n", argv[0]); return 1; }
     }
     if (audit_dump) { extern void rt_audit_dump(void*); rt_audit_dump(stdout); return 0; }

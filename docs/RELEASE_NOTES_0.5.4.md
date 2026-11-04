@@ -14,9 +14,13 @@ helps at the default 30 fps.
 - Applied only after checking the game build; on anything else the game keeps its normal 16:9 picture.
 - Please report anything that pops in at the screen edges.
 
-### New: Fullscreen
+### New: Fullscreen, with smooth pacing on high-refresh monitors
 Settings > **Fullscreen** opens the game borderless over the whole monitor. **Alt+Enter** or **F11** switches between fullscreen and
 the window at any time.
+
+If your monitor runs at 144, 165 or 175 Hz, a steady 60 (or 30) fps can still look like stutter: each frame stays on screen for an
+uneven number of refreshes. With **Smooth pacing** (on by default, under Fullscreen) the monitor switches to 120 Hz while the game is
+fullscreen and back when you leave fullscreen or close the game. Turn it off if you use FreeSync/G-Sync and prefer your normal rate.
 
 ### New: PlayStation controllers work directly
 DualSense, DualSense Edge and DualShock 4 work over USB or Bluetooth without DS4Windows or Steam Input: all buttons, analog triggers,

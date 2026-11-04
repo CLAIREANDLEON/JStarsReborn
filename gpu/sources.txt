@@ -127,7 +127,7 @@ vendor/externals/sirit/src/stream.cpp
 vendor/externals/fmt/src/format.cc
 vendor/externals/fmt/src/os.cc
 shim/common/path_util_impl.cpp
-shim/video_core/cache_storage_stub.cpp
+shim/video_core/cache_storage_dir.cpp
 shim/common/logging/log.cpp
 shim/common/assert.cpp
 vendor/externals/sirit/src/instructions/annotation.cpp

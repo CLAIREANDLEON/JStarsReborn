@@ -11,6 +11,13 @@
   black bars, with the vertical view unchanged; at 3440x1440 the horizontal field of view goes from 60 to about 76 degrees. The 2D HUD
   and menus are stretched for now. Applied in memory only after checking the game build. `docs/WIDESCREEN.md`.
 - **Fullscreen (Settings):** borderless fullscreen on the monitor. Alt+Enter or F11 switches between fullscreen and the window.
+- **Smooth pacing on high-refresh monitors (Settings, on by default, fullscreen only):** at 144/165/175 Hz without variable refresh,
+  30/60 fps frames stay on screen for uneven times, which looks like stutter even at a steady 60 fps. In fullscreen the monitor now
+  runs at 120 Hz (a multiple of 60) while the game plays, and goes back to its normal rate when you leave fullscreen or close the
+  game. The game log names the display mode.
+- **Shader cache:** shaders and pipelines compiled while playing are saved (`%LOCALAPPDATA%\JStarsReborn\shader-cache`) and rebuilt
+  when the game starts next time, instead of being compiled the first time an effect appears in battle (each was a 30-160 ms hitch).
+  The first session with a new version still compiles as it goes. The cache of an older version is removed automatically.
 - A minimized game no longer slows down (an extra 8 ms wait per dropped frame made it run at ~44 fps).
 - **PlayStation controllers without DS4Windows or Steam Input:** DualSense, DualSense Edge and DualShock 4 over USB or Bluetooth are
   read directly, including analog triggers, the touchpad click and rumble (contributed by CLAIREANDLEON, PR #5; tested with a DualSense

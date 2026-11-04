@@ -35,7 +35,8 @@ public:
     bool IsNullGPU() { static const auto value = Flag("JSTARS_NULL_GPU", false); return value; }
     bool IsPatchShaders() { return false; }
     bool IsPipelineCacheArchived() { return false; }
-    bool IsPipelineCacheEnabled() { return false; } // no on-disk pipeline cache in this checkpoint
+    // On-disk shader/pipeline cache (shim/video_core/cache_storage_dir.cpp): on when the runtime names a directory (--shader-cache).
+    bool IsPipelineCacheEnabled() { static const bool value = [] { const char* v = std::getenv("JSTARS_SHADER_CACHE"); return v && *v; }(); return value; }
     bool IsReadbackLinearImagesEnabled() { static const auto value = Flag("JSTARS_READBACK_LINEAR", false); return value; }
     bool IsRenderdocEnabled() { return false; }
     bool IsShaderCollect() { return false; }
