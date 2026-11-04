@@ -15,6 +15,8 @@
   30/60 fps frames stay on screen for uneven times, which looks like stutter even at a steady 60 fps. In fullscreen the monitor now
   runs at 120 Hz (a multiple of 60) while the game plays, and goes back to its normal rate when you leave fullscreen or close the
   game. The game log names the display mode.
+- **AMD FSR 1 upscaling (Settings, on by default):** the game's 1280x720 frame is upscaled with FSR 1 (EASU) and sharpened (RCAS)
+  instead of bilinear scaling. FSR 4 and frame generation need motion vectors, which the game does not render (ongoing work).
 - **Shader cache:** shaders and pipelines compiled while playing are saved (`%LOCALAPPDATA%\JStarsReborn\shader-cache`) and rebuilt
   when the game starts next time, instead of being compiled the first time an effect appears in battle (each was a 30-160 ms hitch).
   The first session with a new version still compiles as it goes. The cache of an older version is removed automatically.

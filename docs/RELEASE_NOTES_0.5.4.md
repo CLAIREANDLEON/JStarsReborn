@@ -46,9 +46,14 @@ addresses). Please still look at the report before sharing it.
 - **Online room search crash fixed** (joining a room is still not implemented), real-time audio priority for the "choppy audio"
   reports, and error dialogs return to the menu instead of closing the game.
 
+### New: AMD FSR 1 upscaling (on by default)
+The game draws its picture at 1280x720. Settings > **AMD FSR 1 upscaling** scales it to your window with AMD's FSR 1 and sharpens
+it, instead of plain stretching, for a noticeably crisper image on 1440p and 4K screens.
+
 ### Not in this build yet
-FSR 4 upscaling and frame generation are being worked on; they need data from the game's renderer (depth, motion) that we are
-still mapping. Online matches between two players do not work yet.
+**FSR 4 and frame generation** need motion vectors (how every pixel moved since the last frame), and this game never draws them;
+they would have to be reconstructed, which is ongoing work. That is why this build has FSR 1, which needs only the picture.
+Online matches between two players do not work yet.
 
 ### Please attach a report when something goes wrong
 Launcher > **Troubleshooting > Create diagnostic report…** and attach the zip (it removes your user name and computer name).

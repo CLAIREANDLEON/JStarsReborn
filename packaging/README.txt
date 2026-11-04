@@ -42,6 +42,7 @@ Saves
 
 Fullscreen and ultrawide (Settings, off by default)
   "Fullscreen" opens the game borderless over the whole monitor; Alt+Enter or F11 switches between fullscreen and the window.
+  "AMD FSR 1 upscaling" (on by default): the game draws at 1280x720; FSR 1 upscales and sharpens it for your screen.
   "Smooth pacing" (on by default): in fullscreen, a 144/165/175 Hz monitor runs at 120 Hz while the game plays, so 30/60 fps
   frames are shown evenly; it switches back when you leave fullscreen or close the game.
   "Ultrawide / widescreen" (experimental): on screens wider than 16:9 the game shows more to the sides instead of black bars.
