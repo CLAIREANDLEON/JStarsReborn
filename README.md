@@ -21,6 +21,9 @@ human tester yet. See [CHANGELOG.md](CHANGELOG.md) for the full list of known is
 > ultrawide / widescreen mode that shows more to the sides on screens wider than 16:9 (the HUD is stretched for now). See
 > [docs/WIDESCREEN.md](docs/WIDESCREEN.md).
 
+> **Controllers:** DualSense, DualSense Edge and DualShock 4 work directly over USB or Bluetooth (no DS4Windows or Steam Input),
+> as do Xbox-compatible (XInput) controllers and the keyboard. See [docs/INPUT.md](docs/INPUT.md).
+
 > **Saves:** the launcher's Saves page imports a save (file or folder), unlocks every character in one click, and restores backups.
 
 > **60 fps (experimental):** the launcher's Settings page has a "60 fps" option. It sets the game's own engine rate to 60 and its fixed
@@ -90,7 +93,8 @@ installed llvm-mingw C++ libraries remains unresolved.
 - 0.5.2 (pre-release): fixes from the first public playtest (online room-search crash, audio feed priority, system error dialog) and
   an experimental 60 fps option ([release notes](docs/RELEASE_NOTES_0.5.2.md)).
 - 0.5.3 (pre-release): launcher Saves page: import, unlock every character, backups and restore ([release notes](docs/RELEASE_NOTES_0.5.3.md)).
-- 0.5.4 (pre-release): frame pacing fix, borderless fullscreen, experimental ultrawide (Hor+) ([release notes](docs/RELEASE_NOTES_0.5.4.md)).
+- 0.5.4 (pre-release): frame pacing fix, borderless fullscreen, experimental ultrawide (Hor+), native DualSense / DualShock 4,
+  better diagnostic reports ([release notes](docs/RELEASE_NOTES_0.5.4.md)).
 
 ## License
 

@@ -16,7 +16,8 @@ You need
   - Windows 10/11 64-bit and a graphics driver with Vulkan 1.3 (any current AMD/NVIDIA/Intel driver).
   - Your own decrypted dump of J-Stars Victory VS+ CUSA01593 with the 01.02 update applied: a folder with
     eboot.bin, sce_sys\param.sfo and sce_module\libc.prx + libSceFios2.prx. Other versions are refused.
-  - An Xbox-compatible controller is recommended. The keyboard also works (see the Controls page).
+  - A controller is recommended: Xbox-compatible (XInput), or a DualSense / DualShock 4 over USB or Bluetooth (no DS4Windows
+    or Steam Input needed). The keyboard also works (see the Controls page).
 
 How to play
   1. Unzip this folder anywhere (paths with spaces are fine). Do not separate JStarsReborn.exe from the runtime folder.

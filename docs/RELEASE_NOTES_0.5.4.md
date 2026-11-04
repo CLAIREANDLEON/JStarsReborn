@@ -18,6 +18,16 @@ helps at the default 30 fps.
 Settings > **Fullscreen** opens the game borderless over the whole monitor. **Alt+Enter** or **F11** switches between fullscreen and
 the window at any time.
 
+### New: PlayStation controllers work directly
+DualSense, DualSense Edge and DualShock 4 work over USB or Bluetooth without DS4Windows or Steam Input: all buttons, analog triggers,
+the touchpad click and rumble. Thanks to CLAIREANDLEON for this. Tested with a DualSense over USB; please tell us how Bluetooth and the
+DualShock 4 behave. Xbox (XInput) controllers and the keyboard work as before.
+
+### Better diagnostic reports
+Troubleshooting > **Create diagnostic report** now includes the start of the game log (GPU and driver details) and your 60 fps /
+fullscreen / ultrawide settings for each run, and removes more personal details (folder paths, a custom player name, friends' room
+addresses). Please still look at the report before sharing it.
+
 ### Also fixed
 - A minimized game no longer slows down.
 

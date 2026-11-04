@@ -1066,7 +1066,7 @@ void build_controls() {
     add(PagePlay, L"STATIC", L"", SS_LEFT | SS_NOPREFIX, IdLastDetail);
     add(PagePlay, L"BUTTON", L"Open session logs", BS_OWNERDRAW | WS_TABSTOP, IdOpenSessionLogs);
     add(PagePlay, L"STATIC",
-        L"Controls: an Xbox-compatible controller, or the keyboard (see Controls). Input reaches the game only while its window is active. "
+        L"Controls: an Xbox-compatible controller, a DualSense / DualShock 4, or the keyboard (see Controls). Input reaches the game only while its window is active. "
         L"Close the game window to end a session.", SS_LEFT | SS_NOPREFIX, IdPlayHint);
     // Game folder
     add(PageFolder, L"STATIC", L"Folder of your own game dump (contains eboot.bin, sce_sys and sce_module):", SS_LEFT | SS_NOPREFIX, IdFolderLabel);
@@ -1165,10 +1165,10 @@ void build_controls() {
         ListView_SetItemText(lv, i, 2, const_cast<wchar_t*>(rows[i][2]));
     }
     add(PageControls, L"STATIC",
-        L"Controllers: Xbox-compatible (XInput) controllers work directly; PlayStation controllers work through Steam Input or DS4Windows "
-        L"(XInput mode). The first connected controller is used; unplugging and reconnecting it is picked up within half a second. When no "
+        L"Controllers: DualSense / DualShock 4 (USB or Bluetooth, no DS4Windows or Steam Input needed) and Xbox-compatible (XInput) "
+        L"controllers work directly; a PlayStation controller is used first. Reconnecting is picked up within a second. When no "
         L"controller is connected, the keyboard is used (if enabled in Settings). Input reaches the game only while the game window is "
-        L"active. Which button confirms in menus is set on the Settings page. These mappings are fixed in this version.",
+        L"active. Which button confirms in menus is set on the Settings page.",
         SS_LEFT | SS_NOPREFIX, IdControlsNote);
     // Saves
     add(PageSaves, L"STATIC", L"", SS_LEFT | SS_NOPREFIX, IdSavesInfo);

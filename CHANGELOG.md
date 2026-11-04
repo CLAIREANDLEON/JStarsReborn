@@ -12,6 +12,12 @@
   and menus are stretched for now. Applied in memory only after checking the game build. `docs/WIDESCREEN.md`.
 - **Fullscreen (Settings):** borderless fullscreen on the monitor. Alt+Enter or F11 switches between fullscreen and the window.
 - A minimized game no longer slows down (an extra 8 ms wait per dropped frame made it run at ~44 fps).
+- **PlayStation controllers without DS4Windows or Steam Input:** DualSense, DualSense Edge and DualShock 4 over USB or Bluetooth are
+  read directly, including analog triggers, the touchpad click and rumble (contributed by CLAIREANDLEON, PR #5; tested with a DualSense
+  over USB; Bluetooth and DualShock 4 not yet confirmed on hardware). XInput pads and the keyboard work as before.
+- **Diagnostic reports** (Troubleshooting > Create diagnostic report) keep the start of each game log (GPU and driver details), record
+  the 60 fps / fullscreen / ultrawide settings of each run, and also remove game-folder paths, a custom player name and friends' room
+  addresses. Play sessions now log frame timing every 5 seconds.
 - Launcher 0.5.4: "Fullscreen" and "Ultrawide / widescreen" settings.
 
 ## 0.5.3 playtest preview (pre-release)
