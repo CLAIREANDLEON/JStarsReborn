@@ -5,8 +5,6 @@
 #include <array>
 #include <atomic>
 #include <chrono>
-#include <condition_variable>
-#include <mutex>
 
 #include "common/assert.h"
 #include "common/debug.h"
@@ -38,10 +36,6 @@ s64 NowNs() {
         .count();
 }
 
-SteadyClock::time_point TimePoint(s64 ns) {
-    return SteadyClock::time_point{
-        std::chrono::duration_cast<SteadyClock::duration>(std::chrono::nanoseconds(ns))};
-}
 
 // 0: off. 1: early present. 2: early present and late frame start. Fixed at start (JSTARS_LOW_LATENCY).
 int LatencyLevel() {
@@ -70,17 +64,20 @@ std::atomic<s64> eop_due_ns{0};
 std::atomic<int> eop_pending{0};
 std::atomic<u32> eop_deferred_count{0};
 
-// Wakes the present thread when a flip request is queued or an interrupt is deferred.
-std::mutex wake_mutex;
-std::condition_variable wake_cv;
-u64 wake_count = 0; // guarded by wake_mutex
-
-void WakePresentThread() {
-    {
-        std::scoped_lock lock{wake_mutex};
-        ++wake_count;
+// The second largest of the newest values: one slow frame among them is not followed, a repeated one is.
+s64 SecondLargest(const std::array<s64, 64>& values, size_t count) {
+    s64 first = 0;
+    s64 second = 0;
+    const size_t used = std::min(count, values.size());
+    for (size_t i = 0; i < used; ++i) {
+        if (values[i] > first) {
+            second = first;
+            first = values[i];
+        } else if (values[i] > second) {
+            second = values[i];
+        }
     }
-    wake_cv.notify_one();
+    return used > 1 ? second : first;
 }
 
 void DeliverGfxEop() {
@@ -187,7 +184,7 @@ void NoteFrameSubmit() {
     frame_in_flight.store(true, std::memory_order_relaxed);
 
     // How long the game took from the interrupt that started this frame to its submission (the game submits from one
-    // thread). The budget follows the slowest of the last frames, so a slow stretch is covered after its first frame.
+    // thread). The budget follows the slow frames of the last 64, so a slow stretch is covered from its second frame on.
     constexpr s64 BuildMarginNs = 2000000;
     static std::array<s64, 64> recent{};
     static size_t count = 0;
@@ -195,8 +192,7 @@ void NoteFrameSubmit() {
     if (woke_ns != 0 && now_ns - woke_ns < 100000000) {
         recent[count++ % recent.size()] = now_ns - woke_ns;
         if (count >= 16) {
-            const auto end = recent.begin() + std::min(count, recent.size());
-            build_budget_ns.store(*std::max_element(recent.begin(), end) + BuildMarginNs,
+            build_budget_ns.store(SecondLargest(recent, count) + BuildMarginNs,
                                   std::memory_order_relaxed);
         }
     }
@@ -224,7 +220,6 @@ void SignalGfxEop() {
     eop_due_ns.store(due_ns, std::memory_order_relaxed);
     eop_pending.fetch_add(1, std::memory_order_relaxed);
     eop_deferred_count.fetch_add(1, std::memory_order_relaxed);
-    WakePresentThread();
 }
 
 constexpr static bool Is32BppPixelFormat(PixelFormat format) {
@@ -556,7 +551,6 @@ void VideoOutDriver::SubmitFlipInternal(VideoOutPort* port, s32 index, s64 flip_
     // jstars: the present thread may show the frame before its flip
     frame_in_flight.store(false, std::memory_order_relaxed);
     last_request_ns.store(NowNs(), std::memory_order_relaxed);
-    WakePresentThread();
 }
 
 void VideoOutDriver::PresentThread(std::stop_token token) {
@@ -589,15 +583,15 @@ void VideoOutDriver::PresentThread(std::stop_token token) {
     //   needs to submit its next frame before the coming flip (SignalGfxEop), so the controller is read just before
     //   that flip instead of right after the previous one.
     // Nothing the game can see changes except when its GPU work appears to finish: flips (status and events) stay on their
-    // vblanks in the submitted order, and every frame is built, rendered and flipped as before. `lead` follows the slowest
-    // recent frame plus a margin, which keeps the cadence even; a frame that takes longer is shown the moment it is ready.
-    // JSTARS_LOW_LATENCY=0|1|2 (runtime --low-latency), default 2.
+    // vblanks in the submitted order, and every frame is built, rendered and flipped as before. `lead` follows the slow
+    // frames of the last 64 plus a margin, which keeps the cadence even; a frame that takes longer is shown the moment it
+    // is ready. JSTARS_LOW_LATENCY=0|1|2 (runtime --low-latency), default 2.
     const int latency_level = LatencyLevel();
     const bool frame_stats = EmulatorSettings.IsFrameStatsEnabled();
     constexpr s64 LeadMarginNs = 1500000; // on top of the slowest recent frame
     constexpr s64 LeadDecayNs = 250000;   // per frame, towards a lower target
     constexpr s64 GuardNs = 2000000;      // the end of every vblank wait is left to the timer
-    constexpr s64 CoarseNs = 1500000;     // longer waits end 1 ms early on the condition variable, the rest is slept
+    constexpr s64 PollNs = 1000000;       // longest sleep before looking for a new frame or interrupt again
     std::array<s64, 64> recent_ready{};
     size_t recent_count = 0;
     s64 lead_ns = 0;
@@ -610,8 +604,7 @@ void VideoOutDriver::PresentThread(std::stop_token token) {
             return; // missed its flip: says nothing about a normal frame
         }
         recent_ready[recent_count++ % recent_ready.size()] = offset;
-        const auto end = recent_ready.begin() + std::min(recent_count, recent_ready.size());
-        const s64 target = *std::max_element(recent_ready.begin(), end) + LeadMarginNs;
+        const s64 target = SecondLargest(recent_ready, recent_count) + LeadMarginNs;
         lead_ns = target >= lead_ns ? target : std::max(target, lead_ns - LeadDecayNs);
     };
     const auto deliver_due_interrupts = [&](s64 until_ns) {
@@ -629,11 +622,6 @@ void VideoOutDriver::PresentThread(std::stop_token token) {
             const s64 now_ns = NowNs();
             if (now_ns >= limit_ns) {
                 break;
-            }
-            u64 seen = 0;
-            {
-                std::scoped_lock lock{wake_mutex};
-                seen = wake_count;
             }
             s64 next_ns = limit_ns;
             if (eop_pending.load(std::memory_order_relaxed) > 0) {
@@ -670,13 +658,12 @@ void VideoOutDriver::PresentThread(std::stop_token token) {
                     next_ns = std::min(next_ns, due_ns);
                 } // else: it is flipped at the next vblank, or shown in the wait after it
             }
-            if (next_ns - now_ns > CoarseNs) {
-                std::unique_lock lock{wake_mutex};
-                wake_cv.wait_until(lock, TimePoint(next_ns - 1000000),
-                                   [&] { return wake_count != seen; });
-            } else {
-                Common::AccurateSleep(std::chrono::nanoseconds(next_ns - now_ns), nullptr, false);
-            }
+            // Sleep until the next thing is due, in short steps because a frame or an interrupt may arrive meanwhile.
+            // (A timed wait on a condition variable could be woken for those, but its timeout is only as fine as the
+            // timer resolution Windows grants the process, and with the game window in the background such waits
+            // ended about 10 ms late in a test run.)
+            Common::AccurateSleep(std::chrono::nanoseconds(std::min(next_ns - now_ns, PollNs)),
+                                  nullptr, false);
         }
         deliver_due_interrupts(next_vblank_ns); // due within the guard: a little early rather than after the vblank
     };
