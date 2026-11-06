@@ -58,6 +58,8 @@ void jgpu_get_stats(JgpuStats* out);
 /* The game read the controller (scePadReadState). The first read after a flip is the input the next frame is built from; the
  * "present timing" statistics (--frame-stats) measure from it to the moment that frame is shown. Callable from any thread. */
 void jgpu_note_input_read(void);
+/* The game submitted a frame (sceGnmSubmitAndFlipCommandBuffers): the controller read noted before it belongs to this frame. */
+void jgpu_note_frame_submit(void);
 /* AMD FSR SDK capability probe (jgpu_fsr.cpp): loads amd_fidelityfx_loader_vk.dll if present and lists the upscaler and
  * frame-generation versions for this device. Returns 0 if the loader answered; the summary is in jgpu_fsr_report(). */
 int jgpu_fsr_probe(void);

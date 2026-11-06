@@ -66,9 +66,15 @@ struct VideoOutPort {
     }
 };
 
-// jstars: the game read the controller (runtime scePadReadState). The first read after a flip marks the start of the frame's
-// "input read to picture" time in the present timing statistics.
+// jstars: low latency and its statistics (driver.cpp, PresentThread).
+// The game read the controller (runtime scePadReadState): the first read after a frame submission is the input the next frame
+// is built from.
 void NoteInputRead();
+// The game submitted a frame (runtime wrapper of sceGnmSubmitAndFlipCommandBuffers).
+void NoteFrameSubmit();
+// The GPU thread reached an end-of-pipe interrupt (liverpool.cpp). The game starts its next frame on it, so with late frame
+// start it is delivered later, by the present thread.
+void SignalGfxEop();
 
 struct ServiceThreadParams {
     u32 unknown;
@@ -103,10 +109,13 @@ private:
         s64 flip_arg;
         s32 index;
         bool eop;
-        // jstars: early present (PresentThread). `presented`: the frame is already on screen and the flip only completes it
-        // for the guest. `ready_ns`: when the request was queued (steady clock).
+        // jstars: low latency (PresentThread). `presented`: the frame is already on screen and the flip only completes it
+        // for the guest. `ready_ns`: when the request was queued. `input_ns` / `submit_ns`: the controller read the frame
+        // was built from and the game's submission of the frame (0: unknown). Steady clock.
         bool presented{false};
         s64 ready_ns{0};
+        s64 input_ns{0};
+        s64 submit_ns{0};
 
         operator bool() const noexcept {
             return frame != nullptr;
@@ -120,7 +129,6 @@ private:
     void PresentThread(std::stop_token token);
 
     std::mutex mutex;
-    std::condition_variable request_cv; // jstars: signalled when a flip request is queued (early present)
     VideoOutPort main_port{};
     std::jthread present_thread;
     std::queue<Request> requests;
