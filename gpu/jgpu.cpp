@@ -207,6 +207,11 @@ void jgpu_get_stats(JgpuStats* out) {
     out->mem_maps = Core::g_map_count.load();
 }
 
+namespace Libraries::VideoOut {
+void NoteInputRead(); // videoout/driver.cpp
+}
+void jgpu_note_input_read(void) { Libraries::VideoOut::NoteInputRead(); }
+
 void jgpu_shutdown(void) {
     Libraries::Kernel::StopKernelService();
     g_window = nullptr;

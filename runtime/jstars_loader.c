@@ -434,6 +434,7 @@ int main(int argc, char** argv) {
     int online = 0, trace_net = 0, trace_np = 0, shadnet = 0, frame_rate = 30;
     uint16_t lobby_port = 0;
     int frame_stats = 0, flip_rate = -1, flip_rate_after = 0, ffx_probe = 0;
+    int audio_queue_ms = 0, audio_device_ms = 0;
     const char *vblank_hz = NULL, *present_mode = NULL;
     const char* lobby_peers = NULL;
     int check_only = 0, selftest = 0, audit_dump = 0, stop_at_gnm = 0, win_w = 1280, win_h = 720, fullscreen = 0, widescreen = 0, match_refresh = 0, trace_projection = 0;
@@ -483,6 +484,9 @@ int main(int argc, char** argv) {
         else if (!strcmp(argv[i], "--flip-rate-after") && i + 1 < argc) flip_rate_after = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--vblank-hz") && i + 1 < argc) vblank_hz = argv[++i];
         else if (!strcmp(argv[i], "--present-mode") && i + 1 < argc) present_mode = argv[++i];
+        else if (!strcmp(argv[i], "--no-early-present")) os_setenv("JSTARS_EARLY_PRESENT", "0"); // show a frame only at its flip (the behaviour up to 0.5.4)
+        else if (!strcmp(argv[i], "--audio-queue-ms") && i + 1 < argc) audio_queue_ms = atoi(argv[++i]);   // most audio a port keeps queued: default 20, 85 = up to 0.5.4
+        else if (!strcmp(argv[i], "--audio-device-ms") && i + 1 < argc) audio_device_ms = atoi(argv[++i]); // device buffer to ask for: default the smallest, 30 = up to 0.5.4
         else if (!strcmp(argv[i], "--lobby-port") && i + 1 < argc) lobby_port = (uint16_t)atoi(argv[++i]);
         else if (!strcmp(argv[i], "--lobby-peer") && i + 1 < argc) lobby_peers = argv[++i];
         else if (!strcmp(argv[i], "--trace-net")) trace_net = 1;
@@ -516,6 +520,8 @@ int main(int argc, char** argv) {
     rt_np_configure(trace_np);
     rt_rooms_configure(lobby_port, lobby_peers);
     rt_gpu_timing_configure(frame_stats, flip_rate, flip_rate_after);
+    if (frame_stats) os_setenv("JSTARS_FRAME_STATS", "1"); // the renderer's "present timing" line (input read to picture)
+    os_audio_configure(audio_queue_ms, audio_device_ms);
     // The renderer reads these once at start (gpu/shim/core/emulator_settings.h). Experiments only; the defaults are unchanged.
     if (vblank_hz) { static char e1[64]; snprintf(e1, sizeof e1, "JSTARS_VBLANK_HZ=%s", vblank_hz); putenv(e1); rt_logf("experiment: vblank %s Hz", vblank_hz); }
     if (present_mode) { static char e2[64]; snprintf(e2, sizeof e2, "JSTARS_PRESENT_MODE=%s", present_mode); putenv(e2); rt_logf("experiment: present mode %s", present_mode); }

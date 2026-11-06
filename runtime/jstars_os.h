@@ -105,7 +105,14 @@ typedef struct {
     uint64_t underruns;          // device callbacks that needed more frames from an active port than it had queued
     int ports_open;
     int realtime;                // device feed thread: 2 MMCSS "Pro Audio", 1 time-critical priority, 0 normal
+    unsigned queue_frames;       // most frames a port may keep queued right now (starts at --audio-queue-ms; see jstars_audiohost.c)
+    unsigned device_frames;      // size of the device's shared buffer
+    unsigned delay_avg_us, delay_max_us; // from os_audio_port_write to the device playing those frames, last 5 s (0: nothing measured)
+    uint64_t queue_raised;       // times a port's queue limit was raised after a gap that was heard
 } OsAudioStats;
+// Before os_audio_start. queue_ms: most audio a port keeps queued (0: the default, 20 ms; 85 = the whole ring, as up to 0.5.4).
+// device_ms: device buffer to ask for (0: the smallest the audio engine offers; 30 = what was asked for up to 0.5.4).
+void os_audio_configure(int queue_ms, int device_ms);
 int os_audio_start(void);                    // opens the default render endpoint (idempotent); 0 on success
 int os_audio_port_new(void);                 // port index (0..7) or -1
 void os_audio_port_free(int port);

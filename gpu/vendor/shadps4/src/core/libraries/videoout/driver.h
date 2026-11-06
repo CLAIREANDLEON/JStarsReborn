@@ -66,6 +66,10 @@ struct VideoOutPort {
     }
 };
 
+// jstars: the game read the controller (runtime scePadReadState). The first read after a flip marks the start of the frame's
+// "input read to picture" time in the present timing statistics.
+void NoteInputRead();
+
 struct ServiceThreadParams {
     u32 unknown;
     bool set_priority;
@@ -99,6 +103,10 @@ private:
         s64 flip_arg;
         s32 index;
         bool eop;
+        // jstars: early present (PresentThread). `presented`: the frame is already on screen and the flip only completes it
+        // for the guest. `ready_ns`: when the request was queued (steady clock).
+        bool presented{false};
+        s64 ready_ns{0};
 
         operator bool() const noexcept {
             return frame != nullptr;
@@ -112,6 +120,7 @@ private:
     void PresentThread(std::stop_token token);
 
     std::mutex mutex;
+    std::condition_variable request_cv; // jstars: signalled when a flip request is queued (early present)
     VideoOutPort main_port{};
     std::jthread present_thread;
     std::queue<Request> requests;

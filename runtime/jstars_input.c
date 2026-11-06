@@ -163,6 +163,7 @@ static int GUEST_ABI p_close(int handle) { return handle == 1 ? 0 : (int)0x80920
 static int GUEST_ABI p_read(int handle, PadData* d) {
     if (handle != 1) return (int)0x80920003; // SCE_PAD_ERROR_INVALID_HANDLE
     if (!d) return (int)0x80920001;
+    rt_gpu_note_input(); // frame timing statistics: this read is the input the game builds its next frame from
     OsPadState st; int source = OS_PAD_NONE; int scripted = 0;
     if (g_none) {
         memset(&st, 0, sizeof st); st.lx = st.ly = st.rx = st.ry = 128; // source stays OS_PAD_NONE: connected=0

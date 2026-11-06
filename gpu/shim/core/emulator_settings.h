@@ -28,6 +28,11 @@ public:
     std::string GetPresentMode() { const char* v = std::getenv("JSTARS_PRESENT_MODE"); return v ? v : "Mailbox"; }
     u32 GetReadbacksMode() { static const auto value = u32(Number("JSTARS_READBACKS", GpuReadbacksMode::Disabled)); return value; }
     u32 GetVblankFrequency() { static const auto value = u32(std::max(1L, Number("JSTARS_VBLANK_HZ", 60))); return value; }
+    // Early present (videoout/driver.cpp, PresentThread): a finished frame is shown as soon as it is due instead of waiting for the
+    // flip it is queued for; the flip the game sees keeps its vblank timing. Runtime --no-early-present sets JSTARS_EARLY_PRESENT=0.
+    bool IsEarlyPresentEnabled() { static const auto value = Flag("JSTARS_EARLY_PRESENT", true); return value; }
+    // "present timing" log line every five seconds (frame ready, shown, input read to picture): runtime --frame-stats.
+    bool IsFrameStatsEnabled() { static const auto value = Flag("JSTARS_FRAME_STATS", false); return value; }
     bool IsCopyGpuBuffers() { static const auto value = Flag("JSTARS_COPY_GPU_BUFFERS", false); return value; }
     bool IsDirectMemoryAccessEnabled() { static const auto value = Flag("JSTARS_DIRECT_MEMORY_ACCESS", false); return value; }
     bool IsDumpShaders() { static const auto value = Flag("JSTARS_DUMP_SHADERS", false); return value; }
