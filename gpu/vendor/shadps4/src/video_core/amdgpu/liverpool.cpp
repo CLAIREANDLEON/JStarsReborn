@@ -815,7 +815,8 @@ Liverpool::Task Liverpool::ProcessGraphics(std::span<const u32> dcb, std::span<c
                             memcpy(address, &data, num_bytes);
                         }
                     },
-                    [] { Platform::IrqC::Instance()->Signal(Platform::InterruptId::GfxEop); });
+                    // jstars: may be delivered later, by the present thread (late frame start, videoout/driver.cpp)
+                    [] { Libraries::VideoOut::SignalGfxEop(); });
                 break;
             }
             case PM4ItOpcode::DmaData: {

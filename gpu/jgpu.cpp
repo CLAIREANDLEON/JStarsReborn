@@ -209,8 +209,10 @@ void jgpu_get_stats(JgpuStats* out) {
 
 namespace Libraries::VideoOut {
 void NoteInputRead(); // videoout/driver.cpp
+void NoteFrameSubmit();
 }
 void jgpu_note_input_read(void) { Libraries::VideoOut::NoteInputRead(); }
+void jgpu_note_frame_submit(void) { Libraries::VideoOut::NoteFrameSubmit(); }
 
 void jgpu_shutdown(void) {
     Libraries::Kernel::StopKernelService();

@@ -46,6 +46,7 @@ void rt_gpu_timing_configure(int frame_stats, int flip_rate_override, int flip_r
 
 static int64_t GUEST_ABI submit_flip_wrapper(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f, uint64_t g, uint64_t h, uint64_t i, uint64_t j) {
     const uint64_t now = rt_read_tsc();
+    jgpu_note_frame_submit(); // frame latency: statistics and late frame start (gpu/vendor/shadps4/.../videoout/driver.cpp)
     pthread_mutex_lock(&g_ft_lock);
     // Apply on the guest submission thread, not the host monitor thread. The
     // timing lock serializes this with the game's own SetFlipRate calls.

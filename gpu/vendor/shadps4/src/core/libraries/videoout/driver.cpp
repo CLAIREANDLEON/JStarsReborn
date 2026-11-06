@@ -5,6 +5,8 @@
 #include <array>
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
+#include <mutex>
 
 #include "common/assert.h"
 #include "common/debug.h"
@@ -14,6 +16,7 @@
 #include "core/libraries/kernel/time.h"
 #include "core/libraries/videoout/driver.h"
 #include "core/libraries/videoout/videoout_error.h"
+#include "core/platform.h"
 #include "imgui/renderer/imgui_core.h"
 #include "video_core/amdgpu/liverpool.h"
 #include "video_core/renderer_vulkan/vk_presenter.h"
@@ -23,7 +26,8 @@ extern std::unique_ptr<AmdGpu::Liverpool> liverpool;
 
 namespace Libraries::VideoOut {
 
-// jstars: early present and the timing of the path from the game's input read to the picture. See PresentThread.
+// jstars: low latency (early present, late frame start) and the timing of the path from the game's controller read to the
+// picture. The explanation is at PresentThread.
 namespace {
 
 using SteadyClock = std::chrono::steady_clock;
@@ -34,10 +38,55 @@ s64 NowNs() {
         .count();
 }
 
-// The time of the last flip, which releases the game's frame loop, and of the first controller read after it (0: none
-// yet): the input the frame being rendered is built from.
+SteadyClock::time_point TimePoint(s64 ns) {
+    return SteadyClock::time_point{
+        std::chrono::duration_cast<SteadyClock::duration>(std::chrono::nanoseconds(ns))};
+}
+
+// 0: off. 1: early present. 2: early present and late frame start. Fixed at start (JSTARS_LOW_LATENCY).
+int LatencyLevel() {
+    static const int level = EmulatorSettings.GetLowLatencyLevel();
+    return level;
+}
+
+// The time of the last flip, and of the next vblank at which a flip can happen (published by the present thread).
 std::atomic<s64> last_flip_ns{0};
+std::atomic<s64> next_flip_ns{0};
+
+// Input. The first controller read since the game's last frame submission (0: none yet) is the input the frame being built
+// comes from. At the submission it moves, with the submission time, to the flip request the GPU thread queues for the frame.
 std::atomic<s64> input_read_ns{0};
+std::atomic<s64> submitted_input_ns{0};
+std::atomic<s64> submitted_ns{0};
+std::atomic<bool> frame_in_flight{false}; // between a frame's submission and its flip request
+std::atomic<s64> last_request_ns{0};      // when the last flip request was queued
+
+// Late frame start. The game starts a frame when the GPU thread reports the end of the previous one (the end-of-pipe
+// interrupt). `build_budget_ns` is how long the game then needs until it submits the next frame: the slowest recent frame
+// plus a margin (0: not measured yet). A deferred interrupt waits in `eop_pending` until `eop_due_ns`.
+std::atomic<s64> build_budget_ns{0};
+std::atomic<s64> eop_delivered_ns{0};
+std::atomic<s64> eop_due_ns{0};
+std::atomic<int> eop_pending{0};
+std::atomic<u32> eop_deferred_count{0};
+
+// Wakes the present thread when a flip request is queued or an interrupt is deferred.
+std::mutex wake_mutex;
+std::condition_variable wake_cv;
+u64 wake_count = 0; // guarded by wake_mutex
+
+void WakePresentThread() {
+    {
+        std::scoped_lock lock{wake_mutex};
+        ++wake_count;
+    }
+    wake_cv.notify_one();
+}
+
+void DeliverGfxEop() {
+    Platform::IrqC::Instance()->Signal(Platform::InterruptId::GfxEop);
+    eop_delivered_ns.store(NowNs(), std::memory_order_relaxed);
+}
 
 // Used by the present thread only.
 struct PresentTiming {
@@ -46,6 +95,7 @@ struct PresentTiming {
 
     std::array<float, Capacity> ready_ms{};
     std::array<float, Capacity> shown_ms{};
+    std::array<float, Capacity> built_ms{};
     std::array<float, Capacity> input_ms{};
     size_t frames{};
     size_t inputs{};
@@ -54,7 +104,8 @@ struct PresentTiming {
     u32 at_flip{};
     s64 window_start_ns{};
 
-    void Add(s64 ready_ns, s64 shown_ns, Kind kind) {
+    // ready and shown are measured from the last flip; built and input from the controller read the frame was built from.
+    void Add(s64 ready_ns, s64 shown_ns, s64 input_ns, s64 submit_ns, Kind kind) {
         const s64 base_ns = last_flip_ns.load(std::memory_order_relaxed);
         if (base_ns == 0) {
             return; // no flip yet: nothing to measure against
@@ -64,9 +115,10 @@ struct PresentTiming {
             shown_ms[frames] = static_cast<float>(shown_ns - base_ns) * 1e-6f;
             ++frames;
         }
-        const s64 read_ns = input_read_ns.load(std::memory_order_relaxed);
-        if (read_ns != 0 && inputs < Capacity) {
-            input_ms[inputs++] = static_cast<float>(shown_ns - read_ns) * 1e-6f;
+        if (input_ns != 0 && submit_ns >= input_ns && inputs < Capacity) {
+            built_ms[inputs] = static_cast<float>(submit_ns - input_ns) * 1e-6f;
+            input_ms[inputs] = static_cast<float>(shown_ns - input_ns) * 1e-6f;
+            ++inputs;
         }
         if (kind == Kind::Early) {
             ++early;
@@ -82,7 +134,7 @@ struct PresentTiming {
     }
 
     // One log line every five seconds (runtime --frame-stats).
-    void Report(bool early_present, double lead_ms, double slot_ms) {
+    void Report(double lead_ms, double slot_ms) {
         const s64 now_ns = NowNs();
         if (window_start_ns == 0) {
             window_start_ns = now_ns;
@@ -93,19 +145,25 @@ struct PresentTiming {
         if (frames != 0) {
             std::sort(ready_ms.begin(), ready_ms.begin() + frames);
             std::sort(shown_ms.begin(), shown_ms.begin() + frames);
+            std::sort(built_ms.begin(), built_ms.begin() + inputs);
             std::sort(input_ms.begin(), input_ms.begin() + inputs);
             LOG_INFO(Lib_VideoOut,
                      "present timing: {} frames in {:.1f} s, a flip every {:.1f} ms; frame ready {:.1f} ms "
                      "after the previous flip (p95 {:.1f}, max {:.1f}); shown after {:.1f} ms (p95 {:.1f}, "
-                     "max {:.1f}); input read to picture {:.1f} ms (p95 {:.1f}, max {:.1f}; {} frames); {} "
-                     "shown early, {} late, {} at the flip; early present {} (lead {:.1f} ms)",
+                     "max {:.1f}); controller read to frame submitted {:.1f} ms (p95 {:.1f}, max {:.1f}); "
+                     "controller read to picture {:.1f} ms (p95 {:.1f}, max {:.1f}; {} frames); {} shown "
+                     "early, {} late, {} at the flip; low latency level {} (lead {:.1f} ms, frame start "
+                     "{:.1f} ms before the flip, {} delayed)",
                      frames, static_cast<double>(now_ns - window_start_ns) * 1e-9, slot_ms,
                      Pick(ready_ms, frames, 50), Pick(ready_ms, frames, 95),
                      Pick(ready_ms, frames, 100), Pick(shown_ms, frames, 50),
                      Pick(shown_ms, frames, 95), Pick(shown_ms, frames, 100),
-                     Pick(input_ms, inputs, 50), Pick(input_ms, inputs, 95),
-                     Pick(input_ms, inputs, 100), inputs, early, late, at_flip,
-                     early_present ? "on" : "off", lead_ms);
+                     Pick(built_ms, inputs, 50), Pick(built_ms, inputs, 95),
+                     Pick(built_ms, inputs, 100), Pick(input_ms, inputs, 50),
+                     Pick(input_ms, inputs, 95), Pick(input_ms, inputs, 100), inputs, early, late,
+                     at_flip, LatencyLevel(), lead_ms,
+                     static_cast<double>(build_budget_ns.load(std::memory_order_relaxed)) * 1e-6,
+                     eop_deferred_count.exchange(0, std::memory_order_relaxed));
         }
         frames = inputs = 0;
         early = late = at_flip = 0;
@@ -119,6 +177,54 @@ PresentTiming timing;
 void NoteInputRead() {
     s64 expected = 0;
     input_read_ns.compare_exchange_strong(expected, NowNs(), std::memory_order_relaxed);
+}
+
+void NoteFrameSubmit() {
+    const s64 now_ns = NowNs();
+    submitted_input_ns.store(input_read_ns.exchange(0, std::memory_order_relaxed),
+                             std::memory_order_relaxed);
+    submitted_ns.store(now_ns, std::memory_order_relaxed);
+    frame_in_flight.store(true, std::memory_order_relaxed);
+
+    // How long the game took from the interrupt that started this frame to its submission (the game submits from one
+    // thread). The budget follows the slowest of the last frames, so a slow stretch is covered after its first frame.
+    constexpr s64 BuildMarginNs = 2000000;
+    static std::array<s64, 64> recent{};
+    static size_t count = 0;
+    const s64 woke_ns = eop_delivered_ns.exchange(0, std::memory_order_relaxed);
+    if (woke_ns != 0 && now_ns - woke_ns < 100000000) {
+        recent[count++ % recent.size()] = now_ns - woke_ns;
+        if (count >= 16) {
+            const auto end = recent.begin() + std::min(count, recent.size());
+            build_budget_ns.store(*std::max_element(recent.begin(), end) + BuildMarginNs,
+                                  std::memory_order_relaxed);
+        }
+    }
+}
+
+void SignalGfxEop() {
+    const s64 budget_ns = build_budget_ns.load(std::memory_order_relaxed);
+    if (LatencyLevel() < 2 || budget_ns == 0) {
+        DeliverGfxEop();
+        return;
+    }
+    // Late frame start: the GPU thread cannot begin the game's next frame before the next flip (it waits for the display
+    // buffer), so waking the game earlier than it needs to make that flip only makes the frame's input older. Only the
+    // interrupt that ends a frame is held back (the frame's flip request is in flight or was just queued), and only in
+    // the regular frame loop (a recent flip, and still time before the next one); any other is delivered at once.
+    const s64 now_ns = NowNs();
+    const s64 due_ns = next_flip_ns.load(std::memory_order_relaxed) - budget_ns;
+    const bool ends_frame = frame_in_flight.load(std::memory_order_relaxed) ||
+                            now_ns - last_request_ns.load(std::memory_order_relaxed) < 2000000;
+    if (!ends_frame || due_ns <= now_ns ||
+        now_ns - last_flip_ns.load(std::memory_order_relaxed) > 100000000) {
+        DeliverGfxEop();
+        return;
+    }
+    eop_due_ns.store(due_ns, std::memory_order_relaxed);
+    eop_pending.fetch_add(1, std::memory_order_relaxed);
+    eop_deferred_count.fetch_add(1, std::memory_order_relaxed);
+    WakePresentThread();
 }
 
 constexpr static bool Is32BppPixelFormat(PixelFormat format) {
@@ -343,7 +449,8 @@ void VideoOutDriver::Flip(const Request& req) {
 
         // Present the frame.
         presenter->Present(req.frame);
-        timing.Add(req.ready_ns, NowNs(), PresentTiming::Kind::AtFlip);
+        timing.Add(req.ready_ns, NowNs(), req.input_ns, req.submit_ns,
+                   PresentTiming::Kind::AtFlip);
     }
 
     // Update flip status.
@@ -362,9 +469,7 @@ void VideoOutDriver::Flip(const Request& req) {
         --flip_status.flip_pending_num;
     }
 
-    // jstars: the game's next frame starts with this flip.
-    input_read_ns.store(0, std::memory_order_relaxed);
-    last_flip_ns.store(NowNs(), std::memory_order_relaxed);
+    last_flip_ns.store(NowNs(), std::memory_order_relaxed); // jstars
 
     // Trigger flip events for the port.
     for (auto event : port->flip_events) {
@@ -445,8 +550,13 @@ void VideoOutDriver::SubmitFlipInternal(VideoOutPort* port, s32 index, s64 flip_
         .eop = is_eop,
         .presented = false,
         .ready_ns = NowNs(),
+        .input_ns = submitted_input_ns.exchange(0, std::memory_order_relaxed),
+        .submit_ns = submitted_ns.load(std::memory_order_relaxed),
     });
-    request_cv.notify_one(); // jstars: the present thread may show it before its flip
+    // jstars: the present thread may show the frame before its flip
+    frame_in_flight.store(false, std::memory_order_relaxed);
+    last_request_ns.store(NowNs(), std::memory_order_relaxed);
+    WakePresentThread();
 }
 
 void VideoOutDriver::PresentThread(std::stop_token token) {
@@ -468,17 +578,26 @@ void VideoOutDriver::PresentThread(std::stop_token token) {
         return {};
     };
 
-    // jstars: early present. The game starts a frame when a flip completes, and the finished frame used to wait for the
-    // next flip (33 ms later at the game's 30 fps) before it was shown, although it is ready long before that. Here a
-    // queued frame is presented `lead` after the flip that started it, between two vblanks. The flip itself (status and
-    // events: everything the game can see) still happens at its vblank, so the game runs exactly as before; only the
-    // picture arrives sooner. `lead` follows the slowest recent frame plus a margin, which keeps the cadence even; a
-    // frame that takes longer is shown the moment it is ready. Off with JSTARS_EARLY_PRESENT=0 (--no-early-present).
-    const bool early_present = EmulatorSettings.IsEarlyPresentEnabled();
+    // jstars: low latency. The game runs its frames like this: when the GPU thread reports the end of a frame (the
+    // end-of-pipe interrupt), the game reads the controller, builds the next frame and submits it; the GPU thread waits
+    // for the flip of the frame before it (which frees the display buffer), renders, and queues the flip request; the
+    // request is flipped at the next vblank that takes one. With the game's flip rate 1 (30 fps) the picture therefore
+    // reached the screen about 62 ms after the controller read it was built from: the frame waited ~29 ms for the display
+    // buffer and, once rendered, ~29 ms more for its flip.
+    //   Level 1, early present: a queued frame is presented `lead` after the last flip instead of at its own flip.
+    //   Level 2, late frame start: in addition the end-of-pipe interrupt is delivered only as late as the game still
+    //   needs to submit its next frame before the coming flip (SignalGfxEop), so the controller is read just before
+    //   that flip instead of right after the previous one.
+    // Nothing the game can see changes except when its GPU work appears to finish: flips (status and events) stay on their
+    // vblanks in the submitted order, and every frame is built, rendered and flipped as before. `lead` follows the slowest
+    // recent frame plus a margin, which keeps the cadence even; a frame that takes longer is shown the moment it is ready.
+    // JSTARS_LOW_LATENCY=0|1|2 (runtime --low-latency), default 2.
+    const int latency_level = LatencyLevel();
     const bool frame_stats = EmulatorSettings.IsFrameStatsEnabled();
     constexpr s64 LeadMarginNs = 1500000; // on top of the slowest recent frame
     constexpr s64 LeadDecayNs = 250000;   // per frame, towards a lower target
     constexpr s64 GuardNs = 2000000;      // the end of every vblank wait is left to the timer
+    constexpr s64 CoarseNs = 1500000;     // longer waits end 1 ms early on the condition variable, the rest is slept
     std::array<s64, 64> recent_ready{};
     size_t recent_count = 0;
     s64 lead_ns = 0;
@@ -495,40 +614,77 @@ void VideoOutDriver::PresentThread(std::stop_token token) {
         const s64 target = *std::max_element(recent_ready.begin(), end) + LeadMarginNs;
         lead_ns = target >= lead_ns ? target : std::max(target, lead_ns - LeadDecayNs);
     };
-    const auto present_early = [&](SteadyClock::time_point next_vblank) {
-        const auto limit = next_vblank - std::chrono::nanoseconds(GuardNs);
-        std::unique_lock lock{mutex};
-        while (!token.stop_requested() && SteadyClock::now() < limit) {
-            if (requests.empty() || requests.front().presented) {
-                request_cv.wait_until(lock, limit);
-                continue;
+    const auto deliver_due_interrupts = [&](s64 until_ns) {
+        if (eop_pending.load(std::memory_order_relaxed) > 0 &&
+            eop_due_ns.load(std::memory_order_relaxed) <= until_ns) {
+            for (int n = eop_pending.exchange(0, std::memory_order_relaxed); n > 0; --n) {
+                DeliverGfxEop();
             }
-            const s64 due_ns = last_flip_ns.load(std::memory_order_relaxed) + lead_ns;
-            const SteadyClock::time_point due{std::chrono::duration_cast<SteadyClock::duration>(
-                std::chrono::nanoseconds(due_ns))};
-            if (due > limit) {
-                break; // not before the next vblank: it is flipped there, or shown in the wait after it
-            }
-            Vulkan::Frame* const frame = requests.front().frame;
-            const bool is_hdr = requests.front().port->is_hdr;
-            const s64 ready_ns = requests.front().ready_ns;
-            lock.unlock();
-            if (const auto now = SteadyClock::now(); due > now) {
-                Common::AccurateSleep(due - now, nullptr, false);
-            }
-            presenter->SetHDR(is_hdr);
-            presenter->Present(frame);
-            timing.Add(ready_ns, NowNs(),
-                       ready_ns <= due_ns ? PresentTiming::Kind::Early : PresentTiming::Kind::Late);
-            note_ready(ready_ns);
-            lock.lock();
-            requests.front().presented = true; // only this thread removes requests
         }
+    };
+    // The wait for the next vblank, during which a finished frame is shown and a deferred interrupt delivered when due.
+    const auto wait_for_vblank = [&](s64 next_vblank_ns) {
+        const s64 limit_ns = next_vblank_ns - GuardNs;
+        while (!token.stop_requested()) {
+            const s64 now_ns = NowNs();
+            if (now_ns >= limit_ns) {
+                break;
+            }
+            u64 seen = 0;
+            {
+                std::scoped_lock lock{wake_mutex};
+                seen = wake_count;
+            }
+            s64 next_ns = limit_ns;
+            if (eop_pending.load(std::memory_order_relaxed) > 0) {
+                const s64 due_ns = eop_due_ns.load(std::memory_order_relaxed);
+                if (due_ns <= now_ns) {
+                    deliver_due_interrupts(now_ns);
+                    continue;
+                }
+                next_ns = std::min(next_ns, due_ns);
+            }
+            Request head{};
+            {
+                std::scoped_lock lock{mutex};
+                if (!requests.empty() && !requests.front().presented) {
+                    head = requests.front();
+                }
+            }
+            if (head) {
+                // A frame that was ready before the last flip has waited long enough; the others get an even cadence.
+                const s64 flip_ns = last_flip_ns.load(std::memory_order_relaxed);
+                const s64 due_ns = head.ready_ns <= flip_ns ? now_ns : flip_ns + lead_ns;
+                if (due_ns <= now_ns) {
+                    presenter->SetHDR(head.port->is_hdr);
+                    presenter->Present(head.frame);
+                    timing.Add(head.ready_ns, NowNs(), head.input_ns, head.submit_ns,
+                               head.ready_ns <= due_ns ? PresentTiming::Kind::Early
+                                                       : PresentTiming::Kind::Late);
+                    note_ready(head.ready_ns);
+                    std::scoped_lock lock{mutex};
+                    requests.front().presented = true; // only this thread removes requests
+                    continue;
+                }
+                if (due_ns <= limit_ns) {
+                    next_ns = std::min(next_ns, due_ns);
+                } // else: it is flipped at the next vblank, or shown in the wait after it
+            }
+            if (next_ns - now_ns > CoarseNs) {
+                std::unique_lock lock{wake_mutex};
+                wake_cv.wait_until(lock, TimePoint(next_ns - 1000000),
+                                   [&] { return wake_count != seen; });
+            } else {
+                Common::AccurateSleep(std::chrono::nanoseconds(next_ns - now_ns), nullptr, false);
+            }
+        }
+        deliver_due_interrupts(next_vblank_ns); // due within the guard: a little early rather than after the vblank
     };
 
     while (!token.stop_requested()) {
         timer.Start();
-        const auto vblank_time = SteadyClock::now(); // jstars
+        const s64 vblank_ns = NowNs(); // jstars
+        deliver_due_interrupts(vblank_ns);
 
         if (DebugState.IsGuestThreadsPaused()) {
             DrawLastFrame();
@@ -549,7 +705,7 @@ void VideoOutDriver::PresentThread(std::stop_token token) {
                     }
                 }
             } else {
-                if (early_present && !request.presented) {
+                if (latency_level > 0 && !request.presented) {
                     note_ready(request.ready_ns); // jstars
                 }
                 Flip(request);
@@ -581,14 +737,23 @@ void VideoOutDriver::PresentThread(std::stop_token token) {
             main_port.vblank_cv.notify_all();
         }
 
-        // jstars: spend the wait for the next vblank here, where a finished frame can be shown before it (see above);
-        // the timer sleeps whatever is left. The next vblank is one period after this one, corrected by what the timer
-        // still owes.
-        if (early_present) {
-            present_early(vblank_time + vblank_period + timer.GetTotalWait());
+        // jstars: spend the wait for the next vblank where a finished frame can be shown and a deferred interrupt
+        // delivered (see above); the timer sleeps whatever is left. The next vblank is one period after this one,
+        // corrected by what the timer still owes; a flip can happen at the first vblank whose count is a multiple of
+        // the flip rate + 1.
+        {
+            const s64 next_vblank_ns =
+                vblank_ns + vblank_period.count() + timer.GetTotalWait().count();
+            const u64 every = static_cast<u64>(main_port.flip_rate) + 1;
+            const u64 skipped = (every - vblank_status.count % every) % every;
+            next_flip_ns.store(next_vblank_ns + static_cast<s64>(skipped) * vblank_period.count(),
+                               std::memory_order_relaxed);
+            if (latency_level > 0) {
+                wait_for_vblank(next_vblank_ns);
+            }
         }
         if (frame_stats) {
-            timing.Report(early_present, static_cast<double>(lead_ns) * 1e-6,
+            timing.Report(static_cast<double>(lead_ns) * 1e-6,
                           static_cast<double>(slot_ns()) * 1e-6);
         }
 
