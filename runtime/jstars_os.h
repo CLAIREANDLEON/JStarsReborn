@@ -110,7 +110,7 @@ typedef struct {
     unsigned delay_avg_us, delay_max_us; // from os_audio_port_write to the device playing those frames, last 5 s (0: nothing measured)
     uint64_t queue_raised;       // times a port's queue limit was raised after a gap that was heard
 } OsAudioStats;
-// Before os_audio_start. queue_ms: most audio a port keeps queued (0: the default, 20 ms; 85 = the whole ring, as up to 0.5.4).
+// Before os_audio_start. queue_ms: most audio a port keeps queued (0: the default, 30 ms; 85 = the whole ring, as up to 0.5.4).
 // device_ms: device buffer to ask for (0: the smallest the audio engine offers; 30 = what was asked for up to 0.5.4).
 void os_audio_configure(int queue_ms, int device_ms);
 int os_audio_start(void);                    // opens the default render endpoint (idempotent); 0 on success

@@ -30,8 +30,10 @@
 // Pacing. The device takes a whole period at a time (10 ms), but the queue is counted as if it drained steadily: a buffer
 // is accepted as soon as it would fit had the device taken its share of the current period already. The game's audio thread
 // then gets a buffer accepted every 5.3 ms, as on the console, instead of two at once every device period; with those
-// bursts a game thread that waits for the audio thread was held up for 11 or 22 ms every few seconds.
-#define QUEUE_MS 20
+// bursts the audio thread ran two buffers back to back and then waited a whole device period.
+// QUEUE_MS: with 20 ms the game's own pauses at scene changes (20 to 30 ms without a buffer, measured in the menus and at a
+// battle start) were heard as gaps; 30 ms covers those, and longer ones raise the limit as described.
+#define QUEUE_MS 30
 #define QUEUE_STEP 240                 // 5 ms at 48 kHz
 #define QUEUE_CALM_MS 10000
 // After a port runs dry while the game is still feeding it, it waits until PREROLL frames are queued before playing again
