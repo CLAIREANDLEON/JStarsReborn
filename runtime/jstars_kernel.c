@@ -230,7 +230,13 @@ static pthread_mutex_t* mutex_of(void** slot, int type) {
 }
 static int GUEST_ABI k_mutex_init(void** slot, MutexAttr** a, const char* name) { (void)name; *slot = NULL; mutex_of(slot, a && *a ? (*a)->type : 1); return 0; }
 static int GUEST_ABI k_mutex_destroy(void** slot) { if (*slot) { pthread_mutex_destroy(guest_obj_host(*slot)); free(*slot); *slot = NULL; } return 0; }
-static int GUEST_ABI k_mutex_lock(void** slot) { int r = pthread_mutex_lock(mutex_of(slot, 1)); return r ? SCE_ERR(r) : 0; }
+static int GUEST_ABI k_mutex_lock(void** slot) {
+    pthread_mutex_t* m = mutex_of(slot, 1);
+    const uint64_t t0 = rt_now_ns();
+    int r = pthread_mutex_lock(m);
+    rt_wait_note(RT_WAIT_MUTEX, rt_now_ns() - t0, slot);
+    return r ? SCE_ERR(r) : 0;
+}
 static int GUEST_ABI k_mutex_trylock(void** slot) { int r = pthread_mutex_trylock(mutex_of(slot, 1)); return r ? SCE_ERR(r) : 0; }
 static int GUEST_ABI k_mutex_unlock(void** slot) { int r = pthread_mutex_unlock(mutex_of(slot, 1)); return r ? SCE_ERR(r) : 0; }
 
@@ -248,12 +254,21 @@ static pthread_cond_t* cond_of(void** slot) {
 }
 static int GUEST_ABI k_cond_init(void** slot, void* attr, const char* name) { (void)attr; (void)name; *slot = NULL; cond_of(slot); return 0; }
 static int GUEST_ABI k_cond_destroy(void** slot) { if (*slot) { pthread_cond_destroy(guest_obj_host(*slot)); free(*slot); *slot = NULL; } return 0; }
-static int GUEST_ABI k_cond_wait(void** c, void** m) { int r = pthread_cond_wait(cond_of(c), mutex_of(m, 1)); return r ? SCE_ERR(r) : 0; }
+static int GUEST_ABI k_cond_wait(void** c, void** m) {
+    pthread_cond_t* cv = cond_of(c); pthread_mutex_t* mu = mutex_of(m, 1);
+    const uint64_t t0 = rt_now_ns();
+    int r = pthread_cond_wait(cv, mu);
+    rt_wait_note(RT_WAIT_COND, rt_now_ns() - t0, c);
+    return r ? SCE_ERR(r) : 0;
+}
 static int GUEST_ABI k_cond_timedwait(void** c, void** m, uint32_t usec) {
     struct timespec t; clock_gettime(COND_CLOCK, &t);
     t.tv_sec += usec / 1000000; t.tv_nsec += (long)(usec % 1000000) * 1000;
     if (t.tv_nsec >= 1000000000) { t.tv_sec++; t.tv_nsec -= 1000000000; }
-    int r = pthread_cond_timedwait(cond_of(c), mutex_of(m, 1), &t);
+    pthread_cond_t* cv = cond_of(c); pthread_mutex_t* mu = mutex_of(m, 1);
+    const uint64_t t0 = rt_now_ns();
+    int r = pthread_cond_timedwait(cv, mu, &t);
+    rt_wait_note(RT_WAIT_COND, rt_now_ns() - t0, c);
     return r ? SCE_ERR(r == ETIMEDOUT ? 60 : r) : 0; // SCE_KERNEL_ERROR_ETIMEDOUT = 0x8002003c
 }
 static int GUEST_ABI k_cond_signal(void** c) { return pthread_cond_signal(cond_of(c)) ? SCE_KERNEL_ERROR_EINVAL : 0; }
@@ -314,8 +329,19 @@ static int GUEST_ABI k_clock_gettime(int id, struct timespec* ts) {
 static int GUEST_ABI k_sceKernelClockGettime(int id, struct timespec* ts) { return k_clock_gettime(id, ts) ? SCE_KERNEL_ERROR_EINVAL : 0; }
 static int GUEST_ABI k_gettimeofday(struct timeval* tv, void* tz) { return gettimeofday(tv, tz); }
 static int GUEST_ABI k_sceKernelGettimeofday(struct timeval* tv) { return gettimeofday(tv, NULL) ? SCE_KERNEL_ERROR_EINVAL : 0; }
-static int GUEST_ABI k_usleep(uint32_t us) { struct timespec t = {us / 1000000, (long)(us % 1000000) * 1000}; while (nanosleep(&t, &t) && errno == EINTR) {} return 0; }
-static int GUEST_ABI k_nanosleep(const struct timespec* req, struct timespec* rem) { return nanosleep(req, rem); }
+static int GUEST_ABI k_usleep(uint32_t us) {
+    struct timespec t = {us / 1000000, (long)(us % 1000000) * 1000};
+    const uint64_t t0 = rt_now_ns();
+    while (nanosleep(&t, &t) && errno == EINTR) {}
+    rt_wait_note(RT_WAIT_SLEEP, rt_now_ns() - t0, NULL);
+    return 0;
+}
+static int GUEST_ABI k_nanosleep(const struct timespec* req, struct timespec* rem) {
+    const uint64_t t0 = rt_now_ns();
+    int r = nanosleep(req, rem);
+    rt_wait_note(RT_WAIT_SLEEP, rt_now_ns() - t0, NULL);
+    return r;
+}
 static struct timespec g_start;
 static uint64_t GUEST_ABI k_getprocesstime(void) { struct timespec t; clock_gettime(CLOCK_MONOTONIC, &t); return (uint64_t)((t.tv_sec - g_start.tv_sec) * 1000000 + (t.tv_nsec - g_start.tv_nsec) / 1000); }
 static uint64_t GUEST_ABI k_readtsc(void) { struct timespec t; clock_gettime(CLOCK_MONOTONIC, &t); return (uint64_t)t.tv_sec * 1000000000ull + (uint64_t)t.tv_nsec; } // 1 GHz counter
