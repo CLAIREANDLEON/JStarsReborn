@@ -101,24 +101,93 @@ static void set_fullscreen(HWND hwnd, bool on) {
 // ---- display vblank timing (refresh lock in videoout/driver.cpp) ------------------------------------------------------------
 // DWM reports the primary display's last vblank and its refresh period in QPC units (the game window is on the primary display
 // in fullscreen and normally in a window too). dwmapi is loaded at run time; nothing is linked. Returns 0 when not available.
+// The query runs on a helper thread four times a second and the present thread only reads the newest sample:
+// DwmGetCompositionTimingInfo goes through the compositor, and the present thread must never wait on it (asked at every
+// vblank it stood still for about 170 ms every few seconds, with the game waiting on it). An older vblank serves the lock
+// as well as the newest one, since the display grid is extrapolated from it in steps of the period either way.
 #include <dwmapi.h>
-extern "C" int jgpu_display_vblank(int64_t* vblank_qpc, int64_t* period_qpc, int64_t* now_qpc, int64_t* qpc_hz) {
-    typedef HRESULT(WINAPI * GetTiming)(HWND, DWM_TIMING_INFO*);
-    static GetTiming get_timing = [] {
+namespace {
+typedef HRESULT(WINAPI* DwmGetTiming)(HWND, DWM_TIMING_INFO*);
+DwmGetTiming display_timing_function() {
+    static DwmGetTiming get_timing = [] {
         HMODULE dwm = LoadLibraryW(L"dwmapi.dll");
-        return dwm ? reinterpret_cast<GetTiming>(reinterpret_cast<void*>(GetProcAddress(dwm, "DwmGetCompositionTimingInfo"))) : nullptr;
+        return dwm ? reinterpret_cast<DwmGetTiming>(reinterpret_cast<void*>(GetProcAddress(dwm, "DwmGetCompositionTimingInfo"))) : nullptr;
     }();
-    if (!get_timing) return 0;
+    return get_timing;
+}
+// The newest sample, double-buffered: the helper thread fills the buffer the present thread is not reading, then publishes it.
+struct DisplayTimingSample {
+    std::atomic<int64_t> vblank_qpc{0};
+    std::atomic<int64_t> period_qpc{0};
+};
+DisplayTimingSample g_display_timing[2];
+std::atomic<int> g_display_timing_current{-1};      // index of the published sample; -1: none
+std::atomic<int64_t> g_display_timing_slowest_ns{0}; // the longest query since the last jgpu_display_vblank_stats
+std::atomic<int> g_display_timing_slow{0};          // queries over 2 ms since then
+std::atomic<int> g_display_timing_stale{0};         // samples that repeated the previous vblank since then
+std::atomic<bool> g_display_timing_started{false};
+int64_t g_display_timing_last_vblank = 0; // helper thread only
+
+// One query; publishes a sample when the compositor reports timing. Runs on the helper thread (and once at the start).
+void display_timing_query() {
+    DwmGetTiming get_timing = display_timing_function();
+    LARGE_INTEGER hz{};
+    if (!get_timing || !QueryPerformanceFrequency(&hz) || !hz.QuadPart) return;
     DWM_TIMING_INFO info{};
     info.cbSize = sizeof(info);
+    LARGE_INTEGER t0{}, t1{};
+    QueryPerformanceCounter(&t0);
+    const HRESULT hr = get_timing(nullptr, &info);
+    QueryPerformanceCounter(&t1);
+    const int64_t took_ns = (t1.QuadPart - t0.QuadPart) * 1000000000 / hz.QuadPart;
+    if (took_ns > g_display_timing_slowest_ns.load(std::memory_order_relaxed)) g_display_timing_slowest_ns.store(took_ns, std::memory_order_relaxed);
+    if (took_ns > 2000000) g_display_timing_slow.fetch_add(1, std::memory_order_relaxed);
+    if (FAILED(hr) || !info.qpcRefreshPeriod) {
+        g_display_timing_current.store(-1, std::memory_order_release);
+        return;
+    }
+    const int64_t vblank = static_cast<int64_t>(info.qpcVBlank);
+    if (vblank == g_display_timing_last_vblank) g_display_timing_stale.fetch_add(1, std::memory_order_relaxed);
+    g_display_timing_last_vblank = vblank;
+    const int next = g_display_timing_current.load(std::memory_order_relaxed) == 0 ? 1 : 0;
+    g_display_timing[next].vblank_qpc.store(vblank, std::memory_order_relaxed);
+    g_display_timing[next].period_qpc.store(static_cast<int64_t>(info.qpcRefreshPeriod), std::memory_order_relaxed);
+    g_display_timing_current.store(next, std::memory_order_release);
+}
+void display_timing_thread() {
+    for (;;) {
+        Sleep(250);
+        display_timing_query();
+    }
+}
+} // namespace
+
+extern "C" int jgpu_display_vblank(int64_t* vblank_qpc, int64_t* period_qpc, int64_t* now_qpc, int64_t* qpc_hz) {
+    if (!g_display_timing_started.exchange(true)) {
+        display_timing_query(); // the first sample at once, so the lock starts with the first frames
+        std::thread(display_timing_thread).detach();
+    }
     LARGE_INTEGER now{}, hz{};
-    QueryPerformanceCounter(&now);
-    if (FAILED(get_timing(nullptr, &info)) || !info.qpcRefreshPeriod || !QueryPerformanceFrequency(&hz) || !hz.QuadPart) return 0;
-    *vblank_qpc = static_cast<int64_t>(info.qpcVBlank);
-    *period_qpc = static_cast<int64_t>(info.qpcRefreshPeriod);
+    if (!QueryPerformanceCounter(&now) || !QueryPerformanceFrequency(&hz) || !hz.QuadPart) return 0;
+    const int cur = g_display_timing_current.load(std::memory_order_acquire);
+    if (cur < 0) return 0;
+    const int64_t vblank = g_display_timing[cur].vblank_qpc.load(std::memory_order_relaxed);
+    const int64_t period = g_display_timing[cur].period_qpc.load(std::memory_order_relaxed);
+    // A vblank over a second old means the compositor stopped reporting (or the helper thread is stuck): no lock then.
+    if (period <= 0 || now.QuadPart - vblank > hz.QuadPart) return 0;
+    *vblank_qpc = vblank;
+    *period_qpc = period;
     *now_qpc = now.QuadPart;
     *qpc_hz = hz.QuadPart;
     return 1;
+}
+
+// For the present timing log: the longest display timing query since the last call, how many took over 2 ms, and how many
+// samples repeated the previous vblank (a compositor that stopped composing); all reset.
+extern "C" void jgpu_display_vblank_stats(int64_t* slowest_ns, int* slow, int* stale) {
+    *slowest_ns = g_display_timing_slowest_ns.exchange(0, std::memory_order_relaxed);
+    *slow = g_display_timing_slow.exchange(0, std::memory_order_relaxed);
+    *stale = g_display_timing_stale.exchange(0, std::memory_order_relaxed);
 }
 
 extern "C" int jgpu_window_focused(void) {
