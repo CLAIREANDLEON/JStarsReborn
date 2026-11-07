@@ -69,4 +69,9 @@ extern "C" int jgpu_display_vblank(int64_t* vblank_qpc, int64_t* period_qpc, int
     (void)vblank_qpc; (void)period_qpc; (void)now_qpc; (void)qpc_hz;
     return 0; // no refresh lock on the Linux harness
 }
+extern "C" void jgpu_display_vblank_stats(int64_t* slowest_ns, int* slow, int* stale) {
+    *slowest_ns = 0;
+    *slow = 0;
+    *stale = 0;
+}
 extern "C" int jgpu_window_focused(void) { return 0; }

@@ -27,6 +27,7 @@ extern std::unique_ptr<AmdGpu::Liverpool> liverpool;
 
 // jstars: display vblank timing from the window layer (jgpu_window_win32.cpp; the X11 harness returns 0).
 extern "C" int jgpu_display_vblank(int64_t* vblank_qpc, int64_t* period_qpc, int64_t* now_qpc, int64_t* qpc_hz);
+extern "C" void jgpu_display_vblank_stats(int64_t* slowest_ns, int* slow, int* stale);
 
 namespace Libraries::VideoOut {
 
@@ -148,14 +149,14 @@ struct PresentTiming {
         return count ? sorted[std::min(count - 1, count * percent / 100)] : 0.0f;
     }
 
-    // One log line every five seconds (runtime --frame-stats).
-    void Report(double lead_ms, double slot_ms, const char* lock_state) {
+    // One log line every five seconds (runtime --frame-stats). True when a five second window was closed.
+    bool Report(double lead_ms, double slot_ms, const char* lock_state) {
         const s64 now_ns = NowNs();
         if (window_start_ns == 0) {
             window_start_ns = now_ns;
         }
         if (now_ns - window_start_ns < 5000000000LL) {
-            return;
+            return false;
         }
         if (frames != 0) {
             std::sort(ready_ms.begin(), ready_ms.begin() + frames);
@@ -187,6 +188,7 @@ struct PresentTiming {
         frames = inputs = befores = 0;
         early = late = late_submit = at_flip = 0;
         window_start_ns = now_ns;
+        return true;
     }
 };
 PresentTiming timing;
@@ -652,6 +654,11 @@ void VideoOutDriver::PresentThread(std::stop_token token) {
     if (!refresh_lock) {
         std::snprintf(lock.state, sizeof lock.state, "off");
     }
+    // jstars: stall detector. Where this thread spent the time since the last vblank; a vblank that comes far too late is
+    // logged with that (in a test build the thread stood still for about 170 ms now and then, and the game waited on it).
+    s64 prev_vblank_ns = 0;
+    s64 spent_present_ns = 0;
+    s64 spent_lock_ns = 0;
     // Time from a present at `present_ns` to the next display vblank, or -1 without a lock.
     const auto before_vblank_ns = [&](s64 present_ns) -> s64 {
         if (lock.period_ns <= 0) {
@@ -673,6 +680,7 @@ void VideoOutDriver::PresentThread(std::stop_token token) {
         const s64 t0 = NowNs();
         const int ok = jgpu_display_vblank(&vb_qpc, &per_qpc, &now_qpc, &qpc_hz);
         const s64 t1 = NowNs();
+        spent_lock_ns += t1 - t0;
         if (!ok || per_qpc <= 0 || qpc_hz <= 0) {
             if (lock.period_ns != 0 || !lock.logged) {
                 LOG_INFO(Lib_VideoOut, "refresh lock: no display timing available; off");
@@ -733,6 +741,11 @@ void VideoOutDriver::PresentThread(std::stop_token token) {
     const auto deliver_due_interrupts = [&](s64 until_ns) {
         if (eop_pending.load(std::memory_order_relaxed) > 0 &&
             eop_due_ns.load(std::memory_order_relaxed) <= until_ns) {
+            const s64 late_ns = NowNs() - eop_due_ns.load(std::memory_order_relaxed);
+            if (late_ns > 20000000) { // the game waited for this interrupt: part of the stall detector
+                LOG_WARNING(Lib_VideoOut, "late frame start: interrupt delivered {:.1f} ms after it was due",
+                            static_cast<double>(late_ns) * 1e-6);
+            }
             for (int n = eop_pending.exchange(0, std::memory_order_relaxed); n > 0; --n) {
                 DeliverGfxEop();
             }
@@ -770,6 +783,7 @@ void VideoOutDriver::PresentThread(std::stop_token token) {
                     presenter->SetHDR(head.port->is_hdr);
                     const s64 presented_ns = NowNs();
                     presenter->Present(head.frame);
+                    spent_present_ns += NowNs() - presented_ns;
                     timing.Add(head.ready_ns, NowNs(), head.input_ns, head.submit_ns,
                                head.ready_ns <= due_ns ? PresentTiming::Kind::Early
                                                        : PresentTiming::Kind::Late);
@@ -801,6 +815,16 @@ void VideoOutDriver::PresentThread(std::stop_token token) {
         }
         timer.Start();
         const s64 vblank_ns = NowNs(); // jstars
+        if (prev_vblank_ns != 0 && vblank_ns - prev_vblank_ns > vblank_period.count() + 20000000) {
+            LOG_WARNING(Lib_VideoOut,
+                        "present thread: {:.1f} ms from one vblank to the next ({:.1f} ms presenting, {:.1f} ms "
+                        "reading display timing, nudge {:.2f} ms)",
+                        static_cast<double>(vblank_ns - prev_vblank_ns) * 1e-6,
+                        static_cast<double>(spent_present_ns) * 1e-6, static_cast<double>(spent_lock_ns) * 1e-6,
+                        static_cast<double>(lock.nudge_ns) * 1e-6);
+        }
+        prev_vblank_ns = vblank_ns;
+        spent_present_ns = spent_lock_ns = 0;
         deliver_due_interrupts(vblank_ns);
 
         if (DebugState.IsGuestThreadsPaused()) {
@@ -825,7 +849,9 @@ void VideoOutDriver::PresentThread(std::stop_token token) {
                 if (latency_level > 0 && !request.presented) {
                     note_ready(request.ready_ns); // jstars
                 }
+                const s64 flip_start_ns = NowNs();
                 Flip(request);
+                spent_present_ns += NowNs() - flip_start_ns;
                 FRAME_END;
             }
         }
@@ -870,9 +896,18 @@ void VideoOutDriver::PresentThread(std::stop_token token) {
                 wait_for_vblank(next_vblank_ns);
             }
         }
-        if (frame_stats) {
-            timing.Report(static_cast<double>(lead_ns) * 1e-6,
-                          static_cast<double>(slot_ns()) * 1e-6, lock.state);
+        if (frame_stats && timing.Report(static_cast<double>(lead_ns) * 1e-6,
+                                         static_cast<double>(slot_ns()) * 1e-6, lock.state)) {
+            int64_t slowest_ns = 0;
+            int slow = 0;
+            int stale = 0;
+            jgpu_display_vblank_stats(&slowest_ns, &slow, &stale);
+            if (slowest_ns > 2000000 || stale > 0) {
+                LOG_INFO(Lib_VideoOut,
+                         "refresh lock: display timing query took up to {:.1f} ms ({} over 2 ms); {} readings "
+                         "with an unchanged vblank",
+                         static_cast<double>(slowest_ns) * 1e-6, slow, stale);
+            }
         }
 
         timer.End();
