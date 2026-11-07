@@ -655,6 +655,7 @@ void VideoOutDriver::PresentThread(std::stop_token token) {
     constexpr s64 LockNudgeNs = 500000;
     struct {
         s64 period_ns = 0;  // display refresh period (0: no usable display timing)
+        s64 avg_period_ns = 0; // the same, smoothed: the reported period jitters by a tick or two
         s64 vblank_ns = 0;  // one display vblank (steady clock), the grid runs from it in period_ns steps
         int divisor = 0;    // vblank period = divisor x display period
         s64 nudge_ns = 0;   // extra sleep before the next vblank
@@ -710,19 +711,21 @@ void VideoOutDriver::PresentThread(std::stop_token token) {
             return;
         }
         lock.vblank_ns = disp_vblank;
-        const s64 locked_period = disp_period * n;
-        if (lock.period_ns != disp_period || lock.divisor != n ||
-            std::abs(locked_period - vblank_period.count()) > 2000) {
+        lock.avg_period_ns = lock.avg_period_ns ? (lock.avg_period_ns * 15 + disp_period) / 16 : disp_period;
+        const s64 locked_period = lock.avg_period_ns * n;
+        // Retune only for a real change (0.2 %: a mode change), and in place: rebuilding the timer would lose its
+        // bookkeeping (build 8 did that on every jitter and ran the game at double speed).
+        if (lock.divisor != n || std::abs(locked_period - vblank_period.count()) > locked_period / 500) {
             vblank_period = std::chrono::nanoseconds(locked_period);
-            timer = Common::AccurateTimer{vblank_period};
+            timer.SetInterval(vblank_period);
             LOG_INFO(Lib_VideoOut,
                      "refresh lock: display {:.3f} Hz ({:.3f} ms); vblank timer set to {} x that = {:.3f} ms",
-                     1e9 / disp_period, disp_period * 1e-6, n, locked_period * 1e-6);
+                     1e9 / lock.avg_period_ns, lock.avg_period_ns * 1e-6, n, locked_period * 1e-6);
             lock.logged = true;
         }
-        lock.period_ns = disp_period;
+        lock.period_ns = lock.avg_period_ns;
         lock.divisor = n;
-        std::snprintf(lock.state, sizeof lock.state, "%.2f Hz x%d", 1e9 / disp_period, n);
+        std::snprintf(lock.state, sizeof lock.state, "%.2f Hz x%d", 1e9 / lock.avg_period_ns, n);
         // The next flip's frame will be presented `lead` after that vblank (at the vblank itself at level 0). Aim for a
         // present between `margin` and `margin + slack` before a display vblank; outside that window the timer phase is
         // moved later, a little per vblank.
