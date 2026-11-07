@@ -70,6 +70,7 @@ std::atomic<s64> eop_delivered_ns{0};
 std::atomic<s64> eop_due_ns{0};
 std::atomic<int> eop_pending{0};
 std::atomic<u32> eop_deferred_count{0};
+std::atomic<s64> render_start_ns{0}; // the GPU thread began a frame's command buffer (statistics)
 
 // The second largest of the newest values: one slow frame among them is not followed, a repeated one is.
 s64 SecondLargest(const std::array<s64, 64>& values, size_t count) {
@@ -121,7 +122,7 @@ struct PresentTiming {
     s64 window_start_ns{};
 
     // ready and shown are measured from the last flip; built and input from the controller read the frame was built from.
-    void Add(s64 ready_ns, s64 shown_ns, s64 input_ns, s64 submit_ns, Kind kind) {
+    void Add(s64 ready_ns, s64 shown_ns, s64 input_ns, s64 submit_ns, s64 render_start_ns, Kind kind) {
         const s64 base_ns = last_flip_ns.load(std::memory_order_relaxed);
         if (base_ns == 0) {
             return; // no flip yet: nothing to measure against
@@ -130,6 +131,9 @@ struct PresentTiming {
             ready_ms[frames] = static_cast<float>(std::max<s64>(ready_ns - base_ns, 0)) * 1e-6f;
             shown_ms[frames] = static_cast<float>(shown_ns - base_ns) * 1e-6f;
             ++frames;
+        }
+        if (render_start_ns != 0 && ready_ns >= render_start_ns && renders < Capacity) {
+            render_ms[renders++] = static_cast<float>(ready_ns - render_start_ns) * 1e-6f;
         }
         if (input_ns != 0 && submit_ns >= input_ns && inputs < Capacity) {
             built_ms[inputs] = static_cast<float>(submit_ns - input_ns) * 1e-6f;
@@ -150,6 +154,9 @@ struct PresentTiming {
 
     std::array<float, Capacity> before_ms{}; // present to the next display vblank, when the refresh lock knows the display
     size_t befores{};
+    std::array<float, Capacity> render_ms{}; // the GPU thread's time from the start of a frame's command buffer to its request
+    size_t renders{};
+    u32 skipped{}; // frames never shown because a newer one was finished (the game had run a frame ahead)
     void AddBefore(float ms) {
         if (befores < Capacity) {
             before_ms[befores++] = ms;
@@ -175,6 +182,7 @@ struct PresentTiming {
             std::sort(built_ms.begin(), built_ms.begin() + inputs);
             std::sort(input_ms.begin(), input_ms.begin() + inputs);
             std::sort(before_ms.begin(), before_ms.begin() + befores);
+            std::sort(render_ms.begin(), render_ms.begin() + renders);
             LOG_INFO(Lib_VideoOut,
                      "present timing: {} frames in {:.1f} s, a flip every {:.1f} ms; frame ready {:.1f} ms "
                      "after the previous flip (p95 {:.1f}, max {:.1f}); shown after {:.1f} ms (p95 {:.1f}, "
@@ -182,7 +190,8 @@ struct PresentTiming {
                      "controller read to picture {:.1f} ms (p95 {:.1f}, max {:.1f}; {} frames); {} shown "
                      "at the lead, {} when ready after it ({} after a late submission), {} at the flip; low latency level {} "
                      "(lead {:.1f} ms, frame start {:.1f} ms before the flip, {} delayed); refresh lock {}, "
-                     "presented {:.1f} ms before a display vblank (p5 {:.1f}, p95 {:.1f}; {} frames)",
+                     "presented {:.1f} ms before a display vblank (p5 {:.1f}, p95 {:.1f}; {} frames); render "
+                     "{:.1f} ms (p95 {:.1f}, max {:.1f}; {} frames); {} skipped for a newer frame",
                      frames, static_cast<double>(now_ns - window_start_ns) * 1e-9, slot_ms,
                      Pick(ready_ms, frames, 50), Pick(ready_ms, frames, 95),
                      Pick(ready_ms, frames, 100), Pick(shown_ms, frames, 50),
@@ -194,10 +203,11 @@ struct PresentTiming {
                      static_cast<double>(build_budget_ns.load(std::memory_order_relaxed)) * 1e-6,
                      eop_deferred_count.exchange(0, std::memory_order_relaxed), lock_state,
                      Pick(before_ms, befores, 50), Pick(before_ms, befores, 5), Pick(before_ms, befores, 95),
-                     befores);
+                     befores, Pick(render_ms, renders, 50), Pick(render_ms, renders, 95),
+                     Pick(render_ms, renders, 100), renders, skipped);
         }
-        frames = inputs = befores = 0;
-        early = late = late_submit = at_flip = 0;
+        frames = inputs = befores = renders = 0;
+        early = late = late_submit = at_flip = skipped = 0;
         window_start_ns = now_ns;
         return true;
     }
@@ -235,6 +245,10 @@ void NoteFrameSubmit() {
                                   std::memory_order_relaxed);
         }
     }
+}
+
+void NoteRenderStart() {
+    render_start_ns.store(NowNs(), std::memory_order_relaxed);
 }
 
 void SignalGfxEop() {
@@ -483,7 +497,7 @@ void VideoOutDriver::Flip(const Request& req) {
 
         // Present the frame.
         presenter->Present(req.frame);
-        timing.Add(req.ready_ns, NowNs(), req.input_ns, req.submit_ns,
+        timing.Add(req.ready_ns, NowNs(), req.input_ns, req.submit_ns, req.render_start_ns,
                    PresentTiming::Kind::AtFlip);
     }
 
@@ -517,8 +531,9 @@ void VideoOutDriver::Flip(const Request& req) {
         }
     }
 
-    // Reset prev flip label
-    if (port->prev_index != -1) {
+    // Reset prev flip label (jstars: at low latency level 2 the label was reset when the frame was captured, in
+    // SubmitFlipInternal, and resetting it here could clear the label the GPU thread has just set for the frame after it)
+    if (port->prev_index != -1 && LatencyLevel() < 2) {
         port->buffer_labels[port->prev_index] = 0;
         port->SignalVoLabel();
     }
@@ -573,10 +588,19 @@ void VideoOutDriver::SubmitFlipInternal(VideoOutPort* port, s32 index, s64 flip_
         ASSERT_MSG(buffer.group_index >= 0, "Trying to flip an unregistered buffer!");
         const auto& group = port->groups[buffer.group_index];
         frame = presenter->PrepareFrame(group, buffer.address_left);
+        // jstars: low latency level 2. PrepareFrame copied the display buffer into the presenter's own frame, so the game
+        // may render into this buffer again at once instead of after the flip that shows it: its next frame's command
+        // buffer starts with a wait for the buffer's label (sceGnmInsertWaitFlipDone), and with two display buffers the GPU
+        // thread spent the time until that flip waiting. The flip itself still happens on its vblank. The present thread
+        // shows the newest finished frame, so a frame the game ran ahead with is skipped rather than shown late.
+        if (LatencyLevel() >= 2) {
+            port->buffer_labels[index] = 0;
+            port->SignalVoLabel();
+        }
     }
 
     std::scoped_lock lock{mutex};
-    requests.push({
+    requests.push_back({
         .frame = frame,
         .port = port,
         .flip_arg = flip_arg,
@@ -586,6 +610,7 @@ void VideoOutDriver::SubmitFlipInternal(VideoOutPort* port, s32 index, s64 flip_
         .ready_ns = NowNs(),
         .input_ns = submitted_input_ns.exchange(0, std::memory_order_relaxed),
         .submit_ns = submitted_ns.load(std::memory_order_relaxed),
+        .render_start_ns = render_start_ns.exchange(0, std::memory_order_relaxed),
     });
     // jstars: the present thread may show the frame before its flip
     frame_in_flight.store(false, std::memory_order_relaxed);
@@ -606,7 +631,7 @@ void VideoOutDriver::PresentThread(std::stop_token token) {
         std::scoped_lock lk{mutex};
         if (!requests.empty()) {
             const auto request = requests.front();
-            requests.pop();
+            requests.pop_front();
             return request;
         }
         return {};
@@ -789,11 +814,20 @@ void VideoOutDriver::PresentThread(std::stop_token token) {
                 }
                 next_ns = std::min(next_ns, due_ns);
             }
+            // The newest finished frame not shown yet. An older one still waiting is skipped: the game had run a frame
+            // ahead (at level 2 it renders without waiting for the flip), and the newer picture is the one to show.
             Request head{};
+            u32 older = 0;
             {
                 std::scoped_lock lock{mutex};
-                if (!requests.empty() && !requests.front().presented) {
-                    head = requests.front();
+                for (auto it = requests.rbegin(); it != requests.rend(); ++it) {
+                    if (!it->presented) {
+                        if (!head) {
+                            head = *it;
+                        } else {
+                            ++older;
+                        }
+                    }
                 }
             }
             if (head) {
@@ -805,15 +839,20 @@ void VideoOutDriver::PresentThread(std::stop_token token) {
                     const s64 presented_ns = NowNs();
                     presenter->Present(head.frame);
                     spent_present_ns += NowNs() - presented_ns;
-                    timing.Add(head.ready_ns, NowNs(), head.input_ns, head.submit_ns,
+                    timing.Add(head.ready_ns, NowNs(), head.input_ns, head.submit_ns, head.render_start_ns,
                                head.ready_ns <= due_ns ? PresentTiming::Kind::Early
                                                        : PresentTiming::Kind::Late);
+                    timing.skipped += older;
                     if (const s64 w = before_vblank_ns(presented_ns); w >= 0) {
                         timing.AddBefore(static_cast<float>(w) * 1e-6f);
                     }
                     note_ready(head.ready_ns);
                     std::scoped_lock lock{mutex};
-                    requests.front().presented = true; // only this thread removes requests
+                    for (auto& request : requests) { // only this thread removes requests
+                        if (!request.presented && request.ready_ns <= head.ready_ns) {
+                            request.presented = true;
+                        }
+                    }
                     continue;
                 }
                 if (due_ns <= limit_ns) {
