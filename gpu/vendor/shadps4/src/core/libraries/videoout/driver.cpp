@@ -69,7 +69,6 @@ std::atomic<s64> eop_delivered_ns{0};
 std::atomic<s64> eop_due_ns{0};
 std::atomic<int> eop_pending{0};
 std::atomic<u32> eop_deferred_count{0};
-std::atomic<s64> last_deferral_ns{0};
 
 // The second largest of the newest values: one slow frame among them is not followed, a repeated one is.
 s64 SecondLargest(const std::array<s64, 64>& values, size_t count) {
@@ -244,19 +243,7 @@ void SignalGfxEop() {
     }
     eop_due_ns.store(due_ns, std::memory_order_relaxed);
     eop_pending.fetch_add(1, std::memory_order_relaxed);
-    last_deferral_ns.store(now_ns, std::memory_order_relaxed);
     eop_deferred_count.fetch_add(1, std::memory_order_relaxed);
-}
-
-bool SkipDisplayBufferWait() {
-    // Only while interrupts are being deferred (one every flip in the regular frame loop): the game then starts its frame
-    // just before the flip that would free its display buffer, so rendering at once gains the time of that wait, and the
-    // frame still cannot be shown before the flip pops the one ahead of it. Outside the regular loop the wait keeps the
-    // game's own pacing (without it a game throttled only by the flip queue could run its frames in bursts).
-    if (LatencyLevel() < 2) {
-        return false;
-    }
-    return NowNs() - last_deferral_ns.load(std::memory_order_relaxed) < 100000000;
 }
 
 constexpr static bool Is32BppPixelFormat(PixelFormat format) {

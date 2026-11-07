@@ -75,9 +75,6 @@ void NoteFrameSubmit();
 // The GPU thread reached an end-of-pipe interrupt (liverpool.cpp). The game starts its next frame on it, so with late frame
 // start it is delivered later, by the present thread.
 void SignalGfxEop();
-// True while the late frame start paces the game (low latency level 2): the GPU thread may then render a frame without
-// waiting for the flip that frees its display buffer (liverpool.cpp), since the presenter keeps its own copy of every frame.
-bool SkipDisplayBufferWait();
 
 struct ServiceThreadParams {
     u32 unknown;
