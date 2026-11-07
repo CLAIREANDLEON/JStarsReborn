@@ -87,6 +87,17 @@ s64 SecondLargest(const std::array<s64, 64>& values, size_t count) {
     return used > 1 ? second : first;
 }
 
+// The median of the newest values.
+s64 Median(const std::array<s64, 64>& values, size_t count) {
+    const size_t used = std::min(count, values.size());
+    if (used == 0) {
+        return 0;
+    }
+    std::array<s64, 64> sorted = values;
+    std::nth_element(sorted.begin(), sorted.begin() + used / 2, sorted.begin() + used);
+    return sorted[used / 2];
+}
+
 void DeliverGfxEop() {
     Platform::IrqC::Instance()->Signal(Platform::InterruptId::GfxEop);
     eop_delivered_ns.store(NowNs(), std::memory_order_relaxed);
@@ -169,7 +180,7 @@ struct PresentTiming {
                      "after the previous flip (p95 {:.1f}, max {:.1f}); shown after {:.1f} ms (p95 {:.1f}, "
                      "max {:.1f}); controller read to frame submitted {:.1f} ms (p95 {:.1f}, max {:.1f}); "
                      "controller read to picture {:.1f} ms (p95 {:.1f}, max {:.1f}; {} frames); {} shown "
-                     "early, {} late ({} after a late submission), {} at the flip; low latency level {} "
+                     "at the lead, {} when ready after it ({} after a late submission), {} at the flip; low latency level {} "
                      "(lead {:.1f} ms, frame start {:.1f} ms before the flip, {} delayed); refresh lock {}, "
                      "presented {:.1f} ms before a display vblank (p5 {:.1f}, p95 {:.1f}; {} frames)",
                      frames, static_cast<double>(now_ns - window_start_ns) * 1e-9, slot_ms,
@@ -212,7 +223,9 @@ void NoteFrameSubmit() {
     // covers. The budget follows the slow frames of the last 64, so a slow stretch is covered from its second frame on.
     // (Measured from the interrupt instead, the budget would include the time the game spends polling the flip queue while
     // two frames are queued, which happens exactly when the interrupt was not deferred, and it would lock itself out.)
-    constexpr s64 BuildMarginNs = 2500000;
+    // A submission a little after the flip costs nothing but that little (the GPU thread starts the frame at the
+    // submission instead of at the flip), so the margin only needs to cover the present thread's delivery step.
+    constexpr s64 BuildMarginNs = 1500000;
     static std::array<s64, 64> recent{};
     static size_t count = 0;
     if (read_ns != 0 && now_ns - read_ns < 100000000) {
@@ -615,25 +628,16 @@ void VideoOutDriver::PresentThread(std::stop_token token) {
     // is ready. JSTARS_LOW_LATENCY=0|1|2 (runtime --low-latency), default 2.
     const int latency_level = LatencyLevel();
     const bool frame_stats = EmulatorSettings.IsFrameStatsEnabled();
-    constexpr s64 LeadMarginNs = 1500000; // on top of the slowest recent frame
+    constexpr s64 LeadMarginNs = 1500000;        // on top of the slowest recent frame
+    constexpr s64 FastLeadMarginNs = 500000;     // on top of the typical recent frame, on a fast display (note_ready)
+    constexpr s64 FastDisplayPeriodNs = 4200000; // a refresh this short (240 Hz and up) makes a frame shown late cheap
     constexpr s64 LeadDecayNs = 250000;   // per frame, towards a lower target
     constexpr s64 GuardNs = 2000000;      // the end of every vblank wait is left to the timer
-    constexpr s64 PollNs = 1000000;       // longest sleep before looking for a new frame or interrupt again
+    constexpr s64 PollNs = 500000;        // longest sleep before looking for a new frame or interrupt again
     std::array<s64, 64> recent_ready{};
     size_t recent_count = 0;
     s64 lead_ns = 0;
     const auto slot_ns = [&]() -> s64 { return vblank_period.count() * (main_port.flip_rate + 1); };
-    // Call before the request's own flip: the offset is measured from the flip before it.
-    const auto note_ready = [&](s64 ready_ns) {
-        const s64 offset =
-            std::max<s64>(ready_ns - last_flip_ns.load(std::memory_order_relaxed), 0);
-        if (offset >= slot_ns() - GuardNs) {
-            return; // missed its flip: says nothing about a normal frame
-        }
-        recent_ready[recent_count++ % recent_ready.size()] = offset;
-        const s64 target = SecondLargest(recent_ready, recent_count) + LeadMarginNs;
-        lead_ns = target >= lead_ns ? target : std::max(target, lead_ns - LeadDecayNs);
-    };
     // jstars: refresh lock. The vblank timer and the display refresh are two free-running clocks: a frame waited anywhere
     // from nothing to a whole refresh for the display, and once per drift cycle it missed a refresh (uneven motion; at 60 Hz
     // also up to 17 ms of latency). When the display's period divides the vblank period (60, 120, 240, 480 Hz...) the timer
@@ -659,6 +663,23 @@ void VideoOutDriver::PresentThread(std::stop_token token) {
     s64 prev_vblank_ns = 0;
     s64 spent_present_ns = 0;
     s64 spent_lock_ns = 0;
+    // The lead: how long after the last flip a finished frame is shown (levels 1 and 2). Call before the request's own
+    // flip: the offset is measured from the flip before it. The lead normally covers the slow frames of the last 64 plus a
+    // margin, so that frames are shown at an even cadence; a frame that takes longer is shown the moment it is ready, at
+    // the cost of one display refresh at most. On a fast display (240 Hz and up, known through the refresh lock) that cost
+    // is a couple of milliseconds, so the lead follows the typical frame instead and the slower half is shown when ready.
+    const auto note_ready = [&](s64 ready_ns) {
+        const s64 offset =
+            std::max<s64>(ready_ns - last_flip_ns.load(std::memory_order_relaxed), 0);
+        if (offset >= slot_ns() - GuardNs) {
+            return; // missed its flip: says nothing about a normal frame
+        }
+        recent_ready[recent_count++ % recent_ready.size()] = offset;
+        const bool fast_display = lock.period_ns > 0 && lock.period_ns <= FastDisplayPeriodNs;
+        const s64 target = fast_display ? Median(recent_ready, recent_count) + FastLeadMarginNs
+                                        : SecondLargest(recent_ready, recent_count) + LeadMarginNs;
+        lead_ns = target >= lead_ns ? target : std::max(target, lead_ns - LeadDecayNs);
+    };
     // Time from a present at `present_ns` to the next display vblank, or -1 without a lock.
     const auto before_vblank_ns = [&](s64 present_ns) -> s64 {
         if (lock.period_ns <= 0) {
