@@ -201,19 +201,21 @@ void NoteInputRead() {
 
 void NoteFrameSubmit() {
     const s64 now_ns = NowNs();
-    submitted_input_ns.store(input_read_ns.exchange(0, std::memory_order_relaxed),
-                             std::memory_order_relaxed);
+    const s64 read_ns = input_read_ns.exchange(0, std::memory_order_relaxed);
+    submitted_input_ns.store(read_ns, std::memory_order_relaxed);
     submitted_ns.store(now_ns, std::memory_order_relaxed);
     frame_in_flight.store(true, std::memory_order_relaxed);
 
-    // How long the game took from the interrupt that started this frame to its submission (the game submits from one
-    // thread). The budget follows the slow frames of the last 64, so a slow stretch is covered from its second frame on.
-    constexpr s64 BuildMarginNs = 2000000;
+    // How long the game took from its controller read (the first since the previous submission) to this submission: what it
+    // needs after the interrupt that starts a frame, plus the short way from the interrupt to the read, which the margin
+    // covers. The budget follows the slow frames of the last 64, so a slow stretch is covered from its second frame on.
+    // (Measured from the interrupt instead, the budget would include the time the game spends polling the flip queue while
+    // two frames are queued, which happens exactly when the interrupt was not deferred, and it would lock itself out.)
+    constexpr s64 BuildMarginNs = 2500000;
     static std::array<s64, 64> recent{};
     static size_t count = 0;
-    const s64 woke_ns = eop_delivered_ns.exchange(0, std::memory_order_relaxed);
-    if (woke_ns != 0 && now_ns - woke_ns < 100000000) {
-        recent[count++ % recent.size()] = now_ns - woke_ns;
+    if (read_ns != 0 && now_ns - read_ns < 100000000) {
+        recent[count++ % recent.size()] = now_ns - read_ns;
         if (count >= 16) {
             build_budget_ns.store(SecondLargest(recent, count) + BuildMarginNs,
                                   std::memory_order_relaxed);
