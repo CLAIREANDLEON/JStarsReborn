@@ -9,6 +9,7 @@
 
 #include <condition_variable>
 #include <mutex>
+#include <deque>
 #include <queue>
 
 namespace Vulkan {
@@ -75,6 +76,9 @@ void NoteFrameSubmit();
 // The GPU thread reached an end-of-pipe interrupt (liverpool.cpp). The game starts its next frame on it, so with late frame
 // start it is delivered later, by the present thread.
 void SignalGfxEop();
+// The GPU thread passed the wait for a display buffer at the start of a frame's command buffer (liverpool.cpp): the frame's
+// rendering begins here, for the statistics.
+void NoteRenderStart();
 
 struct ServiceThreadParams {
     u32 unknown;
@@ -116,6 +120,7 @@ private:
         s64 ready_ns{0};
         s64 input_ns{0};
         s64 submit_ns{0};
+        s64 render_start_ns{0}; // when the GPU thread began the frame's command buffer (0: unknown)
 
         operator bool() const noexcept {
             return frame != nullptr;
@@ -131,7 +136,7 @@ private:
     std::mutex mutex;
     VideoOutPort main_port{};
     std::jthread present_thread;
-    std::queue<Request> requests;
+    std::deque<Request> requests; // jstars: a deque, so the present thread can look past the front for a newer frame
 };
 
 } // namespace Libraries::VideoOut

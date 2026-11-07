@@ -912,13 +912,16 @@ Liverpool::Task Liverpool::ProcessGraphics(std::span<const u32> dcb, std::span<c
                 // there are no other submits to yield to we can sleep the thread
                 // instead and allow other tasks to run.
                 const u64* wait_addr = wait_reg_mem->Address<u64*>();
-                if (vo_port->IsVoLabel(wait_addr) &&
-                    num_submits == mapped_queues[GfxQueueId].submits.size()) {
+                const bool vo_label = vo_port->IsVoLabel(wait_addr);
+                if (vo_label && num_submits == mapped_queues[GfxQueueId].submits.size()) {
                     vo_port->WaitVoLabel([&] { return wait_reg_mem->Test(regs.reg_array); });
-                    break;
+                } else {
+                    while (!wait_reg_mem->Test(regs.reg_array)) {
+                        YIELD_GFX();
+                    }
                 }
-                while (!wait_reg_mem->Test(regs.reg_array)) {
-                    YIELD_GFX();
+                if (vo_label) {
+                    Libraries::VideoOut::NoteRenderStart(); // jstars: the frame's rendering begins here (statistics)
                 }
                 break;
             }
