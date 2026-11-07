@@ -5,6 +5,9 @@
 #include <array>
 #include <atomic>
 #include <chrono>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
 
 #include "common/assert.h"
 #include "common/debug.h"
@@ -21,6 +24,9 @@
 
 extern std::unique_ptr<Vulkan::Presenter> presenter;
 extern std::unique_ptr<AmdGpu::Liverpool> liverpool;
+
+// jstars: display vblank timing from the window layer (jgpu_window_win32.cpp; the X11 harness returns 0).
+extern "C" int jgpu_display_vblank(int64_t* vblank_qpc, int64_t* period_qpc, int64_t* now_qpc, int64_t* qpc_hz);
 
 namespace Libraries::VideoOut {
 
@@ -131,12 +137,20 @@ struct PresentTiming {
         }
     }
 
+    std::array<float, Capacity> before_ms{}; // present to the next display vblank, when the refresh lock knows the display
+    size_t befores{};
+    void AddBefore(float ms) {
+        if (befores < Capacity) {
+            before_ms[befores++] = ms;
+        }
+    }
+
     static float Pick(const std::array<float, Capacity>& sorted, size_t count, size_t percent) {
         return count ? sorted[std::min(count - 1, count * percent / 100)] : 0.0f;
     }
 
     // One log line every five seconds (runtime --frame-stats).
-    void Report(double lead_ms, double slot_ms) {
+    void Report(double lead_ms, double slot_ms, const char* lock_state) {
         const s64 now_ns = NowNs();
         if (window_start_ns == 0) {
             window_start_ns = now_ns;
@@ -149,13 +163,15 @@ struct PresentTiming {
             std::sort(shown_ms.begin(), shown_ms.begin() + frames);
             std::sort(built_ms.begin(), built_ms.begin() + inputs);
             std::sort(input_ms.begin(), input_ms.begin() + inputs);
+            std::sort(before_ms.begin(), before_ms.begin() + befores);
             LOG_INFO(Lib_VideoOut,
                      "present timing: {} frames in {:.1f} s, a flip every {:.1f} ms; frame ready {:.1f} ms "
                      "after the previous flip (p95 {:.1f}, max {:.1f}); shown after {:.1f} ms (p95 {:.1f}, "
                      "max {:.1f}); controller read to frame submitted {:.1f} ms (p95 {:.1f}, max {:.1f}); "
                      "controller read to picture {:.1f} ms (p95 {:.1f}, max {:.1f}; {} frames); {} shown "
                      "early, {} late ({} after a late submission), {} at the flip; low latency level {} "
-                     "(lead {:.1f} ms, frame start {:.1f} ms before the flip, {} delayed)",
+                     "(lead {:.1f} ms, frame start {:.1f} ms before the flip, {} delayed); refresh lock {}, "
+                     "presented {:.1f} ms before a display vblank (p5 {:.1f}, p95 {:.1f}; {} frames)",
                      frames, static_cast<double>(now_ns - window_start_ns) * 1e-9, slot_ms,
                      Pick(ready_ms, frames, 50), Pick(ready_ms, frames, 95),
                      Pick(ready_ms, frames, 100), Pick(shown_ms, frames, 50),
@@ -165,9 +181,11 @@ struct PresentTiming {
                      Pick(input_ms, inputs, 95), Pick(input_ms, inputs, 100), inputs, early, late,
                      late_submit, at_flip, LatencyLevel(), lead_ms,
                      static_cast<double>(build_budget_ns.load(std::memory_order_relaxed)) * 1e-6,
-                     eop_deferred_count.exchange(0, std::memory_order_relaxed));
+                     eop_deferred_count.exchange(0, std::memory_order_relaxed), lock_state,
+                     Pick(before_ms, befores, 50), Pick(before_ms, befores, 5), Pick(before_ms, befores, 95),
+                     befores);
         }
-        frames = inputs = 0;
+        frames = inputs = befores = 0;
         early = late = late_submit = at_flip = 0;
         window_start_ns = now_ns;
     }
@@ -571,8 +589,9 @@ void VideoOutDriver::SubmitFlipInternal(VideoOutPort* port, s32 index, s64 flip_
 }
 
 void VideoOutDriver::PresentThread(std::stop_token token) {
-    const std::chrono::nanoseconds vblank_period(1000000000 /
-                                                 EmulatorSettings.GetVblankFrequency());
+    // jstars: `vblank_period` may be retuned by the refresh lock (below) to an exact multiple of the display's period.
+    std::chrono::nanoseconds vblank_period(1000000000 / EmulatorSettings.GetVblankFrequency());
+    const s64 nominal_period_ns = vblank_period.count();
 
     Common::SetCurrentThreadName("shadPS4:PresentThread");
     Common::SetCurrentThreadRealtime(vblank_period);
@@ -624,6 +643,101 @@ void VideoOutDriver::PresentThread(std::stop_token token) {
         const s64 target = SecondLargest(recent_ready, recent_count) + LeadMarginNs;
         lead_ns = target >= lead_ns ? target : std::max(target, lead_ns - LeadDecayNs);
     };
+    // jstars: refresh lock. The vblank timer and the display refresh are two free-running clocks: a frame waited anywhere
+    // from nothing to a whole refresh for the display, and once per drift cycle it missed a refresh (uneven motion; at 60 Hz
+    // also up to 17 ms of latency). When the display's period divides the vblank period (60, 120, 240, 480 Hz...) the timer
+    // is run at exactly that multiple of the display period and its phase is nudged, only ever by sleeping a little longer
+    // before a vblank (at most LockNudgeNs per vblank), so that frames are presented about `margin` before a display vblank.
+    // Other rates (144, 165, 175 Hz) get no lock; fullscreen refresh matching (jgpu_window_win32.cpp) is the answer there.
+    const bool refresh_lock = EmulatorSettings.IsRefreshLockEnabled();
+    constexpr s64 LockNudgeNs = 500000;
+    struct {
+        s64 period_ns = 0;  // display refresh period (0: no usable display timing)
+        s64 vblank_ns = 0;  // one display vblank (steady clock), the grid runs from it in period_ns steps
+        int divisor = 0;    // vblank period = divisor x display period
+        s64 nudge_ns = 0;   // extra sleep before the next vblank
+        bool logged = false;
+        char state[64] = "off";
+    } lock;
+    if (!refresh_lock) {
+        std::snprintf(lock.state, sizeof lock.state, "off");
+    }
+    // Time from a present at `present_ns` to the next display vblank, or -1 without a lock.
+    const auto before_vblank_ns = [&](s64 present_ns) -> s64 {
+        if (lock.period_ns <= 0) {
+            return -1;
+        }
+        s64 w = (lock.vblank_ns - present_ns) % lock.period_ns;
+        if (w < 0) {
+            w += lock.period_ns;
+        }
+        return w;
+    };
+    // Reads the display timing, retunes the timer period, and decides the nudge for the next vblank.
+    const auto update_lock = [&](s64 next_flip_ns) {
+        lock.nudge_ns = 0;
+        if (!refresh_lock) {
+            return;
+        }
+        int64_t vb_qpc = 0, per_qpc = 0, now_qpc = 0, qpc_hz = 0;
+        const s64 t0 = NowNs();
+        const int ok = jgpu_display_vblank(&vb_qpc, &per_qpc, &now_qpc, &qpc_hz);
+        const s64 t1 = NowNs();
+        if (!ok || per_qpc <= 0 || qpc_hz <= 0) {
+            if (lock.period_ns != 0 || !lock.logged) {
+                LOG_INFO(Lib_VideoOut, "refresh lock: no display timing available; off");
+                lock.logged = true;
+            }
+            lock.period_ns = 0;
+            std::snprintf(lock.state, sizeof lock.state, "off (no display timing)");
+            return;
+        }
+        const s64 disp_period = per_qpc * 1000000000 / qpc_hz;
+        const s64 disp_vblank = (t0 + t1) / 2 - (now_qpc - vb_qpc) * 1000000000 / qpc_hz;
+        const double ratio = static_cast<double>(nominal_period_ns) / static_cast<double>(disp_period);
+        const int n = static_cast<int>(ratio + 0.5);
+        if (n < 1 || std::abs(ratio - n) > 0.01 * n) {
+            if (lock.period_ns != 0 || !lock.logged) {
+                LOG_INFO(Lib_VideoOut,
+                         "refresh lock: display refresh {:.2f} Hz is not a multiple of {:.0f} Hz; off",
+                         1e9 / disp_period, 1e9 / nominal_period_ns);
+                lock.logged = true;
+            }
+            lock.period_ns = 0;
+            std::snprintf(lock.state, sizeof lock.state, "off (%.1f Hz)", 1e9 / disp_period);
+            return;
+        }
+        lock.vblank_ns = disp_vblank;
+        const s64 locked_period = disp_period * n;
+        if (lock.period_ns != disp_period || lock.divisor != n ||
+            std::abs(locked_period - vblank_period.count()) > 2000) {
+            vblank_period = std::chrono::nanoseconds(locked_period);
+            timer = Common::AccurateTimer{vblank_period};
+            LOG_INFO(Lib_VideoOut,
+                     "refresh lock: display {:.3f} Hz ({:.3f} ms); vblank timer set to {} x that = {:.3f} ms",
+                     1e9 / disp_period, disp_period * 1e-6, n, locked_period * 1e-6);
+            lock.logged = true;
+        }
+        lock.period_ns = disp_period;
+        lock.divisor = n;
+        std::snprintf(lock.state, sizeof lock.state, "%.2f Hz x%d", 1e9 / disp_period, n);
+        // The next flip's frame will be presented `lead` after that vblank (at the vblank itself at level 0). Aim for a
+        // present between `margin` and `margin + slack` before a display vblank; outside that window the timer phase is
+        // moved later, a little per vblank.
+        const s64 margin = std::min<s64>(2000000, disp_period * 2 / 5);
+        const s64 slack = std::max<s64>(500000, disp_period / 3);
+        const s64 present_ns = next_flip_ns + (latency_level > 0 ? lead_ns : 300000);
+        const s64 w = before_vblank_ns(present_ns + 1000000); // the picture needs about a millisecond to reach the swapchain
+        if (w < 0 || (w >= margin && w <= margin + slack)) {
+            return;
+        }
+        const s64 target = margin + slack / 2;
+        s64 delay = (w - target) % disp_period;
+        if (delay < 0) {
+            delay += disp_period;
+        }
+        lock.nudge_ns = std::min(delay, LockNudgeNs);
+    };
     const auto deliver_due_interrupts = [&](s64 until_ns) {
         if (eop_pending.load(std::memory_order_relaxed) > 0 &&
             eop_due_ns.load(std::memory_order_relaxed) <= until_ns) {
@@ -662,10 +776,14 @@ void VideoOutDriver::PresentThread(std::stop_token token) {
                 const s64 due_ns = head.ready_ns <= flip_ns ? now_ns : flip_ns + lead_ns;
                 if (due_ns <= now_ns) {
                     presenter->SetHDR(head.port->is_hdr);
+                    const s64 presented_ns = NowNs();
                     presenter->Present(head.frame);
                     timing.Add(head.ready_ns, NowNs(), head.input_ns, head.submit_ns,
                                head.ready_ns <= due_ns ? PresentTiming::Kind::Early
                                                        : PresentTiming::Kind::Late);
+                    if (const s64 w = before_vblank_ns(presented_ns); w >= 0) {
+                        timing.AddBefore(static_cast<float>(w) * 1e-6f);
+                    }
                     note_ready(head.ready_ns);
                     std::scoped_lock lock{mutex};
                     requests.front().presented = true; // only this thread removes requests
@@ -686,6 +804,9 @@ void VideoOutDriver::PresentThread(std::stop_token token) {
     };
 
     while (!token.stop_requested()) {
+        if (lock.nudge_ns > 0) { // jstars: refresh lock, outside the timer's accounting so the phase moves for good
+            Common::AccurateSleep(std::chrono::nanoseconds(lock.nudge_ns), nullptr, false);
+        }
         timer.Start();
         const s64 vblank_ns = NowNs(); // jstars
         deliver_due_interrupts(vblank_ns);
@@ -746,10 +867,11 @@ void VideoOutDriver::PresentThread(std::stop_token token) {
         // corrected by what the timer still owes; a flip can happen at the first vblank whose count is a multiple of
         // the flip rate + 1.
         {
-            const s64 next_vblank_ns =
-                vblank_ns + vblank_period.count() + timer.GetTotalWait().count();
             const u64 every = static_cast<u64>(main_port.flip_rate) + 1;
             const u64 skipped = (every - vblank_status.count % every) % every;
+            s64 next_vblank_ns = vblank_ns + vblank_period.count() + timer.GetTotalWait().count();
+            update_lock(next_vblank_ns + static_cast<s64>(skipped) * vblank_period.count());
+            next_vblank_ns += lock.nudge_ns; // the sleep before the next vblank moves everything after it
             next_flip_ns.store(next_vblank_ns + static_cast<s64>(skipped) * vblank_period.count(),
                                std::memory_order_relaxed);
             if (latency_level > 0) {
@@ -758,7 +880,7 @@ void VideoOutDriver::PresentThread(std::stop_token token) {
         }
         if (frame_stats) {
             timing.Report(static_cast<double>(lead_ns) * 1e-6,
-                          static_cast<double>(slot_ns()) * 1e-6);
+                          static_cast<double>(slot_ns()) * 1e-6, lock.state);
         }
 
         timer.End();

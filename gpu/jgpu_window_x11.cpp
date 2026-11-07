@@ -65,4 +65,8 @@ WindowSDL::~WindowSDL() {
 } // namespace Frontend
 
 // No keyboard controller source on X11 yet (see docs/INPUT.md).
+extern "C" int jgpu_display_vblank(int64_t* vblank_qpc, int64_t* period_qpc, int64_t* now_qpc, int64_t* qpc_hz) {
+    (void)vblank_qpc; (void)period_qpc; (void)now_qpc; (void)qpc_hz;
+    return 0; // no refresh lock on the Linux harness
+}
 extern "C" int jgpu_window_focused(void) { return 0; }

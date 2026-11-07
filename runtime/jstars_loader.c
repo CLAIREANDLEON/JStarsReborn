@@ -485,6 +485,7 @@ int main(int argc, char** argv) {
         else if (!strcmp(argv[i], "--vblank-hz") && i + 1 < argc) vblank_hz = argv[++i];
         else if (!strcmp(argv[i], "--present-mode") && i + 1 < argc) present_mode = argv[++i];
         else if (!strcmp(argv[i], "--low-latency") && i + 1 < argc) os_setenv("JSTARS_LOW_LATENCY", argv[++i]); // 0: frames shown at their flip (as up to 0.5.4); 1: early present; 2 (default): early present and late frame start
+        else if (!strcmp(argv[i], "--no-refresh-lock")) os_setenv("JSTARS_REFRESH_LOCK", "0"); // do not phase the vblank timer to the display's refresh
         else if (!strcmp(argv[i], "--audio-queue-ms") && i + 1 < argc) audio_queue_ms = atoi(argv[++i]);   // most audio a port keeps queued: default 30, 85 = up to 0.5.4
         else if (!strcmp(argv[i], "--audio-device-ms") && i + 1 < argc) audio_device_ms = atoi(argv[++i]); // device buffer to ask for: default the smallest, 30 = up to 0.5.4
         else if (!strcmp(argv[i], "--lobby-port") && i + 1 < argc) lobby_port = (uint16_t)atoi(argv[++i]);

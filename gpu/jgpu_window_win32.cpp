@@ -24,7 +24,7 @@ bool jgpu_window_match_refresh = false;    // set by jgpu_init from JgpuConfig.m
 // multiple of 60 Hz, preferring 120 Hz, and restores it when fullscreen ends.
 static wchar_t g_changed_device[CCHDEVICENAME];
 static bool g_refresh_changed = false;
-static bool cadence_ok(DWORD hz) { return hz == 59 || hz == 60 || hz == 119 || hz == 120 || hz == 239 || hz == 240; }
+static bool cadence_ok(DWORD hz) { return hz % 60 <= 1 || (hz + 1) % 60 == 0; } // 59/60, 119/120, 239/240, 359/360, 479/480...
 static int refresh_rank(DWORD hz) { // higher is better; 0 = not a multiple of 60
     switch (hz) { case 120: return 6; case 119: return 5; case 240: return 4; case 239: return 3; case 60: return 2; case 59: return 1; }
     return 0;
@@ -98,6 +98,29 @@ static void set_fullscreen(HWND hwnd, bool on) {
     g_is_fullscreen = on;
     LOG_INFO(Frontend, "window: {}", on ? "borderless fullscreen" : "windowed");
 }
+// ---- display vblank timing (refresh lock in videoout/driver.cpp) ------------------------------------------------------------
+// DWM reports the primary display's last vblank and its refresh period in QPC units (the game window is on the primary display
+// in fullscreen and normally in a window too). dwmapi is loaded at run time; nothing is linked. Returns 0 when not available.
+#include <dwmapi.h>
+extern "C" int jgpu_display_vblank(int64_t* vblank_qpc, int64_t* period_qpc, int64_t* now_qpc, int64_t* qpc_hz) {
+    typedef HRESULT(WINAPI * GetTiming)(HWND, DWM_TIMING_INFO*);
+    static GetTiming get_timing = [] {
+        HMODULE dwm = LoadLibraryW(L"dwmapi.dll");
+        return dwm ? reinterpret_cast<GetTiming>(reinterpret_cast<void*>(GetProcAddress(dwm, "DwmGetCompositionTimingInfo"))) : nullptr;
+    }();
+    if (!get_timing) return 0;
+    DWM_TIMING_INFO info{};
+    info.cbSize = sizeof(info);
+    LARGE_INTEGER now{}, hz{};
+    QueryPerformanceCounter(&now);
+    if (FAILED(get_timing(nullptr, &info)) || !info.qpcRefreshPeriod || !QueryPerformanceFrequency(&hz) || !hz.QuadPart) return 0;
+    *vblank_qpc = static_cast<int64_t>(info.qpcVBlank);
+    *period_qpc = static_cast<int64_t>(info.qpcRefreshPeriod);
+    *now_qpc = now.QuadPart;
+    *qpc_hz = hz.QuadPart;
+    return 1;
+}
+
 extern "C" int jgpu_window_focused(void) {
     HWND h = g_main_hwnd.load();
     return h && GetForegroundWindow() == h;

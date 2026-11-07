@@ -33,6 +33,9 @@ public:
     // is woken for its next frame only as late as it can still make the next flip, so its controller read is fresher. The flips
     // the game sees keep their vblank timing at every level. Runtime --low-latency <0|1|2>.
     int GetLowLatencyLevel() { static const auto value = int(std::clamp(Number("JSTARS_LOW_LATENCY", 2), 0L, 2L)); return value; }
+    // Refresh lock (videoout/driver.cpp, PresentThread): the vblank timer runs at the display's exact refresh period (times a
+    // divisor) and is phased so that frames are presented just before a display vblank. Runtime --no-refresh-lock.
+    bool IsRefreshLockEnabled() { static const auto value = Flag("JSTARS_REFRESH_LOCK", true); return value; }
     // "present timing" log line every five seconds (frame ready, shown, input read to picture): runtime --frame-stats.
     bool IsFrameStatsEnabled() { static const auto value = Flag("JSTARS_FRAME_STATS", false); return value; }
     bool IsCopyGpuBuffers() { static const auto value = Flag("JSTARS_COPY_GPU_BUFFERS", false); return value; }
