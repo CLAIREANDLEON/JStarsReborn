@@ -54,6 +54,13 @@ int* rt_errno_cell(void);                          // the calling thread's errno
 uint64_t rt_read_tsc(void);
 uint64_t rt_tsc_frequency(void);
 uint64_t rt_process_time_us(void);
+// Wait accounting (diagnostics for --frame-stats): the host waits of a game thread (mutex, condition variable, sleep, audio
+// output) are summed per thread; the frame submission wrapper reports a frame in which the submitting thread waited 8 ms or
+// more, with the longest wait and the object it waited on.
+enum { RT_WAIT_MUTEX, RT_WAIT_COND, RT_WAIT_SLEEP, RT_WAIT_AUDIO, RT_WAIT_KINDS };
+void rt_wait_note(int kind, uint64_t ns, const void* object);
+void rt_wait_frame_done(void);
+uint64_t rt_now_ns(void);                          // CLOCK_MONOTONIC in nanoseconds
 int rt_compiled_sdk_version(void);                 // SDK version from the eboot's process parameters, or -1
 enum { RT_DISPLAY_FULLSCREEN = 1, RT_DISPLAY_MATCH_REFRESH = 2 };
 int rt_gpu_start(const char* title, const char* data_dir, const char* capture_dir, int width, int height, int display); // 0 on success; display: RT_DISPLAY_* bits

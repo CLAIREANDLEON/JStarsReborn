@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 typedef struct { const char* name; const char* lib; void* fn; int is_data; } HostSymbol;
 typedef struct { const HostSymbol* table; const size_t* count; } SymbolSet;
@@ -145,4 +146,32 @@ void rt_audit_dump(void* out_file) {
         const char* st = rt_audit_status(g_entries[i].nid, g_entries[i].sym->name, "runtime", &note);
         fprintf(f, "%s\t%s\t%s\t%s\t%s\n", g_entries[i].sym->name, g_entries[i].sym->lib ? g_entries[i].sym->lib : "", g_entries[i].nid, st, note);
     }
+}
+
+// ---- wait accounting (diagnostics for --frame-stats, see jstars_rt.h) -------------------------------------------------------
+uint64_t rt_now_ns(void) { struct timespec t; clock_gettime(CLOCK_MONOTONIC, &t); return (uint64_t)t.tv_sec * 1000000000ull + (uint64_t)t.tv_nsec; }
+static __thread struct { uint64_t ns[RT_WAIT_KINDS]; uint32_t n[RT_WAIT_KINDS]; uint64_t max_ns; int max_kind; const void* max_obj; } t_wait;
+void rt_wait_note(int kind, uint64_t ns, const void* object) {
+    if (kind < 0 || kind >= RT_WAIT_KINDS) return;
+    t_wait.ns[kind] += ns; t_wait.n[kind]++;
+    if (ns > t_wait.max_ns) { t_wait.max_ns = ns; t_wait.max_kind = kind; t_wait.max_obj = object; }
+}
+// Called at a frame submission on the submitting thread: a frame in which that thread waited 8 ms or more in host calls is
+// reported (at most two lines a second), so a frame that waited can be told apart from one that was simply slow.
+void rt_wait_frame_done(void) {
+    static const char* const names[RT_WAIT_KINDS] = {"mutex", "condition variable", "sleep", "audio output"};
+    static uint64_t last_log_ns; static unsigned suppressed;
+    uint64_t total = 0;
+    for (int k = 0; k < RT_WAIT_KINDS; ++k) total += t_wait.ns[k];
+    if (total >= 8000000) {
+        const uint64_t now = rt_now_ns();
+        if (now - last_log_ns >= 500000000) {
+            rt_logf("frame thread waited %.1f ms in this frame: mutex %.1f ms (%u), condition variable %.1f ms (%u), sleep %.1f ms (%u), audio output %.1f ms (%u); longest %s %.1f ms on %p%s",
+                    total / 1e6, t_wait.ns[RT_WAIT_MUTEX] / 1e6, t_wait.n[RT_WAIT_MUTEX], t_wait.ns[RT_WAIT_COND] / 1e6, t_wait.n[RT_WAIT_COND],
+                    t_wait.ns[RT_WAIT_SLEEP] / 1e6, t_wait.n[RT_WAIT_SLEEP], t_wait.ns[RT_WAIT_AUDIO] / 1e6, t_wait.n[RT_WAIT_AUDIO],
+                    names[t_wait.max_kind], t_wait.max_ns / 1e6, t_wait.max_obj, suppressed ? " (and more frames like it, not shown)" : "");
+            last_log_ns = now; suppressed = 0;
+        } else suppressed++;
+    }
+    memset(&t_wait, 0, sizeof t_wait);
 }

@@ -63,6 +63,7 @@ std::atomic<s64> eop_delivered_ns{0};
 std::atomic<s64> eop_due_ns{0};
 std::atomic<int> eop_pending{0};
 std::atomic<u32> eop_deferred_count{0};
+std::atomic<s64> last_deferral_ns{0};
 
 // The second largest of the newest values: one slow frame among them is not followed, a repeated one is.
 s64 SecondLargest(const std::array<s64, 64>& values, size_t count) {
@@ -98,6 +99,7 @@ struct PresentTiming {
     size_t inputs{};
     u32 early{};
     u32 late{};
+    u32 late_submit{}; // of those, frames the game submitted after the flip they were meant for
     u32 at_flip{};
     s64 window_start_ns{};
 
@@ -121,6 +123,9 @@ struct PresentTiming {
             ++early;
         } else if (kind == Kind::Late) {
             ++late;
+            if (submit_ns > base_ns) {
+                ++late_submit;
+            }
         } else {
             ++at_flip;
         }
@@ -149,8 +154,8 @@ struct PresentTiming {
                      "after the previous flip (p95 {:.1f}, max {:.1f}); shown after {:.1f} ms (p95 {:.1f}, "
                      "max {:.1f}); controller read to frame submitted {:.1f} ms (p95 {:.1f}, max {:.1f}); "
                      "controller read to picture {:.1f} ms (p95 {:.1f}, max {:.1f}; {} frames); {} shown "
-                     "early, {} late, {} at the flip; low latency level {} (lead {:.1f} ms, frame start "
-                     "{:.1f} ms before the flip, {} delayed)",
+                     "early, {} late ({} after a late submission), {} at the flip; low latency level {} "
+                     "(lead {:.1f} ms, frame start {:.1f} ms before the flip, {} delayed)",
                      frames, static_cast<double>(now_ns - window_start_ns) * 1e-9, slot_ms,
                      Pick(ready_ms, frames, 50), Pick(ready_ms, frames, 95),
                      Pick(ready_ms, frames, 100), Pick(shown_ms, frames, 50),
@@ -158,12 +163,12 @@ struct PresentTiming {
                      Pick(built_ms, inputs, 50), Pick(built_ms, inputs, 95),
                      Pick(built_ms, inputs, 100), Pick(input_ms, inputs, 50),
                      Pick(input_ms, inputs, 95), Pick(input_ms, inputs, 100), inputs, early, late,
-                     at_flip, LatencyLevel(), lead_ms,
+                     late_submit, at_flip, LatencyLevel(), lead_ms,
                      static_cast<double>(build_budget_ns.load(std::memory_order_relaxed)) * 1e-6,
                      eop_deferred_count.exchange(0, std::memory_order_relaxed));
         }
         frames = inputs = 0;
-        early = late = at_flip = 0;
+        early = late = late_submit = at_flip = 0;
         window_start_ns = now_ns;
     }
 };
@@ -219,7 +224,19 @@ void SignalGfxEop() {
     }
     eop_due_ns.store(due_ns, std::memory_order_relaxed);
     eop_pending.fetch_add(1, std::memory_order_relaxed);
+    last_deferral_ns.store(now_ns, std::memory_order_relaxed);
     eop_deferred_count.fetch_add(1, std::memory_order_relaxed);
+}
+
+bool SkipDisplayBufferWait() {
+    // Only while interrupts are being deferred (one every flip in the regular frame loop): the game then starts its frame
+    // just before the flip that would free its display buffer, so rendering at once gains the time of that wait, and the
+    // frame still cannot be shown before the flip pops the one ahead of it. Outside the regular loop the wait keeps the
+    // game's own pacing (without it a game throttled only by the flip queue could run its frames in bursts).
+    if (LatencyLevel() < 2) {
+        return false;
+    }
+    return NowNs() - last_deferral_ns.load(std::memory_order_relaxed) < 100000000;
 }
 
 constexpr static bool Is32BppPixelFormat(PixelFormat format) {

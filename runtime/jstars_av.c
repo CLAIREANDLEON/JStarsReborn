@@ -189,7 +189,10 @@ static int GUEST_ABI a_output(int handle, const void* buf) {
     if (buf) { ao_convert(p, buf); ao_meter(handle, p); wav_write(handle, p); }
     if (buf && p->host_port >= 0) {
         if (g_volume < 1.0f) for (unsigned i = 0; i < p->len * 2; ++i) p->stereo[i] *= g_volume; // player volume (after metering and the dump)
-        if (os_audio_port_write(p->host_port, p->stereo, p->len) < 0) { rt_logf("audio port %d: host device write failed; switching this port to the null sink", handle); os_audio_port_free(p->host_port); p->host_port = -1; }
+        const uint64_t t0 = rt_now_ns();
+        const int wrote = os_audio_port_write(p->host_port, p->stereo, p->len);
+        rt_wait_note(RT_WAIT_AUDIO, rt_now_ns() - t0, (const void*)(uintptr_t)handle);
+        if (wrote < 0) { rt_logf("audio port %d: host device write failed; switching this port to the null sink", handle); os_audio_port_free(p->host_port); p->host_port = -1; }
         else return (int)p->len;
     }
     // null sink: pace like a device of that rate
